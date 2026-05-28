@@ -21,6 +21,7 @@ export default function StudentPortal() {
 
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicGenerationError, setTopicGenerationError] = useState('');
+  const [generatedTopics, setGeneratedTopics] = useState([]);
 
   const subjects = [
     'Mathematics',
@@ -32,24 +33,49 @@ export default function StudentPortal() {
   const refreshGeneratedTopic = async (subjectOverride = activeSubject, gradeOverride = activeGrade) => {
     if (!subjectOverride) {
       setActiveTopic('');
+      setGeneratedTopics([]);
       setTopicGenerationError('');
       return;
     }
 
     setTopicLoading(true);
     setTopicGenerationError('');
+    setActiveTopic('');
+    setGeneratedTopics([]);
 
     try {
       const generated = await generateQuizTopic(subjectOverride, gradeOverride);
-      setActiveTopic(generated.topic);
+      const options = Array.isArray(generated) && generated.length > 0 ? generated : [
+        {
+          topic: `${subjectOverride} Fundamentals`,
+          syllabusReference: 'Sri Lankan government syllabus alignment',
+          whyRelevant: 'AI-generated syllabus-aligned topic.'
+        }
+      ];
+      setGeneratedTopics(options);
       setTopicGenerationError('');
     } catch (err) {
       console.error(err);
-      setActiveTopic(`${subjectOverride} Fundamentals`);
+      const fallbackOptions = [
+        {
+          topic: `${subjectOverride} Fundamentals`,
+          syllabusReference: 'Sri Lankan government syllabus alignment',
+          whyRelevant: 'AI-generated syllabus-aligned topic.'
+        }
+      ];
+      setGeneratedTopics(fallbackOptions);
+      setActiveTopic(fallbackOptions[0].topic);
       setTopicGenerationError('Generated fallback topic due to AI topic generation error.');
     } finally {
       setTopicLoading(false);
     }
+  };
+
+  const pickTopicForMe = () => {
+    if (generatedTopics.length === 0) return;
+    const chosenTopic = generatedTopics[Math.floor(Math.random() * generatedTopics.length)];
+    setActiveTopic(chosenTopic.topic);
+    setTopicGenerationError(`AI selected: ${chosenTopic.topic}`);
   };
 
   const handleGradeChange = async (grade) => {
@@ -71,18 +97,14 @@ export default function StudentPortal() {
   };
 
   const startQuiz = async () => {
-    if (!activeSubject) return;
+    if (!activeSubject || !activeTopic) return;
 
     setCurrentQuiz({ loading: true });
 
     try {
-      const generated = await generateQuizTopic(activeSubject, activeGrade);
-      const freshTopic = generated.topic;
-      setActiveTopic(freshTopic);
-
       const quizPayload = await runHarmonyCouncil(
         activeSubject,
-        freshTopic,
+        activeTopic,
         activeGrade,
         activeDifficulty,
         { streak: 0, history: [] } // Empty stats for new quiz initiation
@@ -199,9 +221,9 @@ export default function StudentPortal() {
               </div>
             </div>
 
-            {/* AI-generated topic */}
+            {/* AI-generated topics */}
             <div style={styles.selectBlock}>
-              <label style={styles.label}>AI-Generated Topic</label>
+              <label style={styles.label}>AI-Generated Topics</label>
               <div style={{
                 ...styles.optionGroup,
                 display: 'flex',
@@ -216,42 +238,119 @@ export default function StudentPortal() {
                   padding: '16px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '10px'
+                  gap: '12px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Sparkles size={16} style={{ color: '#06b6d4' }} />
-                      <span style={{ fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#06b6d4' }}>Syllabus-Aligned Topic</span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#06b6d4' }}>Syllabus-Aligned Topics</span>
                     </div>
-                    <button
-                      onClick={() => refreshGeneratedTopic()}
-                      disabled={!activeSubject || topicLoading}
-                      style={{
-                        ...styles.optionBtn,
-                        padding: '6px 10px',
-                        fontSize: '0.72rem',
-                        minWidth: 'auto',
-                        opacity: (!activeSubject || topicLoading) ? 0.5 : 1,
-                        cursor: (!activeSubject || topicLoading) ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      {topicLoading ? 'Generating...' : 'Regenerate'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={pickTopicForMe}
+                        disabled={!generatedTopics.length || topicLoading}
+                        style={{
+                          ...styles.optionBtn,
+                          padding: '6px 10px',
+                          fontSize: '0.72rem',
+                          minWidth: 'auto',
+                          opacity: (!generatedTopics.length || topicLoading) ? 0.5 : 1,
+                          cursor: (!generatedTopics.length || topicLoading) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        Select me a topic
+                      </button>
+                      <button
+                        onClick={() => refreshGeneratedTopic()}
+                        disabled={!activeSubject || topicLoading}
+                        style={{
+                          ...styles.optionBtn,
+                          padding: '6px 10px',
+                          fontSize: '0.72rem',
+                          minWidth: 'auto',
+                          opacity: (!activeSubject || topicLoading) ? 0.5 : 1,
+                          cursor: (!activeSubject || topicLoading) ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {topicLoading ? 'Generating...' : 'Regenerate'}
+                      </button>
+                    </div>
                   </div>
+
                   <div style={{
-                    fontSize: '1rem',
-                    fontWeight: '700',
-                    color: 'var(--text-primary)',
-                    minHeight: '24px'
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px'
                   }}>
-                    {topicLoading ? 'Generating a fresh Sri Lankan syllabus-aligned topic...' : (activeTopic || 'Select a subject to generate a topic')}
+                    {topicLoading ? (
+                      <div style={{
+                        fontSize: '0.92rem',
+                        color: 'var(--text-muted)',
+                        minHeight: '24px'
+                      }}>
+                        Generating 5 fresh Sri Lankan syllabus-aligned topics...
+                      </div>
+                    ) : generatedTopics.length > 0 ? (
+                      generatedTopics.map((topicOption, index) => {
+                        const isSelected = activeTopic === topicOption.topic;
+                        return (
+                          <button
+                            key={`${topicOption.topic}-${index}`}
+                            onClick={() => {
+                              setActiveTopic(topicOption.topic);
+                              setTopicGenerationError('');
+                            }}
+                            style={{
+                              ...styles.optionBtn,
+                              textAlign: 'left',
+                              alignItems: 'flex-start',
+                              minHeight: 'auto',
+                              backgroundColor: isSelected ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                              borderColor: isSelected ? '#06b6d4' : 'rgba(255, 255, 255, 0.08)',
+                              padding: '14px 16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '6px',
+                              width: '100%'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', width: '100%' }}>
+                              <div style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{topicOption.topic}</div>
+                              <span style={{
+                                fontSize: '0.62rem',
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.08em',
+                                background: isSelected ? 'rgba(6, 182, 212, 0.22)' : 'rgba(255,255,255,0.08)',
+                                color: isSelected ? '#67e8f9' : 'var(--text-secondary)',
+                                borderRadius: '999px',
+                                padding: '4px 8px'
+                              }}>
+                                {isSelected ? 'Selected' : 'Choose'}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: '1.35' }}>{topicOption.whyRelevant}</div>
+                            <div style={{ fontSize: '0.72rem', color: '#67e8f9', lineHeight: '1.35' }}>{topicOption.syllabusReference}</div>
+                          </button>
+                        );
+                      })
+                    ) : (
+                      <div style={{
+                        fontSize: '0.92rem',
+                        color: 'var(--text-muted)',
+                        minHeight: '24px'
+                      }}>
+                        Select a subject to generate 5 syllabus-aligned topic options.
+                      </div>
+                    )}
                   </div>
+
                   <div style={{
                     fontSize: '0.84rem',
                     color: 'var(--text-muted)',
                     lineHeight: '1.4'
                   }}>
-                    {topicGenerationError || `Generated for Grade ${activeGrade} ${activeSubject || 'subject'} using Sri Lankan government syllabus alignment.`}
+                    {topicGenerationError || (activeTopic ? `Selected topic: ${activeTopic}` : `Choose a topic or let AI pick one for Grade ${activeGrade} ${activeSubject || 'subject'}.`)}
                   </div>
                 </div>
               </div>

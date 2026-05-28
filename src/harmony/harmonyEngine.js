@@ -93,18 +93,23 @@ function getActiveProvider(exclude = []) {
 }
 
 /**
- * Generates a syllabus-aligned topic suggestion for the selected grade and subject.
- * The topic references Sri Lankan government curriculum expectations without relying on static lists.
+ * Generates five syllabus-aligned topic suggestions for the selected grade and subject.
+ * The topics reference Sri Lankan government curriculum expectations without relying on static lists.
  */
 export async function generateQuizTopic(subject, grade) {
   const provider = getActiveProvider();
   const prompt = `You are a Sri Lankan curriculum advisor for STEMMind AI.
-Generate a single, syllabus-aligned quiz topic for Grade ${grade} ${subject} using the Sri Lankan government school curriculum expectations.
-Return only a raw JSON object with these exact keys:
+Generate exactly 5 distinct, syllabus-aligned quiz topics for Grade ${grade} ${subject} using the Sri Lankan government school curriculum expectations.
+Return only a raw JSON object with this exact structure:
 {
-  "topic": "Specific topic name",
-  "syllabusReference": "Short note on how it aligns with the Sri Lankan government syllabus",
-  "whyRelevant": "One sentence explaining why this topic fits the selected grade and subject"
+  "topics": [
+    {
+      "topic": "Specific topic name",
+      "syllabusReference": "Short note on how it aligns with the Sri Lankan government syllabus",
+      "whyRelevant": "One sentence explaining why this topic fits the selected grade and subject"
+    },
+    ... exactly 5 objects total
+  ]
 }
 Do not include markdown formatting or extra explanations.`;
 
@@ -112,18 +117,22 @@ Do not include markdown formatting or extra explanations.`;
 
   try {
     const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
-    return {
-      topic: parsed.topic || 'General topic',
-      syllabusReference: parsed.syllabusReference || 'Sri Lankan government syllabus alignment',
-      whyRelevant: parsed.whyRelevant || 'AI-generated syllabus-aligned topic.'
-    };
+    const topics = Array.isArray(parsed.topics) ? parsed.topics : [];
+
+    return topics.slice(0, 5).map((entry) => ({
+      topic: entry.topic || 'General topic',
+      syllabusReference: entry.syllabusReference || 'Sri Lankan government syllabus alignment',
+      whyRelevant: entry.whyRelevant || 'AI-generated syllabus-aligned topic.'
+    }));
   } catch (err) {
-    const fallbackTopic = response.replace(/```json|```/g, '').trim().split('\n')[0].replace(/^[-*]\s*/, '');
-    return {
-      topic: fallbackTopic || `${subject} Fundamentals`,
+    const fallbackLines = response.replace(/```json|```/g, '').trim().split('\n').map(line => line.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
+    const fallbackTopics = fallbackLines.slice(0, 5);
+
+    return fallbackTopics.map((topic, index) => ({
+      topic: topic || `${subject} Fundamentals ${index + 1}`,
       syllabusReference: 'Sri Lankan government syllabus alignment',
       whyRelevant: 'AI-generated syllabus-aligned topic.'
-    };
+    }));
   }
 }
 

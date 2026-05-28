@@ -61,6 +61,7 @@ export default function STEMLiveMode() {
   const inFlightTurnRef = useRef(false);
   const queuedTranscriptRef = useRef('');
   const reconnectAttemptsRef = useRef(0);
+  const isMicMutedRef = useRef(false);
 
   const context = useMemo(
     () => ({
@@ -71,14 +72,25 @@ export default function STEMLiveMode() {
     [activeStudent?.name, activeSubject, activeTopic]
   );
 
-  const cleanupMic = () => {
-    if (speechRecognitionRef.current) {
-      speechRecognitionRef.current.onresult = null;
-      speechRecognitionRef.current.onerror = null;
-      speechRecognitionRef.current.onend = null;
+  useEffect(() => {
+    isMicMutedRef.current = isMicMuted;
+  }, [isMicMuted]);
+
+  const stopRecognition = () => {
+    if (!speechRecognitionRef.current) return;
+    speechRecognitionRef.current.onresult = null;
+    speechRecognitionRef.current.onerror = null;
+    speechRecognitionRef.current.onend = null;
+    try {
       speechRecognitionRef.current.stop();
-      speechRecognitionRef.current = null;
+    } catch {
+      // ignore stop races
     }
+    speechRecognitionRef.current = null;
+  };
+
+  const cleanupMic = () => {
+    stopRecognition();
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
@@ -211,7 +223,9 @@ export default function STEMLiveMode() {
   }, [context, isCameraOn, isMicMuted, sessionId, status, voiceLevel]);
 
   const initRecognition = () => {
-    if (!SpeechRecognitionApi || isMicMuted) return;
+    if (!SpeechRecognitionApi) return;
+    if (isMicMutedRef.current || endingRef.current) return;
+    stopRecognition();
     const recognition = new SpeechRecognitionApi();
     recognition.lang = 'en-US';
     recognition.interimResults = true;
@@ -228,19 +242,57 @@ export default function STEMLiveMode() {
       }
     };
     recognition.onerror = (event) => {
+      const code = event.error || 'unknown';
+      const benign = ['no-speech', 'aborted', 'audio-capture'];
+      if (benign.includes(code)) {
+        if (!isMicMutedRef.current && !endingRef.current) {
+          window.setTimeout(() => {
+            try {
+              recognition.start();
+            } catch {
+              // ignore restart races
+            }
+          }, 250);
+        }
+        return;
+      }
+      if (code === 'not-allowed') {
+        setStatus(STATES.error);
+        setError('MIC_PERMISSION_DENIED: Allow microphone access for speech recognition (Chrome recommended).');
+        setMicPermission('denied');
+        return;
+      }
       setStatus(STATES.error);
-      setError(`STT_ERROR_${event.error || 'unknown'}: Speech recognition failed.`);
+      setError(`STT_ERROR_${code}: Speech recognition failed. Use Chrome over HTTPS and allow the microphone.`);
     };
     recognition.onend = () => {
-      if (!isMicMuted && !endingRef.current) {
-        recognition.start();
+      if (!isMicMutedRef.current && !endingRef.current && speechRecognitionRef.current === recognition) {
+        window.setTimeout(() => {
+          try {
+            recognition.start();
+          } catch {
+            // ignore restart races
+          }
+        }, 200);
       }
     };
-    recognition.start();
-    speechRecognitionRef.current = recognition;
+    try {
+      recognition.start();
+      speechRecognitionRef.current = recognition;
+      setStatus(STATES.listening);
+    } catch {
+      setStatus(STATES.error);
+      setError('STT_START_FAILED: Could not start speech recognition. Try Chrome and reload.');
+    }
   };
 
   const startMicrophone = async () => {
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setStatus(STATES.error);
+      setError('MIC_UNSUPPORTED: Microphone access is not available in this browser.');
+      setMicPermission('denied');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -252,6 +304,9 @@ export default function STEMLiveMode() {
       micStreamRef.current = stream;
       const audioCtx = new AudioContext();
       audioContextRef.current = audioCtx;
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
       analyser.fftSize = 512;
@@ -260,12 +315,21 @@ export default function STEMLiveMode() {
       mediaAnalyserRef.current = analyser;
       mediaDataRef.current = new Uint8Array(analyser.frequencyBinCount);
       monitorVoiceLevel();
-      initRecognition();
-      setStatus(STATES.idle);
       setMicPermission('granted');
-    } catch {
+      if (recognitionSupported) {
+        initRecognition();
+      } else {
+        setStatus(STATES.error);
+        setError('STT_UNSUPPORTED: Speech recognition requires Chrome, Edge, or Safari over HTTPS.');
+      }
+    } catch (micError) {
+      const name = micError?.name || '';
       setStatus(STATES.error);
-      setError('MIC_PERMISSION_DENIED: Microphone permission is required for STEM Live.');
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError('MIC_PERMISSION_DENIED: Allow microphone access in browser settings for STEM Live.');
+      } else {
+        setError('MIC_START_FAILED: Could not open the microphone. Check permissions and try again.');
+      }
       setMicPermission('denied');
     }
   };
@@ -288,25 +352,33 @@ export default function STEMLiveMode() {
   };
 
   const startCamera = async () => {
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setIsCameraOn(false);
+      setCameraPermission('denied');
+      setVisionStatus('Camera not supported in this browser');
+      setError('CAMERA_UNSUPPORTED: Camera is not available in this browser.');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
         audio: false,
       });
       cameraStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => undefined);
-      }
       frameTimerRef.current = window.setInterval(captureFrame, FRAME_INTERVAL_MS);
       setIsCameraOn(true);
       setCameraPermission('granted');
       setVisionStatus('Visual context active');
-    } catch {
+    } catch (cameraError) {
       setIsCameraOn(false);
       setCameraPermission('denied');
       setVisionStatus('Visual context blocked');
-      setError('CAMERA_PERMISSION_DENIED: Camera access blocked, continuing voice-only.');
+      const name = cameraError?.name || '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError('CAMERA_PERMISSION_DENIED: Allow camera access in browser settings, or continue voice-only.');
+      } else {
+        setError('CAMERA_START_FAILED: Could not open the camera. Continuing voice-only.');
+      }
     }
   };
 
@@ -320,14 +392,23 @@ export default function STEMLiveMode() {
     await startCamera();
   };
 
-  const toggleMic = () => {
+  const toggleMic = async () => {
     if (isMicMuted) {
       setIsMicMuted(false);
+      isMicMutedRef.current = false;
+      if (audioContextRef.current?.state === 'suspended') {
+        await audioContextRef.current.resume().catch(() => undefined);
+      }
+      if (!micStreamRef.current) {
+        await startMicrophone();
+        return;
+      }
       initRecognition();
       return;
     }
     setIsMicMuted(true);
-    if (speechRecognitionRef.current) speechRecognitionRef.current.stop();
+    isMicMutedRef.current = true;
+    stopRecognition();
     setStatus(STATES.idle);
   };
 
@@ -391,6 +472,9 @@ export default function STEMLiveMode() {
           setWelcomeMessage(session.welcomeMessage);
         }
         await startMicrophone();
+        if (session.welcomeMessage) {
+          speakReply(session.welcomeMessage);
+        }
         startHeartbeat();
       } catch (sessionError) {
         setStatus(STATES.error);
@@ -415,6 +499,19 @@ export default function STEMLiveMode() {
   useEffect(() => {
     if (sessionId) startHeartbeat();
   }, [sessionId, startHeartbeat]);
+
+  useEffect(() => {
+    if (!isCameraOn || !cameraStreamRef.current || !videoRef.current) return undefined;
+    const video = videoRef.current;
+    video.srcObject = cameraStreamRef.current;
+    const playPromise = video.play();
+    if (playPromise?.catch) {
+      playPromise.catch(() => {
+        setError('CAMERA_PREVIEW_FAILED: Could not start camera preview. Toggle camera off and on.');
+      });
+    }
+    return undefined;
+  }, [isCameraOn]);
 
   const centerMessage =
     lastReply ||
@@ -452,17 +549,15 @@ export default function STEMLiveMode() {
         <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
         <p className="live-main-text">{centerMessage}</p>
         <p className="live-sub-text">
-          {booting ? 'Starting STEM Live...' : error || visionStatus}
+          {booting
+            ? 'Starting STEM Live...'
+            : error || visionStatus || (!recognitionSupported ? 'Speech recognition needs Chrome over HTTPS.' : '')}
         </p>
         <p className="live-sub-text">{lastUserUtterance ? `You said: ${lastUserUtterance}` : ''}</p>
-        {isCameraOn ? (
-          <div className="live-camera-preview-wrap">
-            <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
-            <span className="live-camera-badge">Visual intelligence on</span>
-          </div>
-        ) : (
-          <video ref={videoRef} autoPlay playsInline muted className="live-hidden-preview" />
-        )}
+        <div className={`live-camera-preview-wrap ${isCameraOn ? '' : 'is-hidden'}`}>
+          <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
+          {isCameraOn ? <span className="live-camera-badge">Visual intelligence on</span> : null}
+        </div>
       </main>
 
       <footer className="stem-live-bottom">

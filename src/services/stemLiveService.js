@@ -20,6 +20,36 @@ const ensureEndpoint = () => {
   return `${url}/functions/v1/stem-live`;
 };
 
+const format401Message = (data) => {
+  const serverMsg = String(data?.error || data?.message || '').trim();
+  const errorCode = data?.errorCode || '';
+
+  if (
+    !errorCode &&
+    /invalid jwt|jwt expired|missing authorization|unauthorized/i.test(serverMsg)
+  ) {
+    return (
+      'STEM Live auth was blocked by the Supabase gateway. In Dashboard → Edge Functions → stem-live, ' +
+      'turn OFF "Verify JWT with legacy secret". This app sends a Firebase ID token in Authorization, not a Supabase JWT.'
+    );
+  }
+
+  if (
+    errorCode === 'UNAUTHORIZED' ||
+    /bearer token|firebase token|FIREBASE_PROJECT_ID/i.test(serverMsg)
+  ) {
+    return (
+      `[UNAUTHORIZED] ${serverMsg || 'Your sign-in token was rejected.'} ` +
+      'Sign out and sign in again. On Supabase, set edge secret FIREBASE_PROJECT_ID=g9-tutor to match your Firebase web app.'
+    );
+  }
+
+  return (
+    `[AUTH_FAILED] ${serverMsg || 'Unauthorized.'} ` +
+    'Sign in again. Confirm FIREBASE_PROJECT_ID=g9-tutor on the stem-live function and gateway JWT verification is OFF.'
+  );
+};
+
 const request = async (payload) => {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('Please sign in before using STEM Live.');
@@ -56,8 +86,11 @@ const request = async (payload) => {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error(format401Message(data));
+    }
     const code = data?.errorCode ? `[${data.errorCode}] ` : '';
-    const serverMsg = data?.error || 'STEM Live request failed.';
+    const serverMsg = data?.error || data?.message || 'STEM Live request failed.';
     const deployHint =
       response.status === 404 || response.status === 502
         ? ' If the function is missing, deploy the stem-live Edge Function.'

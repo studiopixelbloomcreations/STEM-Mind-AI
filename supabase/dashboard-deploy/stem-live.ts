@@ -95,15 +95,26 @@ const safeJson = async (request: Request) => {
 const verifyFirebaseAuth = async (request: Request) => {
   const authHeader = request.headers.get('authorization') || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
-  if (!token) throw new Error('Missing bearer token.');
-  if (!env.firebaseProjectId) throw new Error('FIREBASE_PROJECT_ID is not configured.');
-  const verification = await jwtVerify(token, firebaseJwks, {
-    issuer: `https://securetoken.google.com/${env.firebaseProjectId}`,
-    audience: env.firebaseProjectId,
-  });
-  const uid = String(verification.payload.sub || '');
-  if (!uid) throw new Error('Invalid auth token.');
-  return { uid };
+  if (!token) throw new Error('Missing bearer token. Sign in and retry STEM Live.');
+  if (!env.firebaseProjectId) {
+    throw new Error(
+      'FIREBASE_PROJECT_ID is not configured on stem-live. Set it to g9-tutor in Supabase Edge Function secrets.'
+    );
+  }
+  try {
+    const verification = await jwtVerify(token, firebaseJwks, {
+      issuer: `https://securetoken.google.com/${env.firebaseProjectId}`,
+      audience: env.firebaseProjectId,
+    });
+    const uid = String(verification.payload.sub || '');
+    if (!uid) throw new Error('Invalid auth token: missing subject.');
+    return { uid };
+  } catch (verifyError) {
+    const detail = verifyError instanceof Error ? verifyError.message : 'Token verification failed.';
+    throw new Error(
+      `Firebase token rejected (${detail}). Confirm FIREBASE_PROJECT_ID=${env.firebaseProjectId} matches your signed-in Firebase project.`
+    );
+  }
 };
 
 const ensureStudentOwnedByTeacher = async (studentId: string, teacherId: string) => {
@@ -412,10 +423,14 @@ Deno.serve(async (request) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unhandled server error.';
+    const jwtCode = typeof error === 'object' && error && 'code' in error ? String((error as { code?: string }).code || '') : '';
     const isAuthError =
       message.includes('bearer token') ||
       message.includes('auth token') ||
-      message.includes('FIREBASE_PROJECT_ID');
+      message.includes('Firebase token rejected') ||
+      message.includes('FIREBASE_PROJECT_ID') ||
+      jwtCode.startsWith('ERR_JWT') ||
+      jwtCode === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED';
     return json(
       request,
       {

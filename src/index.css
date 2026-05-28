@@ -567,6 +567,18 @@ svg {
   position: relative;
 }
 
+.live-camera-preview-wrap.is-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  box-shadow: none;
+}
+
 .live-camera-preview {
   display: block;
   width: 100%;

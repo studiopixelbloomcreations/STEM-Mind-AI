@@ -285,3 +285,89 @@ function evaluateConfidence(questionData, grade) {
   if (!questionData.hints || questionData.hints.length === 0) score -= 10;
   return Math.max(10, score);
 }
+
+/**
+ * 8. VISUAL TEACHER AI: Generates step-by-step visual lessons and voice narratives.
+ */
+export async function runVisualTeacherAgent(question, correctAnswer, simplerMode = false) {
+  const provider = getActiveProvider();
+  const simplicityPrompt = simplerMode 
+    ? "Break this down even further with extremely simple real-world analogies, drawing basic pictures using HTML symbols or icons, like explaining to a 5-year-old child."
+    : "Break this down into easy mathematical steps with high-fidelity visual diagrams (HTML styled mathematical boxes, equations, colored steps).";
+
+  const prompt = `You are the Visual Teacher AI.
+Question: "${question}"
+Correct Answer: "${correctAnswer}"
+
+${simplicityPrompt}
+
+Generate exactly 3 to 5 sequential steps to teach the student how to solve this. For each step, create:
+1. "visual": A beautifully styled HTML snippet (using inline CSS) that represents a live diagram, formula, math box, or step-by-step progress visually. Do NOT include paragraphs of text or captions here. Keep it to math expressions, colored text, symbols, or blocks.
+2. "speech": What you will explain using voice narration (friendly, direct, clear explanation).
+
+Output a raw JSON array of objects only. Do NOT wrap in markdown code blocks.
+Format:
+[
+  {
+    "visual": "<div style='font-size:24px; color:#8b5cf6; text-align:center; padding:10px;'>x^2 + 5x + 6 = 0</div>",
+    "speech": "Let's start by looking at our quadratic equation. We need to find two numbers that multiply to six and add up to five."
+  }
+]`;
+
+  const response = await callProvider(provider, [{ role: 'user', content: prompt }]);
+  try {
+    return JSON.parse(response.replace(/```json|```/g, '').trim());
+  } catch (err) {
+    console.error("Failed to parse visual teacher payload:", err, response);
+    return [
+      {
+        visual: `<div style="font-size:20px; color:#ef4444; text-align:center;">Question: ${question}</div>`,
+        speech: `Let's work through this question. The correct answer is ${correctAnswer}.`
+      }
+    ];
+  }
+}
+
+/**
+ * 9. STEP-BY-STEP EXPLANATION AI: Generates structured sequence of explanations for wrong answers.
+ */
+export async function runStepByStepExplanationAgent(question, correctAnswer, wrongAnswer, eli10 = false) {
+  const provider = getActiveProvider();
+  const simplicityPrompt = eli10 
+    ? "Explain like I am 10 years old, using super simple analogies." 
+    : "Provide a clear, high-quality step-by-step academic breakdown.";
+
+  const prompt = `You are the Explanation AI. The student answered incorrectly.
+Question: "${question}"
+Correct Answer: "${correctAnswer}"
+Student's Answer: "${wrongAnswer}"
+
+${simplicityPrompt}
+
+Break the explanation down into 3 to 5 logical steps so the student can follow along easily. For each step, provide:
+1. "caption": A text summary of this step that will remain on-screen for the student to read.
+2. "speech": The friendly spoken voice narration explaining this step in detail.
+
+Output a raw JSON array of objects only. Do NOT wrap in markdown code blocks.
+Format:
+[
+  {
+    "caption": "Step 1: Understand the core numbers.",
+    "speech": "First, let's look at the terms. The coefficient of the middle term is five, and the constant is six."
+  }
+]`;
+
+  const response = await callProvider(provider, [{ role: 'user', content: prompt }]);
+  try {
+    return JSON.parse(response.replace(/```json|```/g, '').trim());
+  } catch (err) {
+    console.error("Failed to parse step-by-step explanation payload:", err, response);
+    return [
+      {
+        caption: `Incorrect answer. The correct value is ${correctAnswer}.`,
+        speech: `Your answer was incorrect. Let's look at the correct solution which is ${correctAnswer}.`
+      }
+    ];
+  }
+}
+

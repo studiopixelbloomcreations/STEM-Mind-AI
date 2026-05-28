@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { runHarmonyCouncil, runExplanationAgent } from '../harmony/harmonyEngine';
+import { 
+  runHarmonyCouncil, 
+  runExplanationAgent, 
+  runVisualTeacherAgent, 
+  runStepByStepExplanationAgent 
+} from '../harmony/harmonyEngine';
 import voiceSynthesizer from '../utils/voiceSynthesizer';
 import { 
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 
   ChevronRight, Brain, Lightbulb, GraduationCap, Clock,
-  Sun, Moon, Laptop
+  Sun, Moon, Laptop, RotateCcw, Play, ArrowRight, BookOpen
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
@@ -25,6 +30,20 @@ export default function QuizView() {
   const [explanation, setExplanation] = useState('');
   const [eli10, setEli10] = useState(false);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
+
+  // Step-by-Step explanation state for wrong answers
+  const [wrongSteps, setWrongSteps] = useState([]);
+  const [currentWrongStep, setCurrentWrongStep] = useState(0);
+  const [loadingWrongSteps, setLoadingWrongSteps] = useState(false);
+  const [explanationExpandedMode, setExplanationExpandedMode] = useState(false);
+
+  // Interactive teaching mode state ("I don't know how to solve this")
+  const [teachingMode, setTeachingMode] = useState(false);
+  const [teachingSteps, setTeachingSteps] = useState([]);
+  const [currentTeachingStep, setCurrentTeachingStep] = useState(0);
+  const [loadingTeaching, setLoadingTeaching] = useState(false);
+  const [teachingSimplerMode, setTeachingSimplerMode] = useState(false);
+  const [speakingStep, setSpeakingStep] = useState(false);
   
   // Quiz tracking
   const [quizScore, setQuizScore] = useState(0);
@@ -32,6 +51,7 @@ export default function QuizView() {
   const [showHint, setShowHint] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+
 
   // Timer effect
   useEffect(() => {
@@ -108,17 +128,97 @@ export default function QuizView() {
     
     if (correct) {
       setQuizScore(prev => prev + 1);
+      
+      // Standard Correct Explanation
+      setLoadingExplanation(true);
+      try {
+        const explContent = await runExplanationAgent(question, correctAnswer, studentAnswer, eli10);
+        setExplanation(explContent);
+      } catch (e) {
+        setExplanation('Could not fetch explanation details.');
+      } finally {
+        setLoadingExplanation(false);
+      }
+    } else {
+      // Wrong Answer Step-by-Step Full-screen Mode
+      await startWrongAnswerExplanation(studentAnswer);
     }
+  };
 
-    // Generate Explanation
-    setLoadingExplanation(true);
+  // Trigger step-by-step wrong answer explanation loading
+  const startWrongAnswerExplanation = async (studentAnswer, currentEli10 = eli10) => {
+    setLoadingWrongSteps(true);
+    setExplanationExpandedMode(true);
     try {
-      const explContent = await runExplanationAgent(question, correctAnswer, studentAnswer, eli10);
-      setExplanation(explContent);
-    } catch (e) {
-      setExplanation('Could not fetch explanation details.');
+      const steps = await runStepByStepExplanationAgent(question, correctAnswer, studentAnswer, currentEli10);
+      setWrongSteps(steps);
+      setCurrentWrongStep(0);
+      if (steps && steps.length > 0) {
+        setSpeakingStep(true);
+        voiceSynthesizer.speakPuter(steps[0].speech, () => setSpeakingStep(false));
+      }
+    } catch (err) {
+      console.error(err);
+      setWrongSteps([{ caption: "Failed to generate steps.", speech: "Sorry, I could not generate the explanation steps." }]);
     } finally {
-      setLoadingExplanation(false);
+      setLoadingWrongSteps(false);
+    }
+  };
+
+  const handleWrongStepNext = () => {
+    if (currentWrongStep < wrongSteps.length - 1) {
+      const nextIdx = currentWrongStep + 1;
+      setCurrentWrongStep(nextIdx);
+      setSpeakingStep(true);
+      voiceSynthesizer.speakPuter(wrongSteps[nextIdx].speech, () => setSpeakingStep(false));
+    }
+  };
+
+  const handleWrongStepPrev = () => {
+    if (currentWrongStep > 0) {
+      const prevIdx = currentWrongStep - 1;
+      setCurrentWrongStep(prevIdx);
+      setSpeakingStep(true);
+      voiceSynthesizer.speakPuter(wrongSteps[prevIdx].speech, () => setSpeakingStep(false));
+    }
+  };
+
+  // Trigger interactive visual teaching mode
+  const startInteractiveTeaching = async (simpler = false) => {
+    setTeachingMode(true);
+    setLoadingTeaching(true);
+    setTeachingSimplerMode(simpler);
+    try {
+      const steps = await runVisualTeacherAgent(question, correctAnswer, simpler);
+      setTeachingSteps(steps);
+      setCurrentTeachingStep(0);
+      if (steps && steps.length > 0) {
+        setSpeakingStep(true);
+        voiceSynthesizer.speakPuter(steps[0].speech, () => setSpeakingStep(false));
+      }
+    } catch (err) {
+      console.error(err);
+      setTeachingSteps([{ visual: "<div style='color:red;'>Failed to load.</div>", speech: "Could not load teaching steps." }]);
+    } finally {
+      setLoadingTeaching(false);
+    }
+  };
+
+  const handleTeachingStepNext = () => {
+    if (currentTeachingStep < teachingSteps.length - 1) {
+      const nextIdx = currentTeachingStep + 1;
+      setCurrentTeachingStep(nextIdx);
+      setSpeakingStep(true);
+      voiceSynthesizer.speakPuter(teachingSteps[nextIdx].speech, () => setSpeakingStep(false));
+    }
+  };
+
+  const handleTeachingStepPrev = () => {
+    if (currentTeachingStep > 0) {
+      const prevIdx = currentTeachingStep - 1;
+      setCurrentTeachingStep(prevIdx);
+      setSpeakingStep(true);
+      voiceSynthesizer.speakPuter(teachingSteps[prevIdx].speech, () => setSpeakingStep(false));
     }
   };
 
@@ -127,15 +227,7 @@ export default function QuizView() {
     const studentAnswer = questionType === 'MCQ' || questionType === 'True/False' ? selectedAnswer : typedAnswer;
     const nextEli = !eli10;
     setEli10(nextEli);
-    setLoadingExplanation(true);
-    try {
-      const explContent = await runExplanationAgent(question, correctAnswer, studentAnswer, nextEli);
-      setExplanation(explContent);
-    } catch (e) {
-      setExplanation('Could not fetch explanation details.');
-    } finally {
-      setLoadingExplanation(false);
-    }
+    await startWrongAnswerExplanation(studentAnswer, nextEli);
   };
 
   const handleNext = async () => {
@@ -164,6 +256,14 @@ export default function QuizView() {
     setExplanation('');
     setEli10(false);
     setQuestionCount(prev => prev + 1);
+    setExplanationExpandedMode(false);
+    setWrongSteps([]);
+    setCurrentWrongStep(0);
+    setTeachingMode(false);
+    setTeachingSteps([]);
+    setCurrentTeachingStep(0);
+    setTeachingSimplerMode(false);
+    voiceSynthesizer.stop();
 
     setCurrentQuiz({ loading: true });
     try {
@@ -234,172 +334,360 @@ export default function QuizView() {
 
       {/* Main quiz interface */}
       <main style={styles.main}>
-        <div style={styles.layoutGrid}>
-          {/* Main Question Card */}
-          <div style={styles.leftCol} className="card-glass">
-            <div style={styles.cardHeader}>
-              <div style={styles.confidenceWrap}>
-                <Sparkles size={14} style={{ color: '#06b6d4' }} />
-                <span>Confidence Score: {confidenceScore}%</span>
-              </div>
+        {teachingMode ? (
+          /* Live visual teaching mode takes full width */
+          <div className="card-glass" style={{ maxWidth: '800px', margin: '0 auto', padding: '40px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-secondary)' }}>
+                <BookOpen size={24} />
+                <span>Interactive Visual Masterclass</span>
+              </h2>
               <button 
-                onClick={() => handleSpeak(question)} 
-                className="btn-secondary" 
-                style={styles.voiceBtn}
-              >
-                {isSpeaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                <span>Narration</span>
-              </button>
-            </div>
-
-            <h2 style={styles.questionText}>{question}</h2>
-
-            {/* Answer Input controls */}
-            <div style={styles.inputsWrapper}>
-              {(questionType === 'MCQ' || questionType === 'True/False') && choices ? (
-                <div style={styles.choicesGrid}>
-                  {choices.map((choice, index) => (
-                    <button
-                      key={index}
-                      onClick={() => !submitted && setSelectedAnswer(choice)}
-                      disabled={submitted}
-                      style={{
-                        ...styles.choiceCard,
-                        borderColor: selectedAnswer === choice ? '#8b5cf6' : 'rgba(255, 255, 255, 0.05)',
-                        backgroundColor: selectedAnswer === choice ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-                        cursor: submitted ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      {choice}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  placeholder="Type your response here..."
-                  value={typedAnswer}
-                  onChange={e => setTypedAnswer(e.target.value)}
-                  disabled={submitted}
-                  className="input-field"
-                  style={styles.textInput}
-                />
-              )}
-            </div>
-
-            {/* Footer triggers */}
-            <div style={styles.cardFooter}>
-              <button 
-                onClick={() => setShowHint(!showHint)} 
-                className="btn-secondary"
-                style={{ padding: '8px 16px' }}
-              >
-                <Lightbulb size={16} />
-                <span>{showHint ? 'Hide Hint' : 'Get Hint'}</span>
-              </button>
-
-              {!submitted ? (
-                <button onClick={handleSubmit} className="btn-primary" style={styles.submitBtn}>
-                  Submit Answer
-                </button>
-              ) : (
-                <button onClick={handleNext} className="btn-primary" style={styles.submitBtn}>
-                  <span>{questionCount >= 5 ? 'Finish & Save' : 'Next Question'}</span>
-                  <ChevronRight size={18} />
-                </button>
-              )}
-            </div>
-
-            {showHint && hints && (
-              <div style={styles.hintBox}>
-                <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
-                  <Lightbulb size={16} />
-                  <span>Teacher AI Hint</span>
-                </h4>
-                <p>{hints[0]}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column: Feedback, Explanations, Coach, Motivation */}
-          <div style={styles.rightCol}>
-            {submitted && (
-              <div 
-                style={{
-                  ...styles.feedbackCard,
-                  borderColor: isCorrect ? '#10b981' : '#ef4444',
-                  backgroundColor: isCorrect ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)'
+                onClick={() => {
+                  voiceSynthesizer.stop();
+                  setTeachingMode(false);
                 }}
-                className="card-glass"
+                className="btn-secondary"
+                style={{ padding: '6px 12px', fontSize: '0.85rem' }}
               >
-                <div style={styles.feedbackTitleRow}>
-                  {isCorrect ? (
-                    <>
-                      <Check size={20} style={{ color: '#10b981' }} />
-                      <h3 style={{ color: '#10b981' }}>Correct Answer</h3>
-                    </>
+                Exit Teaching
+              </button>
+            </div>
+
+            {loadingTeaching ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px' }}>
+                <Brain size={48} className="glow-pulse" style={{ color: '#06b6d4', marginBottom: '16px' }} />
+                <p style={{ color: 'var(--text-secondary)' }}>Visual Teacher AI is preparing steps...</p>
+              </div>
+            ) : (
+              <div>
+                {/* Live Visual Section */}
+                <div className="visual-canvas">
+                  {teachingSteps[currentTeachingStep] ? (
+                    <div 
+                      dangerouslySetInnerHTML={{ __html: teachingSteps[currentTeachingStep].visual }} 
+                      style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    />
                   ) : (
-                    <>
-                      <X size={20} style={{ color: '#ef4444' }} />
-                      <h3 style={{ color: '#ef4444' }}>Incorrect Answer</h3>
-                    </>
+                    <p style={{ color: 'var(--text-secondary)' }}>No visuals for this step</p>
                   )}
                 </div>
 
-                <p style={styles.correctInfo}>Correct value: <strong>{correctAnswer}</strong></p>
+                {/* Navigation controls */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+                  <button 
+                    onClick={handleTeachingStepPrev} 
+                    disabled={currentTeachingStep === 0} 
+                    className="btn-secondary"
+                  >
+                    Previous
+                  </button>
+                  <span style={{ fontWeight: '600' }}>Step {currentTeachingStep + 1} of {teachingSteps.length}</span>
+                  <button 
+                    onClick={currentTeachingStep === teachingSteps.length - 1 ? undefined : handleTeachingStepNext} 
+                    disabled={currentTeachingStep === teachingSteps.length - 1} 
+                    className="btn-primary"
+                    style={{ visibility: currentTeachingStep === teachingSteps.length - 1 ? 'hidden' : 'visible' }}
+                  >
+                    Next Step
+                  </button>
+                </div>
 
-                <div style={styles.explanationSection}>
-                  <div style={styles.explanationHeader}>
-                    <h4>Explanation AI</h4>
+                {/* Voice replay button */}
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                  <button
+                    onClick={() => {
+                      if (teachingSteps[currentTeachingStep]) {
+                        voiceSynthesizer.speakPuter(teachingSteps[currentTeachingStep].speech);
+                      }
+                    }}
+                    className="btn-secondary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 16px', fontSize: '0.85rem' }}
+                  >
+                    <Volume2 size={16} />
+                    <span>Repeat Narration</span>
+                  </button>
+                </div>
+
+                {/* Options at the end of teaching */}
+                {currentTeachingStep === teachingSteps.length - 1 && (
+                  <div style={{ marginTop: '40px', borderTop: '1px solid var(--border-color)', paddingTop: '24px', display: 'flex', justifyContent: 'center', gap: '16px' }}>
+                    <button 
+                      onClick={() => startInteractiveTeaching(true)} 
+                      className="btn-secondary"
+                      style={{ borderColor: 'var(--color-warning)' }}
+                    >
+                      <RotateCcw size={16} />
+                      <span>I still didn't get it</span>
+                    </button>
+                    <button 
+                      onClick={() => {
+                        voiceSynthesizer.stop();
+                        setTeachingMode(false);
+                      }} 
+                      className="btn-primary"
+                    >
+                      <span>I got it, let's try!</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={styles.layoutGrid}>
+            {/* Main Question Card */}
+            <div style={styles.leftCol} className={`card-glass ${explanationExpandedMode ? 'fade-out-out' : ''}`}>
+              <div style={styles.cardHeader}>
+                <div style={styles.confidenceWrap}>
+                  <Sparkles size={14} style={{ color: '#06b6d4' }} />
+                  <span>Confidence Score: {confidenceScore}%</span>
+                </div>
+                <button 
+                  onClick={() => handleSpeak(question)} 
+                  className="btn-secondary" 
+                  style={styles.voiceBtn}
+                >
+                  {isSpeaking ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  <span>Narration</span>
+                </button>
+              </div>
+
+              <h2 style={styles.questionText}>{question}</h2>
+
+              {/* Answer Input controls */}
+              <div style={styles.inputsWrapper}>
+                {(questionType === 'MCQ' || questionType === 'True/False') && choices ? (
+                  <div style={styles.choicesGrid}>
+                    {choices.map((choice, index) => (
+                      <button
+                        key={index}
+                        onClick={() => !submitted && setSelectedAnswer(choice)}
+                        disabled={submitted}
+                        style={{
+                          ...styles.choiceCard,
+                          borderColor: selectedAnswer === choice ? '#8b5cf6' : 'rgba(255, 255, 255, 0.05)',
+                          backgroundColor: selectedAnswer === choice ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255, 255, 255, 0.02)',
+                          cursor: submitted ? 'not-allowed' : 'pointer'
+                        }}
+                      >
+                        {choice}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Type your response here..."
+                    value={typedAnswer}
+                    onChange={e => setTypedAnswer(e.target.value)}
+                    disabled={submitted}
+                    className="input-field"
+                    style={styles.textInput}
+                  />
+                )}
+              </div>
+
+              {/* Footer triggers */}
+              <div style={styles.cardFooter}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => setShowHint(!showHint)} 
+                    className="btn-secondary"
+                    style={{ padding: '8px 16px' }}
+                  >
+                    <Lightbulb size={16} />
+                    <span>{showHint ? 'Hide Hint' : 'Get Hint'}</span>
+                  </button>
+
+                  <button 
+                    onClick={() => startInteractiveTeaching(false)} 
+                    className="btn-secondary"
+                    style={{ padding: '8px 16px', borderColor: 'var(--accent-secondary)' }}
+                  >
+                    <HelpCircle size={16} />
+                    <span>I don't know how to solve this</span>
+                  </button>
+                </div>
+
+                {!submitted ? (
+                  <button onClick={handleSubmit} className="btn-primary" style={styles.submitBtn}>
+                    Submit Answer
+                  </button>
+                ) : (
+                  <button onClick={handleNext} className="btn-primary" style={styles.submitBtn}>
+                    <span>{questionCount >= 5 ? 'Finish & Save' : 'Next Question'}</span>
+                    <ChevronRight size={18} />
+                  </button>
+                )}
+              </div>
+
+              {showHint && hints && (
+                <div style={styles.hintBox}>
+                  <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b' }}>
+                    <Lightbulb size={16} />
+                    <span>Teacher AI Hint</span>
+                  </h4>
+                  <p>{hints[0]}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Feedback, Explanations, Coach, Motivation */}
+            <div style={explanationExpandedMode ? { width: '100%', gridColumn: '1 / -1' } : styles.rightCol}>
+              {/* Step by step Wrong explanation expands to full width */}
+              {submitted && !isCorrect && explanationExpandedMode && (
+                <div className="card-glass explanation-full-screen" style={{ borderColor: '#ef4444' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h3 style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-heading)' }}>
+                      <X size={20} />
+                      <span>Incorrect Answer Breakdown</span>
+                    </h3>
                     <button 
                       onClick={toggleEli10}
-                      style={{
-                        ...styles.eliBtn,
-                        backgroundColor: eli10 ? '#8b5cf6' : 'transparent',
-                        borderColor: eli10 ? '#8b5cf6' : 'rgba(255, 255, 255, 0.15)'
-                      }}
+                      className="eli-btn"
+                      style={styles.eliBtn}
                     >
-                      Explain Like I'm 10
+                      {eli10 ? 'Explain Standard' : "Explain Like I'm 10"}
                     </button>
                   </div>
 
-                  {loadingExplanation ? (
-                    <div className="shimmer" style={styles.explanationShimmer}></div>
+                  {loadingWrongSteps ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px' }}>
+                      <Brain size={36} className="glow-pulse" style={{ color: '#ef4444', marginBottom: '16px' }} />
+                      <p style={{ color: 'var(--text-secondary)' }}>Explanation AI is breaking it down...</p>
+                    </div>
                   ) : (
-                    <>
-                      <p style={styles.explanationBody}>{explanation}</p>
-                      <button 
-                        onClick={() => handleSpeak(explanation)}
-                        className="btn-secondary"
-                        style={{ padding: '4px 10px', fontSize: '0.8rem', marginTop: '8px' }}
-                      >
-                        Listen to Explanation
-                      </button>
-                    </>
+                    <div>
+                      {/* Caption stays on screen */}
+                      {wrongSteps[currentWrongStep] && (
+                        <div style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '12px', padding: '24px', minHeight: '120px', marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
+                          <p style={{ fontSize: '1.2rem', lineHeight: '1.6', width: '100%', color: 'var(--text-primary)', textAlign: 'center' }}>
+                            {wrongSteps[currentWrongStep].caption}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Step controls */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+                        <button 
+                          onClick={handleWrongStepPrev} 
+                          disabled={currentWrongStep === 0} 
+                          className="btn-secondary"
+                        >
+                          Previous Step
+                        </button>
+                        <span style={{ fontWeight: '600' }}>Step {currentWrongStep + 1} of {wrongSteps.length}</span>
+                        
+                        {currentWrongStep < wrongSteps.length - 1 ? (
+                          <button 
+                            onClick={handleWrongStepNext} 
+                            className="btn-primary"
+                          >
+                            <span>Next Step</span>
+                            <ArrowRight size={16} />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={handleNext} 
+                            className="btn-primary"
+                          >
+                            <span>{questionCount >= 5 ? 'Finish & Save' : 'Next Question'}</span>
+                            <ChevronRight size={18} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Voice replay button */}
+                      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+                        <button
+                          onClick={() => {
+                            if (wrongSteps[currentWrongStep]) {
+                              voiceSynthesizer.speakPuter(wrongSteps[currentWrongStep].speech);
+                            }
+                          }}
+                          className="btn-secondary"
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 16px', fontSize: '0.85rem' }}
+                        >
+                          <Volume2 size={16} />
+                          <span>Repeat Explanation</span>
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Exam Coach tips */}
-            <div style={styles.infoCard} className="card-glass">
-              <div style={styles.sectionTitleRow}>
-                <GraduationCap size={18} style={{ color: '#06b6d4' }} />
-                <h3>Exam Coach AI Strategy</h3>
-              </div>
-              <p style={styles.infoBody}>{examTips}</p>
-            </div>
+              {/* Standard Correct feedback card */}
+              {submitted && isCorrect && !explanationExpandedMode && (
+                <div 
+                  style={{
+                    ...styles.feedbackCard,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.05)'
+                  }}
+                  className="card-glass"
+                >
+                  <div style={styles.feedbackTitleRow}>
+                    <Check size={20} style={{ color: '#10b981' }} />
+                    <h3 style={{ color: '#10b981' }}>Correct Answer</h3>
+                  </div>
 
-            {/* Motivator support */}
-            <div style={styles.infoCard} className="card-glass">
-              <div style={styles.sectionTitleRow}>
-                <Brain size={18} style={{ color: '#8b5cf6' }} />
-                <h3>Motivator AI</h3>
+                  <p style={styles.correctInfo}>Correct value: <strong>{correctAnswer}</strong></p>
+
+                  <div style={styles.explanationSection}>
+                    <div style={styles.explanationHeader}>
+                      <h4>Explanation AI</h4>
+                      <button 
+                        onClick={toggleEli10}
+                        style={{
+                          ...styles.eliBtn,
+                          backgroundColor: eli10 ? '#8b5cf6' : 'transparent',
+                          borderColor: eli10 ? '#8b5cf6' : 'rgba(255, 255, 255, 0.15)'
+                        }}
+                      >
+                        Explain Like I'm 10
+                      </button>
+                    </div>
+
+                    {loadingExplanation ? (
+                      <div className="shimmer" style={styles.explanationShimmer}></div>
+                    ) : (
+                      <>
+                        <p style={styles.explanationBody}>{explanation}</p>
+                        <button 
+                          onClick={() => handleSpeak(explanation)}
+                          className="btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '0.8rem', marginTop: '8px' }}
+                        >
+                          Listen to Explanation
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Exam Coach tips */}
+              <div style={styles.infoCard} className={`card-glass ${explanationExpandedMode ? 'fade-out-out' : ''}`}>
+                <div style={styles.sectionTitleRow}>
+                  <GraduationCap size={18} style={{ color: '#06b6d4' }} />
+                  <h3>Exam Coach AI Strategy</h3>
+                </div>
+                <p style={styles.infoBody}>{examTips}</p>
               </div>
-              <p style={styles.infoBody}>{motivatorQuote}</p>
+
+              {/* Motivator support */}
+              <div style={styles.infoCard} className={`card-glass ${explanationExpandedMode ? 'fade-out-out' : ''}`}>
+                <div style={styles.sectionTitleRow}>
+                  <Brain size={18} style={{ color: '#8b5cf6' }} />
+                  <h3>Motivator AI</h3>
+                </div>
+                <p style={styles.infoBody}>{motivatorQuote}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );
@@ -588,3 +876,4 @@ const styles = {
     textAlign: 'center',
   }
 };
+

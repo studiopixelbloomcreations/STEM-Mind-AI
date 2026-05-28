@@ -27,7 +27,7 @@ const PROVIDERS = {
 /**
  * Executes a chat completion request to a specific provider.
  */
-async function callProvider(provider, messages, responseFormat = null) {
+async function callProvider(provider, messages, responseFormat = null, temperature = 0.7) {
   const apiKey = getProviderKey(provider);
   if (!apiKey) {
     throw new Error(`API key for provider "${provider}" is not configured.`);
@@ -50,7 +50,7 @@ async function callProvider(provider, messages, responseFormat = null) {
   const body = {
     model: config.model,
     messages: messages,
-    temperature: 0.7,
+    temperature: temperature,
   };
 
   if (responseFormat) {
@@ -99,7 +99,8 @@ function getActiveProvider(exclude = []) {
 export async function generateQuizTopic(subject, grade) {
   const provider = getActiveProvider();
   const prompt = `You are a Sri Lankan curriculum advisor for STEMMind AI.
-Generate exactly 5 distinct, syllabus-aligned quiz topics for Grade ${grade} ${subject} using the Sri Lankan government school curriculum expectations.
+Generate a completely fresh set of 5 distinct, syllabus-aligned quiz topics for Grade ${grade} ${subject} using the Sri Lankan government school curriculum expectations.
+The topics must be different from each other and should avoid repeating similar subtopics or phrasing. Use varied angles, examples, or applications that still fit the syllabus.
 Return only a raw JSON object with this exact structure:
 {
   "topics": [
@@ -113,7 +114,7 @@ Return only a raw JSON object with this exact structure:
 }
 Do not include markdown formatting or extra explanations.`;
 
-  const response = await callProvider(provider, [{ role: 'user', content: prompt }]);
+  const response = await callProvider(provider, [{ role: 'user', content: prompt }], null, 0.95);
 
   try {
     const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());

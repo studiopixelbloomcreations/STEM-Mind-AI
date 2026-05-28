@@ -10,7 +10,7 @@ import {
 } from '../services/stemLiveService';
 import voiceSynthesizer from '../utils/voiceSynthesizer';
 
-const WELCOME_MAX_WORDS = 12;
+const WELCOME_MAX_WORDS = 5;
 
 const firstNameFrom = (name) => {
   const trimmed = String(name || '').trim();
@@ -56,7 +56,6 @@ export default function STEMLiveMode() {
   const [lastReply, setLastReply] = useState('');
   const [lastUserUtterance, setLastUserUtterance] = useState('');
   const [captionsOn, setCaptionsOn] = useState(true);
-  const [visionStatus, setVisionStatus] = useState('Visual context disabled');
   const [recognitionSupported] = useState(Boolean(SpeechRecognitionApi));
   const [booting, setBooting] = useState(true);
   const [isEntering, setIsEntering] = useState(true);
@@ -229,7 +228,6 @@ export default function STEMLiveMode() {
         .replace(/\s+/g, ' ')
         .trim();
       setLastReply(replyText);
-      setVisionStatus(response.visionSummary || (isCameraOn ? 'Visual context active' : 'Visual context disabled'));
       reconnectAttemptsRef.current = 0;
       speakReply(replyText || 'Listening.');
     } catch (turnError) {
@@ -387,7 +385,6 @@ export default function STEMLiveMode() {
     if (!navigator?.mediaDevices?.getUserMedia) {
       setIsCameraOn(false);
       setCameraPermission('denied');
-      setVisionStatus('Camera not supported in this browser');
       setError('CAMERA_UNSUPPORTED: Camera is not available in this browser.');
       return;
     }
@@ -400,11 +397,9 @@ export default function STEMLiveMode() {
       frameTimerRef.current = window.setInterval(captureFrame, FRAME_INTERVAL_MS);
       setIsCameraOn(true);
       setCameraPermission('granted');
-      setVisionStatus('Visual context active');
     } catch (cameraError) {
       setIsCameraOn(false);
       setCameraPermission('denied');
-      setVisionStatus('Visual context blocked');
       const name = cameraError?.name || '';
       if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
         setError('CAMERA_PERMISSION_DENIED: Allow camera access in browser settings, or continue voice-only.');
@@ -418,7 +413,6 @@ export default function STEMLiveMode() {
     if (isCameraOn) {
       cleanupCamera();
       setIsCameraOn(false);
-      setVisionStatus('Visual context disabled');
       return;
     }
     await startCamera();
@@ -558,18 +552,15 @@ export default function STEMLiveMode() {
   }, [isCameraOn]);
 
   const studentFirstName = firstNameFrom(activeStudent?.name);
-  const heroWelcome =
-    welcomeMessage || (booting ? 'Connecting...' : `Ready, ${studentFirstName}.`);
-  const captionLine = lastReply || welcomeMessage;
+  const defaultWelcome = booting ? 'Connecting...' : `Ready, ${studentFirstName}.`;
+  const heroWelcome = clampLiveCaption(welcomeMessage || defaultWelcome, WELCOME_MAX_WORDS);
+  const captionAiLine = lastReply.trim();
+  const captionUserLine = lastUserUtterance.trim();
   const dockVoiceLevel = isMicMuted ? 0 : voiceLevel;
   const dockPillClass = [
     'stem-live-dock-pill',
     isMicMuted ? 'stem-live-dock-pill--inactive' : 'stem-live-dock-pill--active',
   ].join(' ');
-  const statusLine = booting
-    ? 'Starting STEM Live...'
-    : error || visionStatus || (!recognitionSupported ? 'Speech recognition needs Chrome over HTTPS.' : '');
-
   const canUseMic = !booting && recognitionSupported && micPermission !== 'denied';
   const screenClass = [
     'stem-live-screen',
@@ -602,18 +593,16 @@ export default function STEMLiveMode() {
       <main className="stem-live-center">
         <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
         {captionsOn ? (
-          <>
-            <p className="live-caption-text">
-              {captionLine || (booting ? 'Connecting...' : `Ready, ${studentFirstName}.`)}
-            </p>
-            {lastUserUtterance ? (
-              <p className="live-caption-user">You: {lastUserUtterance}</p>
+          <div className="live-caption-stack" aria-live="polite">
+            {captionUserLine ? <p className="live-caption-user">You: {captionUserLine}</p> : null}
+            {captionAiLine ? <p className="live-caption-text">STEM Mind: {captionAiLine}</p> : null}
+            {!captionUserLine && !captionAiLine && error ? (
+              <p className="live-caption-text live-caption-error">{error}</p>
             ) : null}
-          </>
+          </div>
         ) : (
           <p className="live-main-text">{heroWelcome}</p>
         )}
-        <p className="live-sub-text">{statusLine}</p>
         <div className={`live-camera-preview-wrap ${isCameraOn ? '' : 'is-hidden'}`}>
           <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
           {isCameraOn ? <span className="live-camera-badge">Visual intelligence on</span> : null}

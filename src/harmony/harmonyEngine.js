@@ -332,6 +332,49 @@ function evaluateConfidence(questionData, grade) {
 }
 
 /**
+ * Derive teachable question prompts from a vision-analyze payload.
+ */
+export function extractVisionTeachingQuestions(analysis = {}) {
+  const extractedText = String(analysis.extractedText || '').trim();
+  const summary = String(analysis.summary || '').trim();
+  const numbered = extractedText
+    .split(/\n(?=\s*\d+[\.\):\-]\s+)/)
+    .map((chunk) => chunk.trim())
+    .filter(Boolean);
+  if (numbered.length > 1) return numbered;
+
+  const questionMarks = extractedText
+    .split(/\n(?=[^\n]*\?)/)
+    .map((chunk) => chunk.trim())
+    .filter((chunk) => chunk.includes('?'));
+  if (questionMarks.length > 1) return questionMarks;
+
+  const structuredSteps = Array.isArray(analysis.structuredSteps) ? analysis.structuredSteps : [];
+  if (structuredSteps.length > 1) {
+    return structuredSteps.map((step, index) => {
+      const title = step?.title || `Problem ${index + 1}`;
+      const explanation = step?.explanation || '';
+      return `${title}${explanation ? `: ${explanation}` : ''}`.trim();
+    });
+  }
+
+  if (extractedText) return [extractedText];
+  if (summary) return [summary];
+  return ['Work through this worksheet problem step by step.'];
+}
+
+export function visionTeachingAnswerFor(analysis = {}) {
+  const summary = String(analysis.summary || '').trim();
+  const steps = Array.isArray(analysis.structuredSteps) ? analysis.structuredSteps : [];
+  if (summary) return summary;
+  if (steps.length > 0) {
+    const last = steps[steps.length - 1];
+    return `${last?.title || 'Solution'}: ${last?.explanation || ''}`.trim();
+  }
+  return 'Use the structured solution from the worksheet analysis.';
+}
+
+/**
  * 8. VISUAL TEACHER AI: Generates step-by-step visual lessons and voice narratives.
  */
 export async function runVisualTeacherAgent(question, correctAnswer, simplerMode = false) {

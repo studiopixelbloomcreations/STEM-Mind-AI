@@ -131,7 +131,7 @@ const ensureStudentOwnedByTeacher = async (studentId: string, teacherId: string)
 
 const sanitizeText = (input: unknown) => String(input || '').replace(/\s+/g, ' ').trim().slice(0, 6000);
 
-const WELCOME_MAX_WORDS = 12;
+const WELCOME_MAX_WORDS = 5;
 
 const firstNameFrom = (name: string) => {
   const trimmed = String(name || '').trim();
@@ -219,7 +219,7 @@ const generateWelcomeMessage = async (params: {
   const subject = params.subject || 'STEM';
   const topic = params.topic || 'your lesson';
   const systemPrompt =
-    'You are STEM Live by STEM Mind AI. Output ONLY one ultra-short spoken greeting (max 8 words). Examples: "Ready, Maya." or "Hi Alex, let\'s go." No questions. No UI or microphone mentions.';
+    'You are STEM Live by STEM Mind AI. Output ONLY one ultra-short spoken greeting (max 5 words). Examples: "Ready, Maya." or "Hi Alex." No questions. No UI or microphone mentions.';
   const userPrompt = `Greet ${firstName} starting a ${subject} session on ${topic}.`;
   const aiWelcome = await runOpenRouterText(systemPrompt, userPrompt, 24);
   if (aiWelcome) return clampWelcomeMessage(aiWelcome);

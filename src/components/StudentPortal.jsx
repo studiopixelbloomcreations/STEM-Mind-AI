@@ -3,10 +3,11 @@ import { useApp } from '../context/AppContext';
 import { generateQuizTopic, runHarmonyCouncil } from '../harmony/harmonyEngine';
 import { 
   ChevronLeft, Award, Play, 
-  Sparkles,
+  Sparkles, ScanLine,
   Sun, Moon, Laptop
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import VisionCapturePanel from './VisionCapturePanel';
 
 export default function StudentPortal() {
   const { 
@@ -22,6 +23,7 @@ export default function StudentPortal() {
   const [topicLoading, setTopicLoading] = useState(false);
   const [topicGenerationError, setTopicGenerationError] = useState('');
   const [generatedTopics, setGeneratedTopics] = useState([]);
+  const [learningHubView, setLearningHubView] = useState('adaptive');
 
   const subjects = [
     'Mathematics',
@@ -379,21 +381,53 @@ export default function StudentPortal() {
           </div>
 
           <div className="student-start-bar">
-            <div style={styles.startBarButtons}>
+            <div style={styles.hubModeRow}>
               <button
-                onClick={startQuiz}
-                disabled={!activeSubject || !activeTopic}
-                className="btn-primary"
+                type="button"
+                className="btn-secondary"
+                onClick={() => setLearningHubView('adaptive')}
                 style={{
-                  ...styles.startBtn,
-                  opacity: (!activeSubject || !activeTopic) ? 0.5 : 1,
-                  cursor: (!activeSubject || !activeTopic) ? 'not-allowed' : 'pointer'
+                  ...styles.modeBtn,
+                  borderColor: learningHubView === 'adaptive' ? '#8b5cf6' : 'var(--border-color)',
+                  background: learningHubView === 'adaptive' ? 'rgba(139, 92, 246, 0.18)' : 'rgba(255,255,255,0.03)',
                 }}
               >
-                <Play size={18} />
-                <span>Generate Adaptive Study Unit</span>
+                <Play size={16} />
+                <span>Adaptive Study Unit</span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setLearningHubView('analyzer')}
+                style={{
+                  ...styles.modeBtn,
+                  borderColor: learningHubView === 'analyzer' ? '#06b6d4' : 'var(--border-color)',
+                  background: learningHubView === 'analyzer' ? 'rgba(6, 182, 212, 0.18)' : 'rgba(255,255,255,0.03)',
+                }}
+              >
+                <ScanLine size={16} />
+                <span>Photo Analyzer</span>
               </button>
             </div>
+            {learningHubView === 'adaptive' ? (
+              <div style={styles.startBarButtons}>
+                <button
+                  onClick={startQuiz}
+                  disabled={!activeSubject || !activeTopic}
+                  className="btn-primary"
+                  style={{
+                    ...styles.startBtn,
+                    opacity: (!activeSubject || !activeTopic) ? 0.5 : 1,
+                    cursor: (!activeSubject || !activeTopic) ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  <Play size={18} />
+                  <span>Generate Adaptive Study Unit</span>
+                </button>
+              </div>
+            ) : (
+              <VisionCapturePanel />
+            )}
           </div>
         </div>
       </main>
@@ -501,5 +535,15 @@ const styles = {
     display: 'flex',
     gap: '12px',
     width: '100%',
+  },
+  hubModeRow: {
+    display: 'flex',
+    gap: '12px',
+    width: '100%',
+    marginBottom: '16px',
+  },
+  modeBtn: {
+    flex: 1,
+    justifyContent: 'center',
   },
 };

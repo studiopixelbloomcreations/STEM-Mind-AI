@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { GraduationCap, ArrowRight, Brain, Activity, Zap, Sparkles } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export default function Login() {
   const { handleLogin } = useApp();
@@ -26,9 +27,9 @@ export default function Login() {
       <div style={styles.glowBottom}></div>
 
       <header style={styles.header}>
-        <div className="nav-logo">
-          <Brain size={28} style={{ color: '#8b5cf6' }} />
-          <span>STEMMind AI</span>
+        <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '36px', width: 'auto', borderRadius: '4px' }} />
+          <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEMMind AI</span>
         </div>
       </header>
 

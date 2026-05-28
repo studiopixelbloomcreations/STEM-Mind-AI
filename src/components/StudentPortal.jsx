@@ -5,6 +5,7 @@ import {
   BookOpen, ChevronLeft, Award, Play, 
   Sparkles, CheckCircle, BarChart2 
 } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export default function StudentPortal() {
   const { 
@@ -69,11 +70,15 @@ export default function StudentPortal() {
   return (
     <div style={styles.container}>
       {/* Header */}
-      <header className="navbar" style={{ padding: '0 40px' }}>
+      <header className="navbar" style={{ padding: '0 40px', justifyContent: 'space-between' }}>
         <button onClick={() => setActiveStudent(null)} className="btn-secondary" style={styles.backBtn}>
           <ChevronLeft size={16} />
           <span>Exit Learning Hub</span>
         </button>
+        <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
+          <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEMMind AI</span>
+        </div>
         <div style={styles.studentBadge}>
           <Award size={16} style={{ color: '#06b6d4' }} />
           <span>Student Portal: {activeStudent?.name}</span>

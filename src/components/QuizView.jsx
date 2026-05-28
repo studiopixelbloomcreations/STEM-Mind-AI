@@ -6,6 +6,7 @@ import {
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 
   ChevronRight, Brain, Lightbulb, GraduationCap, Clock 
 } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export default function QuizView() {
   const { 
@@ -187,10 +188,14 @@ export default function QuizView() {
   return (
     <div style={styles.container}>
       {/* Header bar */}
-      <header className="navbar" style={{ padding: '0 40px' }}>
+      <header className="navbar" style={{ padding: '0 40px', justifyContent: 'space-between' }}>
         <div style={styles.navProgress}>
           <span>Question {questionCount} of 5</span>
           <span style={styles.difficultyBadge}>{difficulty.toUpperCase()}</span>
+        </div>
+        <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
+          <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEMMind AI</span>
         </div>
         <div style={styles.timer}>
           <Clock size={16} />

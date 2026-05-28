@@ -25,11 +25,12 @@ const buildHeaders = async () => {
   if (!currentUser) {
     throw new Error('You need to sign in before using camera analysis.');
   }
-  const firebaseToken = await currentUser.getIdToken();
+  const firebaseToken = await currentUser.getIdToken(true);
   return {
     'Content-Type': 'application/json',
     apikey: anonKey,
     Authorization: `Bearer ${firebaseToken}`,
+    'x-client-info': 'stem-mind-ai-web',
   };
 };
 

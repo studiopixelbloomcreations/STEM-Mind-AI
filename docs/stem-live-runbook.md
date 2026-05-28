@@ -23,21 +23,25 @@ In `.env.local`:
 
 ## Deploy Sequence
 
+See **[supabase-edge-functions-deploy.md](./supabase-edge-functions-deploy.md)** for step-by-step CLI and Dashboard deploy instructions.
+
 1. Apply DB migrations:
    - `20260528190000_phase1_camera_vision.sql`
    - `20260528200500_stem_live_mode.sql`
    - `20260528221000_stem_live_observability.sql`
-2. Deploy functions:
-   - `supabase functions deploy vision-analyze`
-   - `supabase functions deploy stem-live`
-3. Deploy frontend build.
+2. Deploy functions: `vision-analyze` and `stem-live` (shared CORS helper in `supabase/functions/_shared/cors.ts`).
+3. Deploy frontend build to Netlify with `VITE_SUPABASE_CONFIG` set.
 
 ## Hotfix Redeploy (CORS + analytics 406)
 
-If production shows CORS preflight failures on `/functions/v1/vision-analyze` or `/functions/v1/stem-live`, redeploy both functions immediately:
+If production shows CORS preflight failures on `/functions/v1/vision-analyze` or `/functions/v1/stem-live`, redeploy **both** functions immediately (CLI or Dashboard). Verify with:
 
-- `supabase functions deploy vision-analyze --project-ref <your-project-ref>`
-- `supabase functions deploy stem-live --project-ref <your-project-ref>`
+```bash
+curl -i -X OPTIONS "https://YOUR_REF.supabase.co/functions/v1/stem-live" \
+  -H "Origin: https://stemmindv1.netlify.app" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization,apikey,content-type"
+```
 
 If analytics requests for `/rest/v1/analytics` return 406, redeploy the frontend so the updated non-`.single()` query logic is live.
 

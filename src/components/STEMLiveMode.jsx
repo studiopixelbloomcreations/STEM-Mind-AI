@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, CameraOff, Menu, Mic, MicOff, Share2, Video, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import logoImg from '../assets/logo.png';
 import {
   endStemLiveSession,
   heartbeatStemLiveSession,
@@ -12,6 +13,7 @@ const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechReco
 const FRAME_INTERVAL_MS = 1400;
 const HEARTBEAT_INTERVAL_MS = 12000;
 const MAX_RECONNECT_ATTEMPTS = 2;
+const EXIT_ANIMATION_MS = 420;
 
 const STATES = {
   idle: 'idle',
@@ -32,11 +34,14 @@ export default function STEMLiveMode() {
   const [micPermission, setMicPermission] = useState('pending');
   const [cameraPermission, setCameraPermission] = useState('pending');
   const [sessionId, setSessionId] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
   const [lastReply, setLastReply] = useState('');
   const [lastUserUtterance, setLastUserUtterance] = useState('');
   const [visionStatus, setVisionStatus] = useState('Visual context disabled');
   const [recognitionSupported] = useState(Boolean(SpeechRecognitionApi));
   const [booting, setBooting] = useState(true);
+  const [isEntering, setIsEntering] = useState(true);
+  const [isClosing, setIsClosing] = useState(false);
 
   const speechActiveRef = useRef(false);
   const speechRecognitionRef = useRef(null);
@@ -47,6 +52,8 @@ export default function STEMLiveMode() {
   const mediaDataRef = useRef(null);
   const rafRef = useRef(0);
   const videoRef = useRef(null);
+  const blobRef = useRef(null);
+  const voiceLevelRef = useRef(0);
   const frameTimerRef = useRef(0);
   const heartbeatTimerRef = useRef(0);
   const latestFrameRef = useRef(null);
@@ -110,17 +117,23 @@ export default function STEMLiveMode() {
     const analyser = mediaAnalyserRef.current;
     const data = mediaDataRef.current;
     if (!analyser || !data) return;
-    analyser.getByteTimeDomainData(data);
-    let sum = 0;
-    for (let i = 0; i < data.length; i += 1) {
-      const norm = (data[i] - 128) / 128;
-      sum += norm * norm;
-    }
-    const rms = Math.sqrt(sum / data.length);
-    const normalized = Math.min(1, rms * 5.5);
-    setVoiceLevel((prev) => prev * 0.7 + normalized * 0.3);
 
-    if (speechActiveRef.current && normalized > 0.18 && !isMicMuted) {
+    analyser.getByteFrequencyData(data);
+    let sum = 0;
+    const voiceBins = Math.min(48, data.length);
+    for (let i = 0; i < voiceBins; i += 1) {
+      sum += data[i];
+    }
+    const average = sum / voiceBins / 255;
+    const normalized = Math.min(1, Math.pow(average, 0.72) * 2.4);
+    const smoothed = voiceLevelRef.current * 0.62 + normalized * 0.38;
+    voiceLevelRef.current = smoothed;
+    setVoiceLevel(smoothed);
+    if (blobRef.current) {
+      blobRef.current.style.setProperty('--voice-level', smoothed.toFixed(3));
+    }
+
+    if (speechActiveRef.current && normalized > 0.2 && !isMicMuted) {
       stopSpeech();
       setStatus(STATES.listening);
     }
@@ -177,7 +190,7 @@ export default function STEMLiveMode() {
       speakReply(response.replyText || 'I am here and listening.');
     } catch (turnError) {
       const message = turnError.message || 'TURN_FAILED: Could not process STEM Live turn.';
-      const isNetwork = /timeout|network|fetch|connection/i.test(message);
+      const isNetwork = /timeout|network|fetch|connection|cors/i.test(message);
       if (isNetwork && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttemptsRef.current += 1;
         setStatus(STATES.disconnected);
@@ -241,10 +254,11 @@ export default function STEMLiveMode() {
       audioContextRef.current = audioCtx;
       const source = audioCtx.createMediaStreamSource(stream);
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 2048;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.82;
       source.connect(analyser);
       mediaAnalyserRef.current = analyser;
-      mediaDataRef.current = new Uint8Array(analyser.fftSize);
+      mediaDataRef.current = new Uint8Array(analyser.frequencyBinCount);
       monitorVoiceLevel();
       initRecognition();
       setStatus(STATES.idle);
@@ -280,7 +294,10 @@ export default function STEMLiveMode() {
         audio: false,
       });
       cameraStreamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => undefined);
+      }
       frameTimerRef.current = window.setInterval(captureFrame, FRAME_INTERVAL_MS);
       setIsCameraOn(true);
       setCameraPermission('granted');
@@ -314,7 +331,7 @@ export default function STEMLiveMode() {
     setStatus(STATES.idle);
   };
 
-  const closeLive = async () => {
+  const finishClose = async () => {
     endingRef.current = true;
     stopSpeech();
     cleanupMic();
@@ -328,6 +345,14 @@ export default function STEMLiveMode() {
       }
     }
     setLiveModeActive(false);
+  };
+
+  const closeLive = async () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    window.setTimeout(() => {
+      finishClose();
+    }, EXIT_ANIMATION_MS);
   };
 
   const startHeartbeat = useCallback(() => {
@@ -362,6 +387,9 @@ export default function STEMLiveMode() {
           context,
         });
         setSessionId(session.sessionId);
+        if (session.welcomeMessage) {
+          setWelcomeMessage(session.welcomeMessage);
+        }
         await startMicrophone();
         startHeartbeat();
       } catch (sessionError) {
@@ -372,7 +400,9 @@ export default function STEMLiveMode() {
       }
     };
     init();
+    const enterTimer = window.setTimeout(() => setIsEntering(false), 40);
     return () => {
+      window.clearTimeout(enterTimer);
       endingRef.current = true;
       stopSpeech();
       cleanupMic();
@@ -386,11 +416,22 @@ export default function STEMLiveMode() {
     if (sessionId) startHeartbeat();
   }, [sessionId, startHeartbeat]);
 
-  const centerMessage = lastReply || `The mic is yours, ${activeStudent?.name || 'student'}`;
+  const centerMessage =
+    lastReply ||
+    welcomeMessage ||
+    (booting ? 'Connecting you to STEM Live...' : `Ready when you are, ${activeStudent?.name || 'student'}.`);
   const canUseMic = !booting && recognitionSupported && micPermission !== 'denied';
+  const screenClass = [
+    'stem-live-screen',
+    `state-${status}`,
+    isEntering ? 'is-entering' : 'is-entered',
+    isClosing ? 'is-exiting' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
-    <div className={`stem-live-screen state-${status}`}>
+    <div className={screenClass}>
       <div className="stem-live-vignette" />
       <header className="stem-live-topbar">
         <button type="button" className="live-icon-btn" aria-label="Open menu">
@@ -408,13 +449,26 @@ export default function STEMLiveMode() {
       </header>
 
       <main className="stem-live-center">
-        <div className="live-star" />
+        <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
+        <div
+          ref={blobRef}
+          className="live-gradient-blob"
+          style={{ '--voice-level': voiceLevel }}
+          aria-hidden="true"
+        />
         <p className="live-main-text">{centerMessage}</p>
         <p className="live-sub-text">
           {booting ? 'Starting STEM Live...' : error || visionStatus}
         </p>
         <p className="live-sub-text">{lastUserUtterance ? `You said: ${lastUserUtterance}` : ''}</p>
-        <video ref={videoRef} autoPlay playsInline muted className="live-hidden-preview" />
+        {isCameraOn ? (
+          <div className="live-camera-preview-wrap">
+            <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
+            <span className="live-camera-badge">Visual intelligence on</span>
+          </div>
+        ) : (
+          <video ref={videoRef} autoPlay playsInline muted className="live-hidden-preview" />
+        )}
       </main>
 
       <footer className="stem-live-bottom">
@@ -427,7 +481,8 @@ export default function STEMLiveMode() {
         <div
           className="live-orb"
           style={{
-            transform: `scale(${1 + voiceLevel * 0.2})`,
+            transform: `scale(${1 + voiceLevel * 0.35})`,
+            filter: `brightness(${1 + voiceLevel * 0.45})`,
           }}
         />
         <button

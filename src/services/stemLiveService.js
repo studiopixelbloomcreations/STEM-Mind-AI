@@ -23,7 +23,7 @@ const ensureEndpoint = () => {
 const request = async (payload) => {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('Please sign in before using STEM Live.');
-  const idToken = await currentUser.getIdToken();
+  const idToken = await currentUser.getIdToken(true);
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const startedAt = performance.now();
@@ -35,6 +35,7 @@ const request = async (payload) => {
         'Content-Type': 'application/json',
         apikey: anonKey,
         Authorization: `Bearer ${idToken}`,
+        'x-client-info': 'stem-mind-ai-web',
       },
       body: JSON.stringify(payload),
       signal: controller.signal,

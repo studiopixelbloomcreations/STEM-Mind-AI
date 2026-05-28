@@ -1,12 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'OPTIONS, POST',
-  'Access-Control-Max-Age': '86400',
-};
+import { handleOptions, jsonWithCors } from '../_shared/cors.ts';
 
 const env = {
   supabaseUrl: Deno.env.get('SUPABASE_URL') || '',
@@ -16,25 +10,21 @@ const env = {
 };
 const MAX_FRAME_BYTES = 550_000;
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
+let supabaseClient: SupabaseClient | null = null;
 
-const mustEnv = (value: string, key: string) => {
-  if (!value) throw new Error(`Missing env: ${key}`);
-  return value;
+const getSupabase = () => {
+  if (supabaseClient) return supabaseClient;
+  if (!env.supabaseUrl) throw new Error('Missing env: SUPABASE_URL');
+  if (!env.supabaseServiceRoleKey) throw new Error('Missing env: SUPABASE_SERVICE_ROLE_KEY');
+  supabaseClient = createClient(env.supabaseUrl, env.supabaseServiceRoleKey);
+  return supabaseClient;
 };
-
-const supabase = createClient(
-  mustEnv(env.supabaseUrl, 'SUPABASE_URL'),
-  mustEnv(env.supabaseServiceRoleKey, 'SUPABASE_SERVICE_ROLE_KEY')
-);
 
 const firebaseJwks = createRemoteJWKSet(
   new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
 );
+
+const json = (request: Request, body: unknown, status = 200) => jsonWithCors(request, body, status);
 
 const safeJson = async (request: Request) => {
   try {
@@ -59,6 +49,7 @@ const verifyFirebaseAuth = async (request: Request) => {
 };
 
 const ensureStudentOwnedByTeacher = async (studentId: string, teacherId: string) => {
+  const supabase = getSupabase();
   const { data, error } = await supabase
     .from('students')
     .select('id,teacher_id')
@@ -78,6 +69,7 @@ const logSessionEvent = async (
   eventType: string,
   payload: Record<string, unknown> = {}
 ) => {
+  const supabase = getSupabase();
   const { error } = await supabase.from('live_session_events').insert({
     session_id: sessionId,
     teacher_id: teacherId,
@@ -98,6 +90,52 @@ const validateVisionFrame = (visionFrame: { mimeType?: string; base64Data?: stri
     base64Data: visionFrame.base64Data,
     capturedAt: visionFrame.capturedAt || new Date().toISOString(),
   };
+};
+
+const runOpenRouterText = async (systemPrompt: string, userPrompt: string, maxTokens = 300) => {
+  if (!env.openrouterApiKey) return null;
+  const models = ['meta-llama/llama-3.3-70b-instruct:free', 'openai/gpt-4o-mini'];
+  for (const model of models) {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.openrouterApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.5,
+        max_tokens: maxTokens,
+      }),
+    });
+    if (!response.ok) continue;
+    const payload = await response.json();
+    const text = payload?.choices?.[0]?.message?.content;
+    if (typeof text === 'string' && text.trim()) {
+      return sanitizeText(text);
+    }
+  }
+  return null;
+};
+
+const generateWelcomeMessage = async (params: {
+  studentName?: string | null;
+  subject?: string | null;
+  topic?: string | null;
+}) => {
+  const studentName = params.studentName || 'there';
+  const subject = params.subject || 'STEM';
+  const topic = params.topic || 'your current lesson';
+  const systemPrompt =
+    'You are STEM Live by STEM Mind AI. Write one warm spoken welcome sentence (max 28 words). Be encouraging and natural. Do not mention microphones, buttons, or UI.';
+  const userPrompt = `Welcome ${studentName} to a live tutoring session for ${subject} on ${topic}.`;
+  const aiWelcome = await runOpenRouterText(systemPrompt, userPrompt, 80);
+  if (aiWelcome) return aiWelcome;
+  return `Welcome back, ${studentName}. Ready to explore ${topic} in ${subject} together?`;
 };
 
 const runOpenRouterConversation = async (params: {
@@ -161,21 +199,24 @@ const fallbackReply = (transcript: string, subject?: string | null, topic?: stri
 };
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { status: 200, headers: corsHeaders });
+  if (request.method === 'OPTIONS') return handleOptions(request);
+
   try {
     const { uid } = await verifyFirebaseAuth(request);
     const body = await safeJson(request);
     if (!body || typeof body !== 'object') {
-      return json({ errorCode: 'INVALID_JSON', error: 'Malformed JSON body.' }, 400);
+      return json(request, { errorCode: 'INVALID_JSON', error: 'Malformed JSON body.' }, 400);
     }
     const mode = String((body as Record<string, unknown>).mode || '');
     if (!['start', 'turn', 'end', 'heartbeat'].includes(mode)) {
-      return json({ errorCode: 'INVALID_MODE', error: 'mode must be start, turn, end, or heartbeat.' }, 400);
+      return json(request, { errorCode: 'INVALID_MODE', error: 'mode must be start, turn, end, or heartbeat.' }, 400);
     }
+
+    const supabase = getSupabase();
 
     if (mode === 'start') {
       const studentId = String((body as any).studentId || '');
-      if (!studentId) return json({ errorCode: 'MISSING_STUDENT_ID', error: 'studentId is required.' }, 400);
+      if (!studentId) return json(request, { errorCode: 'MISSING_STUDENT_ID', error: 'studentId is required.' }, 400);
       await ensureStudentOwnedByTeacher(studentId, uid);
       const context = ((body as any).context || {}) as Record<string, unknown>;
       const { data, error } = await supabase
@@ -191,15 +232,24 @@ Deno.serve(async (request) => {
         .select('id')
         .single();
       if (error) {
-        return json({ errorCode: 'SESSION_CREATE_FAILED', error: error.message }, 500);
+        return json(request, { errorCode: 'SESSION_CREATE_FAILED', error: error.message }, 500);
       }
       await logSessionEvent(data.id, uid, 'session_started', { context });
-      return json({ sessionId: data.id, startedAt: new Date().toISOString() });
+      const welcomeMessage = await generateWelcomeMessage({
+        studentName: context.studentName as string,
+        subject: context.subject as string,
+        topic: context.topic as string,
+      });
+      return json(request, {
+        sessionId: data.id,
+        startedAt: new Date().toISOString(),
+        welcomeMessage,
+      });
     }
 
     if (mode === 'end') {
       const sessionId = String((body as any).sessionId || '');
-      if (!sessionId) return json({ errorCode: 'MISSING_SESSION_ID', error: 'sessionId is required.' }, 400);
+      if (!sessionId) return json(request, { errorCode: 'MISSING_SESSION_ID', error: 'sessionId is required.' }, 400);
       const { error } = await supabase
         .from('live_sessions')
         .update({
@@ -208,31 +258,31 @@ Deno.serve(async (request) => {
         })
         .eq('id', sessionId)
         .eq('teacher_id', uid);
-      if (error) return json({ errorCode: 'SESSION_END_FAILED', error: error.message }, 500);
+      if (error) return json(request, { errorCode: 'SESSION_END_FAILED', error: error.message }, 500);
       await logSessionEvent(sessionId, uid, 'session_ended');
-      return json({ ok: true });
+      return json(request, { ok: true });
     }
 
     if (mode === 'heartbeat') {
       const sessionId = String((body as any).sessionId || '');
-      if (!sessionId) return json({ errorCode: 'MISSING_SESSION_ID', error: 'sessionId is required.' }, 400);
+      if (!sessionId) return json(request, { errorCode: 'MISSING_SESSION_ID', error: 'sessionId is required.' }, 400);
       const { data: session } = await supabase
         .from('live_sessions')
         .select('id,status')
         .eq('id', sessionId)
         .eq('teacher_id', uid)
         .maybeSingle();
-      if (!session) return json({ errorCode: 'SESSION_NOT_FOUND', error: 'Session not found.' }, 404);
-      if (session.status !== 'active') return json({ errorCode: 'SESSION_INACTIVE', error: 'Session inactive.' }, 409);
+      if (!session) return json(request, { errorCode: 'SESSION_NOT_FOUND', error: 'Session not found.' }, 404);
+      if (session.status !== 'active') return json(request, { errorCode: 'SESSION_INACTIVE', error: 'Session inactive.' }, 409);
       await logSessionEvent(sessionId, uid, 'heartbeat', safeObject((body as any).clientState) as Record<string, unknown>);
-      return json({ ok: true, status: 'active', serverTime: new Date().toISOString() });
+      return json(request, { ok: true, status: 'active', serverTime: new Date().toISOString() });
     }
 
     const turnStarted = Date.now();
     const sessionId = String((body as any).sessionId || '');
     const transcript = sanitizeText((body as any).transcript || '');
-    if (!sessionId) return json({ errorCode: 'MISSING_SESSION_ID', error: 'sessionId is required.' }, 400);
-    if (!transcript) return json({ errorCode: 'MISSING_TRANSCRIPT', error: 'transcript is required.' }, 400);
+    if (!sessionId) return json(request, { errorCode: 'MISSING_SESSION_ID', error: 'sessionId is required.' }, 400);
+    if (!transcript) return json(request, { errorCode: 'MISSING_TRANSCRIPT', error: 'transcript is required.' }, 400);
 
     const { data: session, error: sessionError } = await supabase
       .from('live_sessions')
@@ -241,10 +291,10 @@ Deno.serve(async (request) => {
       .eq('teacher_id', uid)
       .maybeSingle();
     if (sessionError || !session) {
-      return json({ errorCode: 'SESSION_NOT_FOUND', error: 'Session not found.' }, 404);
+      return json(request, { errorCode: 'SESSION_NOT_FOUND', error: 'Session not found.' }, 404);
     }
     if (session.status !== 'active') {
-      return json({ errorCode: 'SESSION_INACTIVE', error: 'Session is not active.' }, 400);
+      return json(request, { errorCode: 'SESSION_INACTIVE', error: 'Session is not active.' }, 400);
     }
 
     const context = ((body as any).context || {}) as Record<string, unknown>;
@@ -253,12 +303,12 @@ Deno.serve(async (request) => {
       | null;
     const visionFrame = validateVisionFrame(rawVisionFrame);
     const providerReply = await runOpenRouterConversation({
-        transcript,
-        subject: (context.subject as string) || session.subject,
-        topic: (context.topic as string) || session.topic,
-        studentName: context.studentName as string,
-        visionFrame,
-      });
+      transcript,
+      subject: (context.subject as string) || session.subject,
+      topic: (context.topic as string) || session.topic,
+      studentName: context.studentName as string,
+      visionFrame,
+    });
     const replyText =
       providerReply?.text ||
       fallbackReply(transcript, (context.subject as string) || session.subject, (context.topic as string) || session.topic);
@@ -288,14 +338,14 @@ Deno.serve(async (request) => {
         latencyMs,
       },
     });
-    if (turnError) return json({ errorCode: 'TURN_PERSIST_FAILED', error: turnError.message }, 500);
+    if (turnError) return json(request, { errorCode: 'TURN_PERSIST_FAILED', error: turnError.message }, 500);
     await logSessionEvent(sessionId, uid, 'turn_processed', {
       provider,
       latencyMs,
       hasVision: Boolean(visionFrame?.base64Data),
     });
 
-    return json({
+    return json(request, {
       replyText,
       ttsText: replyText,
       provider,
@@ -303,12 +353,18 @@ Deno.serve(async (request) => {
       latencyMs,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unhandled server error.';
+    const isAuthError =
+      message.includes('bearer token') ||
+      message.includes('auth token') ||
+      message.includes('FIREBASE_PROJECT_ID');
     return json(
+      request,
       {
-        errorCode: 'UNHANDLED',
-        error: error instanceof Error ? error.message : 'Unhandled server error.',
+        errorCode: isAuthError ? 'UNAUTHORIZED' : 'UNHANDLED',
+        error: message,
       },
-      500
+      isAuthError ? 401 : 500
     );
   }
 });

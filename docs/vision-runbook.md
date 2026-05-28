@@ -2,15 +2,14 @@
 
 ## Deploy
 
-1. Apply SQL migration:
-   - `supabase db push` (or run SQL manually in dashboard)
-2. Set function secrets:
-   - `supabase secrets set SUPABASE_URL=...`
-   - `supabase secrets set SUPABASE_SERVICE_ROLE_KEY=...`
-   - `supabase secrets set FIREBASE_PROJECT_ID=...`
-   - Optional: `OCR_SPACE_API_KEY`, `HUGGINGFACE_API_KEY`, `OPENROUTER_API_KEY`
-3. Deploy function:
-   - `supabase functions deploy vision-analyze`
+See **[supabase-edge-functions-deploy.md](./supabase-edge-functions-deploy.md)** for full beginner steps (CLI + Dashboard).
+
+Quick checklist:
+
+1. Apply SQL migration `20260528190000_phase1_camera_vision.sql` in Supabase SQL Editor.
+2. Set Edge Function secrets (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `FIREBASE_PROJECT_ID`, optional OCR keys).
+3. Deploy `vision-analyze` (and `stem-live` for CORS parity).
+4. Verify OPTIONS preflight with curl (commands in deploy doc).
 
 ## Test Flow
 

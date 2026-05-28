@@ -30,7 +30,9 @@ This release includes **production STEM Live mode + Phase 1 Camera + Vision**:
 Run migration `supabase/migrations/20260528190000_phase1_camera_vision.sql` in Supabase SQL editor.
 
 ### 2) Deploy Edge Functions
-From project root:
+See **[docs/supabase-edge-functions-deploy.md](docs/supabase-edge-functions-deploy.md)** for CLI and Supabase Dashboard deploy steps (no CLI required).
+
+From project root (if CLI is installed):
 - `supabase functions deploy vision-analyze`
 - `supabase functions deploy stem-live`
 

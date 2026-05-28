@@ -17,6 +17,7 @@ export default function VisionCapturePanel() {
   const [attemptsLoading, setAttemptsLoading] = useState(false);
   const [recentAttempts, setRecentAttempts] = useState([]);
   const [showConsent, setShowConsent] = useState(false);
+  const [pendingCameraStart, setPendingCameraStart] = useState(false);
   const [consentGiven, setConsentGiven] = useState(() => sessionStorage.getItem(CONSENT_SESSION_KEY) === 'true');
 
   const videoRef = useRef(null);
@@ -40,6 +41,20 @@ export default function VisionCapturePanel() {
   };
 
   useEffect(() => () => stopCamera(), []);
+
+  useEffect(() => {
+    if (!cameraActive || !streamRef.current || !videoRef.current) return undefined;
+    const video = videoRef.current;
+    video.srcObject = streamRef.current;
+    const playPromise = video.play();
+    if (playPromise?.catch) {
+      playPromise.catch((playError) => {
+        console.error(playError);
+        setError('Could not start camera preview. Try again or upload an image.');
+      });
+    }
+    return undefined;
+  }, [cameraActive]);
 
   useEffect(() => {
     if (!studentId) return;
@@ -75,25 +90,35 @@ export default function VisionCapturePanel() {
 
   const startCamera = async () => {
     setError('');
-    if (!ensureConsent()) return;
+    if (!ensureConsent()) {
+      setPendingCameraStart(true);
+      return;
+    }
     if (!navigator?.mediaDevices?.getUserMedia) {
       setError('Camera is not supported in this browser. Upload an image file instead.');
       return;
     }
 
     try {
+      stopCamera();
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: { ideal: 'environment' } },
         audio: false,
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
+      setSelectedFile(null);
+      setResult(null);
       setCameraActive(true);
     } catch (cameraError) {
       console.error(cameraError);
-      setError('Camera permission was denied. You can still upload an image from device.');
+      const name = cameraError?.name || '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setError('Camera permission was denied. Allow camera access in browser settings, or upload an image.');
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setError('No camera was found on this device. Upload an image instead.');
+      } else {
+        setError('Could not open the camera. Upload an image or try another browser.');
+      }
     }
   };
 
@@ -140,6 +165,7 @@ export default function VisionCapturePanel() {
   };
 
   const retake = () => {
+    stopCamera();
     setSelectedFile(null);
     setResult(null);
     setError('');
@@ -200,6 +226,10 @@ export default function VisionCapturePanel() {
                   sessionStorage.setItem(CONSENT_SESSION_KEY, 'true');
                   setConsentGiven(true);
                   setShowConsent(false);
+                  if (pendingCameraStart) {
+                    setPendingCameraStart(false);
+                    startCamera();
+                  }
                 }}
               >
                 I Understand
@@ -222,7 +252,7 @@ export default function VisionCapturePanel() {
       <div style={styles.captureZone}>
         {cameraActive ? (
           <div style={styles.liveCamera}>
-            <video ref={videoRef} autoPlay playsInline style={styles.video} />
+            <video ref={videoRef} autoPlay playsInline muted style={styles.video} />
             <div style={styles.cameraActions}>
               <button className="btn-primary" onClick={captureFromCamera}>
                 <Camera size={16} /> Capture

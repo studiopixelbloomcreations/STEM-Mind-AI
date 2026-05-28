@@ -1,5 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
+import { handleOptions, jsonWithCors } from '../_shared/cors.ts';
 
 type AnalyzeModePayload = {
   mode: 'analyze';
@@ -30,13 +31,6 @@ type VisionResult = {
   provider: string;
 };
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'OPTIONS, POST',
-  'Access-Control-Max-Age': '86400',
-};
-
 const SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_IMAGE_SIZE_BYTES = 7 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 18000;
@@ -55,18 +49,19 @@ const mustEnv = (value: string, name: string) => {
   return value;
 };
 
-const supabaseAdmin = createClient(
-  mustEnv(env.supabaseUrl, 'SUPABASE_URL'),
-  mustEnv(env.supabaseServiceRoleKey, 'SUPABASE_SERVICE_ROLE_KEY')
-);
+let supabaseAdmin: SupabaseClient | null = null;
+
+const getSupabaseAdmin = () => {
+  if (!supabaseAdmin) {
+    supabaseAdmin = createClient(
+      mustEnv(env.supabaseUrl, 'SUPABASE_URL'),
+      mustEnv(env.supabaseServiceRoleKey, 'SUPABASE_SERVICE_ROLE_KEY')
+    );
+  }
+  return supabaseAdmin;
+};
 
 const firebaseJwks = createRemoteJWKSet(new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'));
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
 
 const withTimeout = async <T>(promise: Promise<T>, ms = REQUEST_TIMEOUT_MS): Promise<T> =>
   await Promise.race([
@@ -101,7 +96,7 @@ const verifyFirebaseAuth = async (request: Request) => {
 };
 
 const ensureStudentOwnedByTeacher = async (studentId: string, teacherId: string) => {
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('students')
     .select('id,teacher_id')
     .eq('id', studentId)
@@ -166,7 +161,7 @@ const uploadImageFromBase64 = async (teacherId: string, studentId: string, image
   const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '-');
   const path = `${teacherId}/${studentId}/${Date.now()}-${safeName}.${ext}`;
 
-  const { error } = await supabaseAdmin.storage.from('vision-captures').upload(path, bytes, {
+  const { error } = await getSupabaseAdmin().storage.from('vision-captures').upload(path, bytes, {
     contentType: mimeType,
     upsert: false,
   });
@@ -176,7 +171,7 @@ const uploadImageFromBase64 = async (teacherId: string, studentId: string, image
 };
 
 const getImageBytesFromStoragePath = async (storagePath: string) => {
-  const { data, error } = await supabaseAdmin.storage.from('vision-captures').download(storagePath);
+  const { data, error } = await getSupabaseAdmin().storage.from('vision-captures').download(storagePath);
   if (error) throw new Error('Unable to load image from storage path.');
   const bytes = new Uint8Array(await data.arrayBuffer());
   return bytes;
@@ -355,20 +350,20 @@ const buildAnalysisResult = async (bytes: Uint8Array, context: { subject?: strin
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { status: 200, headers: corsHeaders });
+    return handleOptions(request);
   }
 
   try {
     const { uid } = await verifyFirebaseAuth(request);
     const payload = await safeParseJson(request);
-    if (!payload) return json({ error: 'Malformed JSON body.' }, 400);
+    if (!payload) return jsonWithCors(request, { error: 'Malformed JSON body.' }, 400);
 
     if (payload.mode === 'list') {
       const parsed = validateListPayload(payload);
       await ensureStudentOwnedByTeacher(parsed.studentId, uid);
       const limit = Math.min(Math.max(parsed.limit || 5, 1), 15);
 
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from('vision_attempts')
         .select('*')
         .eq('student_id', parsed.studentId)
@@ -377,7 +372,7 @@ Deno.serve(async (request) => {
         .limit(limit);
       if (error) throw new Error(`Unable to list attempts: ${error.message}`);
 
-      return json({
+      return jsonWithCors(request, {
         attempts: (data || []).map((row: any) => ({
           attemptId: row.id,
           studentId: row.student_id,
@@ -413,7 +408,7 @@ Deno.serve(async (request) => {
 
     const analysis = await buildAnalysisResult(bytes, parsed.context || {});
 
-    const { data: inserted, error: insertError } = await supabaseAdmin
+    const { data: inserted, error: insertError } = await getSupabaseAdmin()
       .from('vision_attempts')
       .insert({
         teacher_id: uid,
@@ -434,7 +429,7 @@ Deno.serve(async (request) => {
 
     if (insertError) throw new Error(`Failed to save attempt: ${insertError.message}`);
 
-    return json({
+    return jsonWithCors(request, {
       attemptId: inserted.id,
       studentId: inserted.student_id,
       createdAt: inserted.created_at,
@@ -442,6 +437,12 @@ Deno.serve(async (request) => {
     });
   } catch (error) {
     console.error(error);
-    return json({ error: error instanceof Error ? error.message : 'Unhandled error.' }, 500);
+    const message = error instanceof Error ? error.message : 'Unhandled error.';
+    const isAuthError =
+      message.includes('bearer token') ||
+      message.includes('authentication') ||
+      message.includes('Invalid authentication') ||
+      message.includes('FIREBASE_PROJECT_ID');
+    return jsonWithCors(request, { error: message }, isAuthError ? 401 : 500);
   }
 });

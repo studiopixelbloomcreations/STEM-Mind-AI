@@ -131,6 +131,18 @@ export default function QuizView() {
     hints, examTips, motivatorQuote, difficulty, confidenceScore 
   } = currentQuiz;
 
+  const loadExplanationContent = async (studentAnswer, explanationMode = eli10) => {
+    setLoadingExplanation(true);
+    try {
+      const explContent = await runExplanationAgent(question, correctAnswer, studentAnswer, explanationMode);
+      setExplanation(explContent);
+    } catch (e) {
+      setExplanation('Could not fetch explanation details.');
+    } finally {
+      setLoadingExplanation(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (submitted) return;
     const studentAnswer = questionType === 'MCQ' || questionType === 'True/False' ? selectedAnswer : typedAnswer;
@@ -146,17 +158,8 @@ export default function QuizView() {
     
     if (correct) {
       setQuizScore(prev => prev + 1);
-      
-      // Standard Correct Explanation
-      setLoadingExplanation(true);
-      try {
-        const explContent = await runExplanationAgent(question, correctAnswer, studentAnswer, eli10);
-        setExplanation(explContent);
-      } catch (e) {
-        setExplanation('Could not fetch explanation details.');
-      } finally {
-        setLoadingExplanation(false);
-      }
+      setExplanationExpandedMode(false);
+      await loadExplanationContent(studentAnswer);
     } else {
       // Wrong Answer Step-by-Step Full-screen Mode
       await startWrongAnswerExplanation(studentAnswer);
@@ -258,7 +261,13 @@ export default function QuizView() {
     const studentAnswer = questionType === 'MCQ' || questionType === 'True/False' ? selectedAnswer : typedAnswer;
     const nextEli = !eli10;
     setEli10(nextEli);
-    await startWrongAnswerExplanation(studentAnswer, nextEli);
+
+    if (isCorrect) {
+      setExplanationExpandedMode(false);
+      await loadExplanationContent(studentAnswer, nextEli);
+    } else {
+      await startWrongAnswerExplanation(studentAnswer, nextEli);
+    }
   };
 
   const handleNext = async () => {

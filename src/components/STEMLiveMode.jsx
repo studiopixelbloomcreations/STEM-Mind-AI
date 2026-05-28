@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CameraOff, Menu, Mic, MicOff, Share2, Video, X } from 'lucide-react';
+import { CameraOff, ClosedCaption, Menu, Mic, MicOff, Share2, Subtitles, Video, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import logoImg from '../assets/logo.png';
 import {
@@ -8,6 +8,24 @@ import {
   sendStemLiveTurn,
   startStemLiveSession,
 } from '../services/stemLiveService';
+import voiceSynthesizer from '../utils/voiceSynthesizer';
+
+const WELCOME_MAX_WORDS = 12;
+
+const firstNameFrom = (name) => {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return 'there';
+  return trimmed.split(/\s+/)[0] || 'there';
+};
+
+const clampLiveCaption = (text, maxWords = WELCOME_MAX_WORDS) => {
+  const cleaned = String(text || '')
+    .replace(/["'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return '';
+  return cleaned.split(' ').filter(Boolean).slice(0, maxWords).join(' ');
+};
 
 const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
 const FRAME_INTERVAL_MS = 1400;
@@ -37,6 +55,7 @@ export default function STEMLiveMode() {
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [lastReply, setLastReply] = useState('');
   const [lastUserUtterance, setLastUserUtterance] = useState('');
+  const [captionsOn, setCaptionsOn] = useState(true);
   const [visionStatus, setVisionStatus] = useState('Visual context disabled');
   const [recognitionSupported] = useState(Boolean(SpeechRecognitionApi));
   const [booting, setBooting] = useState(true);
@@ -120,7 +139,7 @@ export default function STEMLiveMode() {
   };
 
   const stopSpeech = () => {
-    speechSynthesis.cancel();
+    voiceSynthesizer.stop();
     speechActiveRef.current = false;
     setStatus((prev) => (prev === STATES.speaking ? STATES.idle : prev));
   };
@@ -153,25 +172,20 @@ export default function STEMLiveMode() {
   };
 
   const speakReply = (text) => {
-    if (!text) return;
+    const trimmed = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!trimmed) return;
     stopSpeech();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.onstart = () => {
-      speechActiveRef.current = true;
-      setStatus(STATES.speaking);
-    };
-    utterance.onend = () => {
-      speechActiveRef.current = false;
-      setStatus((prev) => (prev === STATES.speaking ? STATES.idle : prev));
-    };
-    utterance.onerror = () => {
-      speechActiveRef.current = false;
-      setStatus(STATES.error);
-      setError('VOICE_SYNTHESIS_FAILED: Unable to play AI voice response.');
-    };
-    speechSynthesis.speak(utterance);
+    voiceSynthesizer.speak(
+      trimmed,
+      () => {
+        speechActiveRef.current = false;
+        setStatus((prev) => (prev === STATES.speaking ? STATES.idle : prev));
+      },
+      () => {
+        speechActiveRef.current = true;
+        setStatus(STATES.speaking);
+      }
+    );
   };
 
   const processTurn = useCallback(async (transcript) => {
@@ -196,10 +210,11 @@ export default function STEMLiveMode() {
           voiceLevel: Number(voiceLevel.toFixed(3)),
         },
       });
-      setLastReply(response.replyText || '');
+      const replyText = String(response.replyText || '').replace(/\s+/g, ' ').trim();
+      setLastReply(replyText);
       setVisionStatus(response.visionSummary || (isCameraOn ? 'Visual context active' : 'Visual context disabled'));
       reconnectAttemptsRef.current = 0;
-      speakReply(response.replyText || 'I am here and listening.');
+      speakReply(replyText || 'Listening.');
     } catch (turnError) {
       const message = turnError.message || 'TURN_FAILED: Could not process STEM Live turn.';
       const isNetwork = /timeout|network|fetch|connection|cors/i.test(message);
@@ -469,11 +484,11 @@ export default function STEMLiveMode() {
         });
         setSessionId(session.sessionId);
         if (session.welcomeMessage) {
-          setWelcomeMessage(session.welcomeMessage);
+          setWelcomeMessage(clampLiveCaption(session.welcomeMessage));
         }
         await startMicrophone();
         if (session.welcomeMessage) {
-          speakReply(session.welcomeMessage);
+          speakReply(clampLiveCaption(session.welcomeMessage));
         }
         startHeartbeat();
       } catch (sessionError) {
@@ -513,10 +528,12 @@ export default function STEMLiveMode() {
     return undefined;
   }, [isCameraOn]);
 
-  const centerMessage =
-    lastReply ||
-    welcomeMessage ||
-    (booting ? 'Connecting you to STEM Live...' : `Ready when you are, ${activeStudent?.name || 'student'}.`);
+  const studentFirstName = firstNameFrom(activeStudent?.name);
+  const captionLine = lastReply || welcomeMessage;
+  const statusLine = booting
+    ? 'Starting STEM Live...'
+    : error || visionStatus || (!recognitionSupported ? 'Speech recognition needs Chrome over HTTPS.' : '');
+
   const canUseMic = !booting && recognitionSupported && micPermission !== 'denied';
   const screenClass = [
     'stem-live-screen',
@@ -536,24 +553,27 @@ export default function STEMLiveMode() {
         </button>
         <button
           type="button"
-          className={`live-icon-btn ${isCameraOn ? 'is-on' : ''}`}
-          onClick={toggleCamera}
-          aria-label="Toggle camera"
-          title={isCameraOn ? 'Camera On' : 'Camera Off'}
+          className={`live-icon-btn ${captionsOn ? 'is-on' : ''}`}
+          onClick={() => setCaptionsOn((prev) => !prev)}
+          aria-label={captionsOn ? 'Turn captions off' : 'Turn captions on'}
+          aria-pressed={captionsOn}
+          title={captionsOn ? 'Captions on' : 'Captions off'}
         >
-          {isCameraOn ? <Camera size={20} /> : <CameraOff size={20} />}
+          {captionsOn ? <ClosedCaption size={20} /> : <Subtitles size={20} />}
         </button>
       </header>
 
       <main className="stem-live-center">
         <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
-        <p className="live-main-text">{centerMessage}</p>
-        <p className="live-sub-text">
-          {booting
-            ? 'Starting STEM Live...'
-            : error || visionStatus || (!recognitionSupported ? 'Speech recognition needs Chrome over HTTPS.' : '')}
-        </p>
-        <p className="live-sub-text">{lastUserUtterance ? `You said: ${lastUserUtterance}` : ''}</p>
+        {captionsOn ? (
+          <p className="live-caption-text">
+            {captionLine || (booting ? 'Connecting...' : `Ready, ${studentFirstName}.`)}
+          </p>
+        ) : null}
+        {captionsOn && lastUserUtterance ? (
+          <p className="live-caption-user">You: {lastUserUtterance}</p>
+        ) : null}
+        <p className="live-sub-text">{statusLine}</p>
         <div className={`live-camera-preview-wrap ${isCameraOn ? '' : 'is-hidden'}`}>
           <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
           {isCameraOn ? <span className="live-camera-badge">Visual intelligence on</span> : null}

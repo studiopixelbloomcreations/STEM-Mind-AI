@@ -130,6 +130,24 @@ const ensureStudentOwnedByTeacher = async (studentId: string, teacherId: string)
 };
 
 const sanitizeText = (input: unknown) => String(input || '').replace(/\s+/g, ' ').trim().slice(0, 6000);
+
+const WELCOME_MAX_WORDS = 12;
+
+const firstNameFrom = (name: string) => {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return 'there';
+  return trimmed.split(/\s+/)[0] || 'there';
+};
+
+const clampWelcomeMessage = (input: string, maxWords = WELCOME_MAX_WORDS) => {
+  const cleaned = String(input || '')
+    .replace(/["'`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return '';
+  const words = cleaned.split(' ').filter(Boolean);
+  return words.slice(0, maxWords).join(' ');
+};
 const safeObject = (input: unknown) => (input && typeof input === 'object' ? input : {});
 
 const logSessionEvent = async (
@@ -197,14 +215,15 @@ const generateWelcomeMessage = async (params: {
   topic?: string | null;
 }) => {
   const studentName = params.studentName || 'there';
+  const firstName = firstNameFrom(studentName);
   const subject = params.subject || 'STEM';
-  const topic = params.topic || 'your current lesson';
+  const topic = params.topic || 'your lesson';
   const systemPrompt =
-    'You are STEM Live by STEM Mind AI. Write one warm spoken welcome sentence (max 28 words). Be encouraging and natural. Do not mention microphones, buttons, or UI.';
-  const userPrompt = `Welcome ${studentName} to a live tutoring session for ${subject} on ${topic}.`;
-  const aiWelcome = await runOpenRouterText(systemPrompt, userPrompt, 80);
-  if (aiWelcome) return aiWelcome;
-  return `Welcome back, ${studentName}. Ready to explore ${topic} in ${subject} together?`;
+    'You are STEM Live by STEM Mind AI. Output ONLY one ultra-short spoken greeting (max 8 words). Examples: "Ready, Maya." or "Hi Alex, let\'s go." No questions. No UI or microphone mentions.';
+  const userPrompt = `Greet ${firstName} starting a ${subject} session on ${topic}.`;
+  const aiWelcome = await runOpenRouterText(systemPrompt, userPrompt, 24);
+  if (aiWelcome) return clampWelcomeMessage(aiWelcome);
+  return `Ready, ${firstName}.`;
 };
 
 const runOpenRouterConversation = async (params: {

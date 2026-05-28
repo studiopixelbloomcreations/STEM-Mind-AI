@@ -16,6 +16,44 @@ export const AppProvider = ({ children }) => {
   const [activeTopic, setActiveTopic] = useState('');
   const [activeGrade, setActiveGrade] = useState(10);
   const [activeDifficulty, setActiveDifficulty] = useState('medium');
+  const [themeSetting, setThemeSetting] = useState(() => localStorage.getItem('theme-setting') || 'system');
+  const [resolvedTheme, setResolvedTheme] = useState('dark');
+
+  // Track system theme preferences and theme updates
+  useEffect(() => {
+    const handleSystemThemeChange = (e) => {
+      if (themeSetting === 'system') {
+        setResolvedTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    // Resolve theme initial state
+    if (themeSetting === 'system') {
+      setResolvedTheme(mediaQuery.matches ? 'dark' : 'light');
+    } else {
+      setResolvedTheme(themeSetting);
+    }
+
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+    return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  }, [themeSetting]);
+
+  // Apply theme class to HTML element
+  useEffect(() => {
+    const root = document.documentElement;
+    if (resolvedTheme === 'light') {
+      root.classList.add('light-theme');
+    } else {
+      root.classList.remove('light-theme');
+    }
+  }, [resolvedTheme]);
+
+  const handleThemeChange = (newSetting) => {
+    setThemeSetting(newSetting);
+    localStorage.setItem('theme-setting', newSetting);
+  };
 
   // Monitor auth state changes
   useEffect(() => {
@@ -230,6 +268,9 @@ export const AppProvider = ({ children }) => {
         setActiveGrade,
         activeDifficulty,
         setActiveDifficulty,
+        themeSetting,
+        resolvedTheme,
+        handleThemeChange,
         registerStudent,
         recordQuizResult,
         getStudentHistoryAndAnalytics,

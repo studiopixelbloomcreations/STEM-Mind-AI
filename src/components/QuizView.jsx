@@ -4,14 +4,16 @@ import { runHarmonyCouncil, runExplanationAgent } from '../harmony/harmonyEngine
 import voiceSynthesizer from '../utils/voiceSynthesizer';
 import { 
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 
-  ChevronRight, Brain, Lightbulb, GraduationCap, Clock 
+  ChevronRight, Brain, Lightbulb, GraduationCap, Clock,
+  Sun, Moon, Laptop
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function QuizView() {
   const { 
     activeStudent, activeSubject, activeTopic, activeGrade,
-    currentQuiz, setCurrentQuiz, recordQuizResult 
+    currentQuiz, setCurrentQuiz, recordQuizResult,
+    themeSetting, handleThemeChange
   } = useApp();
 
   const [selectedAnswer, setSelectedAnswer] = useState('');
@@ -195,11 +197,38 @@ export default function QuizView() {
         </div>
         <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
-          <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEMMind AI</span>
+          <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>
         </div>
-        <div style={styles.timer}>
-          <Clock size={16} />
-          <span>{seconds}s</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* Theme Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--glass-bg)', padding: '4px 8px', borderRadius: '100px', border: '1px solid var(--border-color)' }}>
+            <button 
+              onClick={() => handleThemeChange('light')} 
+              style={{ border: 'none', background: themeSetting === 'light' ? 'rgba(139, 92, 246, 0.15)' : 'transparent', color: themeSetting === 'light' ? '#8b5cf6' : 'var(--text-muted)', padding: '4px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              title="Light Mode"
+            >
+              <Sun size={14} />
+            </button>
+            <button 
+              onClick={() => handleThemeChange('dark')} 
+              style={{ border: 'none', background: themeSetting === 'dark' ? 'rgba(139, 92, 246, 0.15)' : 'transparent', color: themeSetting === 'dark' ? '#8b5cf6' : 'var(--text-muted)', padding: '4px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              title="Dark Mode"
+            >
+              <Moon size={14} />
+            </button>
+            <button 
+              onClick={() => handleThemeChange('system')} 
+              style={{ border: 'none', background: themeSetting === 'system' ? 'rgba(139, 92, 246, 0.15)' : 'transparent', color: themeSetting === 'system' ? '#8b5cf6' : 'var(--text-muted)', padding: '4px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              title="System Theme"
+            >
+              <Laptop size={14} />
+            </button>
+          </div>
+
+          <div style={styles.timer}>
+            <Clock size={16} />
+            <span>{seconds}s</span>
+          </div>
         </div>
       </header>
 

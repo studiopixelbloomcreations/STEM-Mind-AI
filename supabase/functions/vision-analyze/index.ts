@@ -35,27 +35,36 @@ const SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const MAX_IMAGE_SIZE_BYTES = 7 * 1024 * 1024;
 const REQUEST_TIMEOUT_MS = 18000;
 
+// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected by Supabase at runtime.
+// Do not add them as custom Edge Function secrets (names starting with SUPABASE_ are reserved).
 const env = {
-  supabaseUrl: Deno.env.get('SUPABASE_URL') || '',
-  supabaseServiceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-  firebaseProjectId: Deno.env.get('FIREBASE_PROJECT_ID') || '',
-  openrouterApiKey: Deno.env.get('OPENROUTER_API_KEY') || '',
-  ocrSpaceApiKey: Deno.env.get('OCR_SPACE_API_KEY') || '',
-  huggingfaceApiKey: Deno.env.get('HUGGINGFACE_API_KEY') || '',
+  supabaseUrl: Deno.env.get('SUPABASE_URL') ?? '',
+  supabaseServiceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  firebaseProjectId: Deno.env.get('FIREBASE_PROJECT_ID') ?? '',
+  openrouterApiKey: Deno.env.get('OPENROUTER_API_KEY') ?? '',
+  ocrSpaceApiKey: Deno.env.get('OCR_SPACE_API_KEY') ?? '',
+  huggingfaceApiKey: Deno.env.get('HUGGINGFACE_API_KEY') ?? '',
 };
 
-const mustEnv = (value: string, name: string) => {
-  if (!value) throw new Error(`Missing env: ${name}`);
+const mustEnv = (value: string, name: string, hint?: string) => {
+  if (!value) throw new Error(hint ?? `Missing env: ${name}`);
   return value;
 };
+
+const SUPABASE_AUTO_HINT =
+  'expected to be auto-injected by Supabase; do not set as a custom secret';
 
 let supabaseAdmin: SupabaseClient | null = null;
 
 const getSupabaseAdmin = () => {
   if (!supabaseAdmin) {
     supabaseAdmin = createClient(
-      mustEnv(env.supabaseUrl, 'SUPABASE_URL'),
-      mustEnv(env.supabaseServiceRoleKey, 'SUPABASE_SERVICE_ROLE_KEY')
+      mustEnv(env.supabaseUrl, 'SUPABASE_URL', `SUPABASE_URL ${SUPABASE_AUTO_HINT}`),
+      mustEnv(
+        env.supabaseServiceRoleKey,
+        'SUPABASE_SERVICE_ROLE_KEY',
+        `SUPABASE_SERVICE_ROLE_KEY ${SUPABASE_AUTO_HINT}`
+      )
     );
   }
   return supabaseAdmin;

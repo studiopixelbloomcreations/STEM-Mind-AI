@@ -2,20 +2,27 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
 import { handleOptions, jsonWithCors } from '../_shared/cors.ts';
 
+// SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected by Supabase at runtime.
+// Do not add them as custom Edge Function secrets (names starting with SUPABASE_ are reserved).
 const env = {
-  supabaseUrl: Deno.env.get('SUPABASE_URL') || '',
-  supabaseServiceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '',
-  firebaseProjectId: Deno.env.get('FIREBASE_PROJECT_ID') || '',
-  openrouterApiKey: Deno.env.get('OPENROUTER_API_KEY') || '',
+  supabaseUrl: Deno.env.get('SUPABASE_URL') ?? '',
+  supabaseServiceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  firebaseProjectId: Deno.env.get('FIREBASE_PROJECT_ID') ?? '',
+  openrouterApiKey: Deno.env.get('OPENROUTER_API_KEY') ?? '',
 };
+
+const SUPABASE_AUTO_HINT =
+  'expected to be auto-injected by Supabase; do not set as a custom secret';
 const MAX_FRAME_BYTES = 550_000;
 
 let supabaseClient: SupabaseClient | null = null;
 
 const getSupabase = () => {
   if (supabaseClient) return supabaseClient;
-  if (!env.supabaseUrl) throw new Error('Missing env: SUPABASE_URL');
-  if (!env.supabaseServiceRoleKey) throw new Error('Missing env: SUPABASE_SERVICE_ROLE_KEY');
+  if (!env.supabaseUrl) throw new Error(`SUPABASE_URL ${SUPABASE_AUTO_HINT}`);
+  if (!env.supabaseServiceRoleKey) {
+    throw new Error(`SUPABASE_SERVICE_ROLE_KEY ${SUPABASE_AUTO_HINT}`);
+  }
   supabaseClient = createClient(env.supabaseUrl, env.supabaseServiceRoleKey);
   return supabaseClient;
 };

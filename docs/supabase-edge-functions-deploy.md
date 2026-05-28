@@ -15,16 +15,18 @@ Both must be deployed with CORS fixes for:
 1. Open [Supabase Dashboard](https://supabase.com/dashboard) and select your project.
 2. Note your **Project URL** (example: `https://abcdefgh.supabase.co`).
 3. Note your **anon public key** (Settings → API).
-4. Set **Edge Function secrets** (Project Settings → Edge Functions → Secrets):
+4. Set **Edge Function secrets** (Project Settings → Edge Functions → Secrets).
 
-| Secret | Where to get it |
-|--------|-----------------|
-| `SUPABASE_URL` | Project Settings → API → Project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API → service_role (keep private) |
-| `FIREBASE_PROJECT_ID` | Firebase Console → Project settings |
-| `OPENROUTER_API_KEY` | Optional but recommended for STEM Live + vision reasoning |
-| `OCR_SPACE_API_KEY` | Optional OCR provider |
-| `HUGGINGFACE_API_KEY` | Optional OCR fallback |
+   **Do not** add secrets whose names start with `SUPABASE_`. Supabase injects these automatically at runtime (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`). The dashboard rejects custom secrets with that prefix.
+
+   Add only these secrets manually:
+
+| Secret | Required | Where to get it |
+|--------|----------|-----------------|
+| `FIREBASE_PROJECT_ID` | Yes | Firebase Console → Project settings |
+| `OPENROUTER_API_KEY` | No | OpenRouter dashboard (recommended for STEM Live + vision reasoning) |
+| `OCR_SPACE_API_KEY` | No | OCR.space API key |
+| `HUGGINGFACE_API_KEY` | No | Hugging Face token (OCR fallback) |
 
 5. Apply SQL migrations in **SQL Editor** (run each file under `supabase/migrations/` if not already applied).
 
@@ -36,9 +38,11 @@ Install CLI once: https://supabase.com/docs/guides/cli
 cd "C:/Users/thenu/Downloads/STEM Mind AI"
 supabase login
 supabase link --project-ref YOUR_PROJECT_REF
-supabase secrets set SUPABASE_URL=https://YOUR_REF.supabase.co
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 supabase secrets set FIREBASE_PROJECT_ID=your-firebase-project-id
+# Optional:
+# supabase secrets set OPENROUTER_API_KEY=your-key
+# supabase secrets set OCR_SPACE_API_KEY=your-key
+# supabase secrets set HUGGINGFACE_API_KEY=your-key
 supabase functions deploy vision-analyze --project-ref YOUR_PROJECT_REF
 supabase functions deploy stem-live --project-ref YOUR_PROJECT_REF
 ```
@@ -113,10 +117,15 @@ curl -i -X OPTIONS "https://YOUR_REF.supabase.co/functions/v1/vision-analyze" \
 
 ## Troubleshooting
 
+### "Name must not start with the SUPABASE_ prefix"
+
+When adding Edge Function secrets in the Dashboard, Supabase blocks any name beginning with `SUPABASE_`. That is expected: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are **already injected** into every deployed function for your project. Add only the manual secrets listed in step 4 above (`FIREBASE_PROJECT_ID` and optional provider keys).
+
 | Symptom | Fix |
 |---------|-----|
 | Browser: “Failed to fetch” on analyze/live | Redeploy both functions; run curl OPTIONS above |
-| OPTIONS not 200 | Function crashed on boot — check secrets (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) |
+| OPTIONS not 200 | Function crashed on boot — redeploy; confirm `FIREBASE_PROJECT_ID` is set |
+| Dashboard: "Name must not start with the SUPABASE_ prefix" | Do not add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or any `SUPABASE_*` secret — they are injected automatically |
 | 401 on POST | `FIREBASE_PROJECT_ID` secret must match Firebase web app project |
 | Camera preview blank | Use latest frontend (stream attaches after video mounts) |
 | CORS on wrong origin | Only Netlify + localhost:5173 are allowed; add others in `_shared/cors.ts` |

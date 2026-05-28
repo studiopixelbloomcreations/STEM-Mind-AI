@@ -2,17 +2,17 @@
 
 ## Required Secrets
 
-Set these on Supabase before deploying `stem-live`:
+Set these on Supabase before deploying `stem-live` (Project Settings → Edge Functions → Secrets):
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `FIREBASE_PROJECT_ID`
+- `FIREBASE_PROJECT_ID` (required)
+
+Optional:
+
 - `OPENROUTER_API_KEY` (strongly recommended for production quality live responses)
+- `OCR_SPACE_API_KEY` (vision pipeline fallback)
+- `HUGGINGFACE_API_KEY` (vision pipeline fallback)
 
-Optional (vision pipeline fallback quality):
-
-- `OCR_SPACE_API_KEY`
-- `HUGGINGFACE_API_KEY`
+**Do not** add `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or any secret starting with `SUPABASE_`. Supabase injects `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` automatically; the dashboard rejects custom `SUPABASE_*` secret names.
 
 ## Required Frontend Variables
 

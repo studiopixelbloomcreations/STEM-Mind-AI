@@ -37,17 +37,17 @@ From project root (if CLI is installed):
 - `supabase functions deploy stem-live`
 
 ### 3) Configure Edge Function Secrets
-Set these secrets in Supabase:
-- Required:
-  - `SUPABASE_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
-  - `FIREBASE_PROJECT_ID`
-- Optional OCR/Reasoning providers (feature still works with fallback if omitted):
+In Supabase Dashboard → Project Settings → Edge Functions → Secrets, add **only**:
+
+- Required: `FIREBASE_PROJECT_ID`
+- Optional (features degrade gracefully without them):
   - `OPENROUTER_API_KEY` (recommended for STEM Live multimodal reasoning + higher quality responses)
   - `OCR_SPACE_API_KEY` (free tier supported)
   - `HUGGINGFACE_API_KEY` (for TrOCR inference)
 
-Example:
+Do **not** create secrets named `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, or any `SUPABASE_*` prefix — Supabase injects those automatically at runtime.
+
+Example (CLI):
 - `supabase secrets set FIREBASE_PROJECT_ID=your-project-id`
 
 ## Vision API Contract

@@ -4,9 +4,10 @@ import Login from './components/Login';
 import TeacherDashboard from './components/TeacherDashboard';
 import StudentPortal from './components/StudentPortal';
 import QuizView from './components/QuizView';
+import STEMLiveMode from './components/STEMLiveMode';
 
 function RootNavigation() {
-  const { user, loading, activeStudent, currentQuiz } = useApp();
+  const { user, loading, activeStudent, currentQuiz, liveModeActive } = useApp();
 
   if (loading) {
     return (
@@ -27,6 +28,10 @@ function RootNavigation() {
   // 2. Quiz View Portal (Active adaptive quiz running)
   if (currentQuiz) {
     return <QuizView />;
+  }
+
+  if (liveModeActive) {
+    return <STEMLiveMode />;
   }
 
   // 3. Student Selection Portal (A student profile has been launched)

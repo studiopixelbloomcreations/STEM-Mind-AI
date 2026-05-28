@@ -21,19 +21,19 @@ export default function Login() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="app-shell">
       {/* Visual background ambient decoration */}
       <div style={styles.glowTop}></div>
       <div style={styles.glowBottom}></div>
 
-      <header style={styles.header}>
+      <header style={styles.header} className="login-header mobile-stack">
         <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '36px', width: 'auto', borderRadius: '4px' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>
         </div>
         
         {/* Responsive Premium Theme Selector */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--glass-bg)', padding: '4px 8px', borderRadius: '100px', border: '1px solid var(--border-color)' }}>
+        <div className="theme-toggle" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--glass-bg)', padding: '4px 8px', borderRadius: '100px', border: '1px solid var(--border-color)' }}>
           <button 
             onClick={() => handleThemeChange('light')} 
             style={{ border: 'none', background: themeSetting === 'light' ? 'rgba(139, 92, 246, 0.15)' : 'transparent', color: themeSetting === 'light' ? '#8b5cf6' : 'var(--text-muted)', padding: '6px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -58,16 +58,16 @@ export default function Login() {
         </div>
       </header>
 
-      <main style={styles.main}>
-        <div style={styles.heroSection}>
+      <main style={styles.main} className="login-main">
+        <div style={styles.heroSection} className="login-hero">
           <div style={styles.badge}>
             <Sparkles size={14} style={{ color: '#06b6d4' }} />
             <span>Harmony Multi-Model Engine v2.0</span>
           </div>
-          <h1 style={styles.headline}>
+          <h1 style={styles.headline} className="login-headline">
             The Future of <span style={styles.gradientText}>STEM Learning</span>
           </h1>
-          <p style={styles.tagline}>
+          <p style={styles.tagline} className="login-tagline">
             An advanced cognitive learning platform for Grades 9–11 powered by a collaborative council of specialized AI agents.
           </p>
 
@@ -89,7 +89,7 @@ export default function Login() {
           </div>
         </div>
 
-        <div style={styles.loginCard} className="card-glass glow-pulse">
+        <div style={styles.loginCard} className="card-glass glow-pulse login-card">
           <GraduationCap size={48} style={{ color: '#8b5cf6', marginBottom: '16px' }} />
           <h2 style={styles.cardTitle}>Teacher Portal</h2>
           <p style={styles.cardSubtitle}>
@@ -132,7 +132,7 @@ const styles = {
     overflow: 'hidden',
   },
   header: {
-    padding: '24px 48px',
+    padding: '24px',
     display: 'flex',
     alignItems: 'center',
     borderBottom: '1px solid var(--border-color)',
@@ -144,18 +144,12 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 80px',
+    padding: '24px',
     gap: '64px',
     maxWidth: '1200px',
     margin: '0 auto',
     width: '100%',
     zIndex: 2,
-    '@media (max-width: 968px)': {
-      flexDirection: 'column',
-      padding: '40px 24px',
-      textAlign: 'center',
-      justifyContent: 'center',
-    }
   },
   heroSection: {
     flex: 1.2,

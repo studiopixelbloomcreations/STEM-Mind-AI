@@ -4,9 +4,11 @@ import { generateQuizTopic, runHarmonyCouncil } from '../harmony/harmonyEngine';
 import { 
   ChevronLeft, Award, Play, 
   Sparkles,
+  Radio,
   Sun, Moon, Laptop
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import VisionCapturePanel from './VisionCapturePanel';
 
 export default function StudentPortal() {
   const { 
@@ -16,6 +18,7 @@ export default function StudentPortal() {
     activeGrade, setActiveGrade,
     activeDifficulty, setActiveDifficulty,
     setCurrentQuiz,
+    setLiveModeActive,
     themeSetting, handleThemeChange
   } = useApp();
 
@@ -125,9 +128,9 @@ export default function StudentPortal() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="app-shell">
       {/* Header */}
-      <header className="navbar" style={{ padding: '0 40px', justifyContent: 'space-between' }}>
+      <header className="navbar app-navbar student-nav mobile-stack" style={{ justifyContent: 'space-between' }}>
         <button onClick={() => setActiveStudent(null)} className="btn-secondary" style={styles.backBtn}>
           <ChevronLeft size={16} />
           <span>Exit Learning Hub</span>
@@ -136,7 +139,7 @@ export default function StudentPortal() {
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="student-nav-right">
           {/* Theme Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--glass-bg)', padding: '4px 8px', borderRadius: '100px', border: '1px solid var(--border-color)' }}>
             <button 
@@ -162,7 +165,7 @@ export default function StudentPortal() {
             </button>
           </div>
 
-          <div style={styles.studentBadge}>
+          <div style={styles.studentBadge} className="student-badge">
             <Award size={16} style={{ color: '#06b6d4' }} />
             <span>Student Portal: {activeStudent?.name}</span>
           </div>
@@ -170,11 +173,11 @@ export default function StudentPortal() {
       </header>
 
       {/* Selector Container */}
-      <main style={styles.main}>
-        <div style={styles.card} className="card-glass">
+      <main style={styles.main} className="student-main">
+        <div style={styles.card} className="card-glass student-card">
           <div style={styles.introHeader}>
             <Sparkles size={36} style={{ color: '#8b5cf6', marginBottom: '12px' }} />
-            <h1 style={styles.title}>Harmony Adaptive Learning</h1>
+            <h1 style={styles.title} className="student-title">Harmony Adaptive Learning</h1>
             <p style={styles.subtitle}>
               Configure your focus area. The Harmony Council will adapt the curriculum, difficulty, and hints in real time.
             </p>
@@ -378,19 +381,33 @@ export default function StudentPortal() {
             </div>
           </div>
 
-          <button
-            onClick={startQuiz}
-            disabled={!activeSubject || !activeTopic}
-            className="btn-primary"
-            style={{
-              ...styles.startBtn,
-              opacity: (!activeSubject || !activeTopic) ? 0.5 : 1,
-              cursor: (!activeSubject || !activeTopic) ? 'not-allowed' : 'pointer'
-            }}
-          >
-            <Play size={18} />
-            <span>Generate Adaptive Study Unit</span>
-          </button>
+          <div className="student-start-bar">
+            <div style={styles.startBarButtons}>
+              <button
+                onClick={() => setLiveModeActive(true)}
+                className="btn-secondary"
+                style={styles.liveBtn}
+              >
+                <Radio size={18} />
+                <span>Open STEM Live</span>
+              </button>
+              <button
+                onClick={startQuiz}
+                disabled={!activeSubject || !activeTopic}
+                className="btn-primary"
+                style={{
+                  ...styles.startBtn,
+                  opacity: (!activeSubject || !activeTopic) ? 0.5 : 1,
+                  cursor: (!activeSubject || !activeTopic) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <Play size={18} />
+                <span>Generate Adaptive Study Unit</span>
+              </button>
+            </div>
+          </div>
+
+          <VisionCapturePanel />
         </div>
       </main>
     </div>
@@ -488,9 +505,20 @@ const styles = {
     transition: 'all 0.2s ease',
   },
   startBtn: {
-    width: '100%',
+    flex: 1,
     justifyContent: 'center',
     padding: '14px',
     fontSize: '1.05rem',
+  },
+  liveBtn: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: '14px',
+    fontSize: '1.05rem',
+  },
+  startBarButtons: {
+    display: 'flex',
+    gap: '12px',
+    width: '100%',
   }
 };

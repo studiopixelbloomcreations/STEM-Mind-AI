@@ -70,14 +70,14 @@ export default function TeacherDashboard() {
   }, [selectedStudent, students]);
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="app-shell">
       {/* Header bar */}
-      <nav className="navbar" style={{ padding: '0 40px', justifyContent: 'space-between' }}>
+      <nav className="navbar app-navbar teacher-nav mobile-stack" style={{ justifyContent: 'space-between' }}>
         <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>
         </div>
-        <div style={styles.userInfo}>
+        <div style={styles.userInfo} className="teacher-user-info">
           {/* Theme Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--glass-bg)', padding: '4px 8px', borderRadius: '100px', border: '1px solid var(--border-color)', marginRight: '8px' }}>
             <button 
@@ -103,7 +103,7 @@ export default function TeacherDashboard() {
             </button>
           </div>
 
-          <span style={styles.userEmail}>{user?.email}</span>
+          <span style={styles.userEmail} className="teacher-email">{user?.email}</span>
           <button onClick={handleLogout} className="btn-secondary" style={styles.logoutBtn}>
             <LogOut size={16} />
             <span>Sign Out</span>
@@ -112,9 +112,9 @@ export default function TeacherDashboard() {
       </nav>
 
       {/* Main dashboard content layout */}
-      <div style={styles.dashboardBody}>
+      <div style={styles.dashboardBody} className="teacher-body">
         {/* Left student list sidebar */}
-        <aside style={styles.sidebar} className="card-glass">
+        <aside style={styles.sidebar} className="card-glass teacher-sidebar">
           <div style={styles.sidebarHeader}>
             <div style={styles.sidebarTitleWrap}>
               <Users size={20} style={{ color: '#8b5cf6' }} />
@@ -215,11 +215,11 @@ export default function TeacherDashboard() {
         </aside>
 
         {/* Right dashboard detail panel */}
-        <main style={styles.detailContainer}>
+        <main style={styles.detailContainer} className="teacher-detail">
           {selectedStudent ? (
             <div style={styles.studentDetails}>
               {/* Profile banner */}
-              <div style={styles.detailsHeader} className="card-glass">
+              <div style={styles.detailsHeader} className="card-glass teacher-details-header">
                 <div>
                   <h1 style={styles.profileName}>{selectedStudent.name}</h1>
                   <p style={styles.profileMeta}>
@@ -241,7 +241,7 @@ export default function TeacherDashboard() {
                   <h3>Analyzing Council Records...</h3>
                 </div>
               ) : studentDetails ? (
-                <div style={styles.gridContainer}>
+                <div style={styles.gridContainer} className="teacher-grid">
                   {/* Left Column: Stats & Recommendations */}
                   <div style={styles.columnLeft}>
                     {/* Mastery Stats */}
@@ -330,7 +330,7 @@ export default function TeacherDashboard() {
               ) : null}
             </div>
           ) : (
-            <div style={styles.emptyState}>
+            <div style={styles.emptyState} className="teacher-empty">
               <Users size={64} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
               <h3>Select a student profile from the sidebar to view metrics, custom AI insights, and start studying.</h3>
             </div>
@@ -362,7 +362,7 @@ const styles = {
   dashboardBody: {
     flex: 1,
     display: 'flex',
-    padding: '24px 40px',
+    padding: '24px',
     gap: '32px',
     maxWidth: '1440px',
     margin: '0 auto',

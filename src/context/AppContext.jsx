@@ -16,6 +16,7 @@ export const AppProvider = ({ children }) => {
   const [activeTopic, setActiveTopic] = useState('');
   const [activeGrade, setActiveGrade] = useState(10);
   const [activeDifficulty, setActiveDifficulty] = useState('medium');
+  const [liveModeActive, setLiveModeActive] = useState(false);
   const [themeSetting, setThemeSetting] = useState(() => localStorage.getItem('theme-setting') || 'system');
   const [resolvedTheme, setResolvedTheme] = useState('dark');
 
@@ -69,6 +70,7 @@ export const AppProvider = ({ children }) => {
         setUser(null);
         setStudents([]);
         setActiveStudent(null);
+        setLiveModeActive(false);
       }
       setLoading(false);
     });
@@ -268,6 +270,8 @@ export const AppProvider = ({ children }) => {
         setActiveGrade,
         activeDifficulty,
         setActiveDifficulty,
+        liveModeActive,
+        setLiveModeActive,
         themeSetting,
         resolvedTheme,
         handleThemeChange,

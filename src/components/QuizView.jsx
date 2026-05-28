@@ -328,9 +328,9 @@ export default function QuizView() {
   };
 
   return (
-    <div style={styles.container}>
+    <div style={styles.container} className="app-shell">
       {/* Header bar */}
-      <header className="navbar" style={{ padding: '0 40px', justifyContent: 'space-between' }}>
+      <header className="navbar app-navbar quiz-nav mobile-stack" style={{ justifyContent: 'space-between' }}>
         <div style={styles.navProgress}>
           <span>Question {questionCount} of 5</span>
           <span style={styles.difficultyBadge}>{difficulty.toUpperCase()}</span>
@@ -339,7 +339,7 @@ export default function QuizView() {
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="quiz-top-right">
           {/* Theme Selector */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--glass-bg)', padding: '4px 8px', borderRadius: '100px', border: '1px solid var(--border-color)' }}>
             <button 
@@ -373,11 +373,11 @@ export default function QuizView() {
       </header>
 
       {/* Main quiz interface */}
-      <main style={styles.main}>
+      <main style={styles.main} className="quiz-main">
         {teachingMode ? (
           /* Live visual teaching mode takes full width */
           <div className="card-glass" style={{ maxWidth: '800px', margin: '0 auto', padding: '40px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }} className="quiz-teaching-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-secondary)' }}>
                 <BookOpen size={24} />
                 <span>Interactive Visual Masterclass</span>
@@ -433,7 +433,7 @@ export default function QuizView() {
                 </div>
 
                 {/* Navigation controls */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }} className="quiz-teaching-controls">
                   <button 
                     onClick={handleTeachingStepPrev} 
                     disabled={currentTeachingStep === 0} 
@@ -494,9 +494,9 @@ export default function QuizView() {
             )}
           </div>
         ) : (
-          <div style={styles.layoutGrid}>
+          <div style={styles.layoutGrid} className="quiz-grid">
             {/* Main Question Card */}
-            <div style={styles.leftCol} className={`card-glass ${explanationExpandedMode ? 'fade-out-out' : ''}`}>
+            <div style={styles.leftCol} className={`card-glass quiz-left ${explanationExpandedMode ? 'fade-out-out' : ''}`}>
               <div style={styles.cardHeader}>
                 <div style={styles.confidenceWrap}>
                   <Sparkles size={14} style={{ color: '#06b6d4' }} />
@@ -512,7 +512,7 @@ export default function QuizView() {
                 </button>
               </div>
 
-              <h2 style={styles.questionText}>{question}</h2>
+              <h2 style={styles.questionText} className="quiz-question">{question}</h2>
 
               {/* Answer Input controls */}
               <div style={styles.inputsWrapper}>
@@ -548,8 +548,8 @@ export default function QuizView() {
               </div>
 
               {/* Footer triggers */}
-              <div style={styles.cardFooter}>
-                <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={styles.cardFooter} className="quiz-footer">
+                <div style={{ display: 'flex', gap: '8px' }} className="quiz-footer-actions">
                   <button 
                     onClick={() => setShowHint(!showHint)} 
                     className="btn-secondary"
@@ -570,11 +570,11 @@ export default function QuizView() {
                 </div>
 
                 {!submitted ? (
-                  <button onClick={handleSubmit} className="btn-primary" style={styles.submitBtn}>
+                  <button onClick={handleSubmit} className="btn-primary quiz-submit" style={styles.submitBtn}>
                     Submit Answer
                   </button>
                 ) : (
-                  <button onClick={handleNext} className="btn-primary" style={styles.submitBtn}>
+                  <button onClick={handleNext} className="btn-primary quiz-submit" style={styles.submitBtn}>
                     <span>{questionCount >= 5 ? 'Finish & Save' : 'Next Question'}</span>
                     <ChevronRight size={18} />
                   </button>
@@ -593,11 +593,11 @@ export default function QuizView() {
             </div>
 
             {/* Right Column: Feedback, Explanations, Coach, Motivation */}
-            <div style={explanationExpandedMode ? { width: '100%', gridColumn: '1 / -1' } : styles.rightCol}>
+            <div style={explanationExpandedMode ? { width: '100%', gridColumn: '1 / -1' } : styles.rightCol} className={!explanationExpandedMode ? 'quiz-right-card' : ''}>
               {/* Step by step Wrong explanation expands to full width */}
               {submitted && !isCorrect && explanationExpandedMode && (
                 <div className="card-glass explanation-full-screen" style={{ borderColor: '#ef4444' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }} className="quiz-explanation-header">
                     <h3 style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-heading)' }}>
                       <X size={20} />
                       <span>Incorrect Answer Breakdown</span>
@@ -638,7 +638,7 @@ export default function QuizView() {
                       )}
 
                       {/* Step controls */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }} className="quiz-step-controls">
                         <button 
                           onClick={handleWrongStepPrev} 
                           disabled={currentWrongStep === 0} 

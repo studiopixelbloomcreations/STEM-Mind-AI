@@ -42,44 +42,59 @@ class VoiceSynthesizer {
 
   async speakHuggingFace(text, onEndCallback = null) {
     this.stop();
-    try {
-      // Call Hugging Face Serverless Inference API for AbteeXAILab/lumynax-speech-kokoro-82m-tts
-      const response = await fetch(
-        "https://api-inference.huggingface.co/models/AbteeXAILab/lumynax-speech-kokoro-82m-tts",
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-          body: JSON.stringify({ inputs: text }),
+    
+    // Alternative Hugging Face endpoint hosts to bypass DNS resolution or ISP blocking issues
+    const endpoints = [
+      "https://api-inference.huggingface.co/models/AbteeXAILab/lumynax-speech-kokoro-82m-tts",
+      "https://api-inference.hf.co/models/AbteeXAILab/lumynax-speech-kokoro-82m-tts"
+    ];
+
+    let lastError = null;
+
+    for (const url of endpoints) {
+      try {
+        console.log(`Attempting TTS with Hugging Face endpoint: ${url}`);
+        const response = await fetch(
+          url,
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({ inputs: text }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HF API returned status ${response.status}`);
         }
-      );
 
-      if (!response.ok) {
-        throw new Error(`HF API returned status ${response.status}`);
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = new Audio(audioUrl);
+        this.currentAudio = audio;
+
+        if (onEndCallback) {
+          audio.addEventListener('ended', () => {
+            onEndCallback();
+            URL.revokeObjectURL(audioUrl);
+          });
+        } else {
+          audio.addEventListener('ended', () => {
+            URL.revokeObjectURL(audioUrl);
+          });
+        }
+
+        await audio.play();
+        return; // Success! Exit the function.
+      } catch (err) {
+        console.warn(`Hugging Face endpoint ${url} failed:`, err);
+        lastError = err;
       }
-
-      const blob = await response.blob();
-      const audioUrl = URL.createObjectURL(blob);
-      const audio = new Audio(audioUrl);
-      this.currentAudio = audio;
-
-      if (onEndCallback) {
-        audio.addEventListener('ended', () => {
-          onEndCallback();
-          URL.revokeObjectURL(audioUrl);
-        });
-      } else {
-        audio.addEventListener('ended', () => {
-          URL.revokeObjectURL(audioUrl);
-        });
-      }
-
-      await audio.play();
-    } catch (err) {
-      console.error("Hugging Face TTS failed, falling back to local TTS:", err);
-      this.speak(text, onEndCallback);
     }
+
+    console.error("All Hugging Face TTS endpoints failed, falling back to local TTS:", lastError);
+    this.speak(text, onEndCallback);
   }
 
   speakPuter(text, onEndCallback = null) {

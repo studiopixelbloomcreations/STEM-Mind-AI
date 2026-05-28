@@ -334,8 +334,8 @@ Format:
 export async function runStepByStepExplanationAgent(question, correctAnswer, wrongAnswer, eli10 = false) {
   const provider = getActiveProvider();
   const simplicityPrompt = eli10 
-    ? "Explain like I am 10 years old, using super simple analogies." 
-    : "Provide a clear, high-quality step-by-step academic breakdown.";
+    ? "Explain like I am 10 years old, using super simple analogies and basic visual symbols." 
+    : "Provide a clear, high-quality step-by-step academic breakdown with professional visual diagrams.";
 
   const prompt = `You are the Explanation AI. The student answered incorrectly.
 Question: "${question}"
@@ -345,13 +345,15 @@ Student's Answer: "${wrongAnswer}"
 ${simplicityPrompt}
 
 Break the explanation down into 3 to 5 logical steps so the student can follow along easily. For each step, provide:
-1. "caption": A text summary of this step that will remain on-screen for the student to read.
-2. "speech": The friendly spoken voice narration explaining this step in detail.
+1. "visual": A beautifully styled HTML snippet (using inline CSS) that represents a live diagram, formula, math box, or step-by-step progress visually. Use colored text, math expressions, symbols, arrows, or highlighted boxes. Keep it visual and minimal — no long paragraphs.
+2. "caption": A text summary of this step that will remain on-screen for the student to read.
+3. "speech": The friendly spoken voice narration explaining this step in detail.
 
 Output a raw JSON array of objects only. Do NOT wrap in markdown code blocks.
 Format:
 [
   {
+    "visual": "<div style='font-size:22px; color:#ef4444; text-align:center; padding:16px;'><span style='text-decoration:line-through;'>Student: wrong</span> → <span style='color:#10b981;'>Correct: right</span></div>",
     "caption": "Step 1: Understand the core numbers.",
     "speech": "First, let's look at the terms. The coefficient of the middle term is five, and the constant is six."
   }
@@ -364,6 +366,7 @@ Format:
     console.error("Failed to parse step-by-step explanation payload:", err, response);
     return [
       {
+        visual: `<div style="font-size:20px; color:#ef4444; text-align:center;">Question: ${question}<br/><span style='color:#10b981;'>Answer: ${correctAnswer}</span></div>`,
         caption: `Incorrect answer. The correct value is ${correctAnswer}.`,
         speech: `Your answer was incorrect. Let's look at the correct solution which is ${correctAnswer}.`
       }

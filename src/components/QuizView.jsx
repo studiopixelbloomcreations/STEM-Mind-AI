@@ -609,10 +609,20 @@ export default function QuizView() {
                     </div>
                   ) : (
                     <div>
+                      {/* Live Visual for this step */}
+                      {wrongSteps[currentWrongStep] && wrongSteps[currentWrongStep].visual && (
+                        <div className="visual-canvas" style={{ marginBottom: '20px' }}>
+                          <div 
+                            dangerouslySetInnerHTML={{ __html: wrongSteps[currentWrongStep].visual }} 
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          />
+                        </div>
+                      )}
+
                       {/* Caption stays on screen */}
                       {wrongSteps[currentWrongStep] && (
-                        <div style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '12px', padding: '24px', minHeight: '120px', marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
-                          <p style={{ fontSize: '1.2rem', lineHeight: '1.6', width: '100%', color: 'var(--text-primary)', textAlign: 'center' }}>
+                        <div style={{ background: 'rgba(239, 68, 68, 0.03)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '12px', padding: '24px', minHeight: '80px', marginBottom: '24px', display: 'flex', alignItems: 'center' }}>
+                          <p style={{ fontSize: '1.1rem', lineHeight: '1.6', width: '100%', color: 'var(--text-primary)', textAlign: 'center' }}>
                             {wrongSteps[currentWrongStep].caption}
                           </p>
                         </div>

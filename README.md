@@ -2,16 +2,14 @@
 
 STEM Mind AI is a React + Vite learning platform that uses Firebase authentication and Supabase storage/database.
 
-This release includes **production STEM Live mode + Phase 1 Camera + Vision**:
+This release includes **production STEM Live mode**:
 - Full-screen immersive STEM Live voice mode (desktop + mobile).
 - Real-time mic capture, speech recognition, and spoken AI responses.
 - Live camera toggling with sampled visual grounding per turn.
 - Session and turn persistence for observability/debugging.
 - Heartbeat/reconnect behavior with degraded voice-only fallback if visual pipeline fails.
-- Camera capture and image upload in student flow.
-- Secure server-side OCR + analysis via Supabase Edge Function.
-- Private storage bucket for captured images.
-- Persisted vision attempt history per teacher/student.
+
+The student Learning Hub focuses on Harmony adaptive study units (quiz flow). The optional `vision-analyze` edge function remains in the repo for future use but is not exposed in the student UI.
 
 ## Local Setup
 
@@ -24,7 +22,7 @@ This release includes **production STEM Live mode + Phase 1 Camera + Vision**:
 3. Start frontend:
    - `npm run dev`
 
-## Supabase Setup (Required for Vision)
+## Supabase Setup (Required for STEM Live)
 
 ### 1) Apply SQL migrations
 Run migration `supabase/migrations/20260528190000_phase1_camera_vision.sql` in Supabase SQL editor.
@@ -98,4 +96,4 @@ Fallback behavior and routing:
 3. Deploy frontend with `VITE_*` variables.
 4. Log in as teacher, open a student, launch `STEM Live`, verify mic/camera controls and voice reply loop.
 5. Confirm reconnect by toggling network offline/online and ensuring session recovers without app crash.
-5. In student flow, use camera/upload analysis, verify recent attempts render.
+5. In student Learning Hub, generate an adaptive study unit and complete a quiz session.

@@ -77,7 +77,7 @@ Expect HTTP **204** or **200** and header `Access-Control-Allow-Origin: https://
 
 Repeat with `/functions/v1/stem-live`.
 
-**App test:** Sign in on [https://stemmindv1.netlify.app](https://stemmindv1.netlify.app) with Firebase, open a student, try **Open Camera** / **Analyze Image** and **STEM Live**.
+**App test:** Sign in on [https://stemmindv1.netlify.app](https://stemmindv1.netlify.app) with Firebase, open a student, launch **STEM Live** (student Photo Analyzer UI is not in the Learning Hub).
 
 ---
 

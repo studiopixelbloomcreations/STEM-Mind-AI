@@ -161,7 +161,7 @@ curl -i -X OPTIONS "https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/vision
 ```
 
 2. Redeploy the Netlify site (`stemmindv1.netlify.app`).
-3. Sign in with Firebase, open a student, test **Open Camera**, **Analyze Image**, and **STEM Live**.
+3. Sign in with Firebase, open a student, launch **STEM Live** from the teacher dashboard, and verify voice/camera turns.
 
 ---
 

@@ -434,20 +434,6 @@ svg {
   width: 100%;
 }
 
-.vision-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.vision-meta {
-  flex-wrap: wrap;
-}
-
-.vision-history-item {
-  align-items: flex-start;
-}
-
 .stem-live-screen {
   min-height: 100vh;
   position: relative;
@@ -600,13 +586,23 @@ svg {
   border: 1px solid rgba(109, 170, 255, 0.35);
 }
 
-.live-main-text {
+.live-main-text,
+.live-caption-text {
   max-width: 520px;
   font-size: clamp(2.4rem, 4.1vw, 3.8rem);
   line-height: 1.15;
   font-weight: 500;
   letter-spacing: -0.01em;
   color: rgba(255, 255, 255, 0.96);
+  text-wrap: balance;
+}
+
+.live-caption-user {
+  margin-top: 10px;
+  max-width: 520px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.58);
   text-wrap: balance;
 }
 

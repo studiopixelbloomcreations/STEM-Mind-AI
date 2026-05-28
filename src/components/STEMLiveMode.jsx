@@ -420,6 +420,7 @@ export default function STEMLiveMode() {
       </header>
 
       <main className="stem-live-main">
+        <p className="stem-live-state-chip">{booting ? 'Booting...' : stateLabel}</p>
         <div
           className="voice-blob"
           style={{
@@ -429,7 +430,7 @@ export default function STEMLiveMode() {
         <p className="stem-live-last">
           {lastReply || 'Start speaking naturally. STEM Live will listen and respond in voice.'}
         </p>
-        <p className="stem-live-last-user">{lastUserUtterance ? `You: ${lastUserUtterance}` : ''}</p>
+        <p className="stem-live-last-user">{lastUserUtterance ? `You said: ${lastUserUtterance}` : ''}</p>
         <p className="stem-live-meta">
           {permissionSummary} · Provider: {metrics.provider} · Latency: {metrics.latencyMs}ms · Turns: {metrics.turnCount}
         </p>
@@ -449,9 +450,6 @@ export default function STEMLiveMode() {
             <span>Speech recognition is not supported in this browser. Use a Chromium-based browser.</span>
           </div>
         )}
-        <p className="stem-live-guardrail">
-          STEM Live prioritizes age-appropriate explanations and will avoid unsafe or harmful guidance.
-        </p>
       </main>
 
       <footer className="stem-live-controls">

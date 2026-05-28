@@ -4,6 +4,8 @@ import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'OPTIONS, POST',
+  'Access-Control-Max-Age': '86400',
 };
 
 const env = {
@@ -159,7 +161,7 @@ const fallbackReply = (transcript: string, subject?: string | null, topic?: stri
 };
 
 Deno.serve(async (request) => {
-  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (request.method === 'OPTIONS') return new Response('ok', { status: 200, headers: corsHeaders });
   try {
     const { uid } = await verifyFirebaseAuth(request);
     const body = await safeJson(request);

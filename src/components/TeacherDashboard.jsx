@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Users, UserPlus, LogOut, Award, AlertTriangle, 
-  Lightbulb, ChevronRight, BarChart2, BookOpen, Clock, Play,
+  Lightbulb, ChevronRight, BarChart2, BookOpen, Clock, Play, Radio,
   Sun, Moon, Laptop
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
@@ -10,7 +10,7 @@ import logoImg from '../assets/logo.png';
 export default function TeacherDashboard() {
   const { 
     user, students, registerStudent, setActiveStudent, 
-    getStudentHistoryAndAnalytics, handleLogout,
+    getStudentHistoryAndAnalytics, handleLogout, setLiveModeActive,
     themeSetting, handleThemeChange
   } = useApp();
 
@@ -72,7 +72,7 @@ export default function TeacherDashboard() {
   return (
     <div style={styles.container} className="app-shell">
       {/* Header bar */}
-      <nav className="navbar app-navbar teacher-nav mobile-stack" style={{ justifyContent: 'space-between' }}>
+      <nav className="navbar app-navbar teacher-nav" style={{ justifyContent: 'space-between' }}>
         <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '32px', width: 'auto', borderRadius: '4px' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>
@@ -226,14 +226,27 @@ export default function TeacherDashboard() {
                     Registered subjects: {selectedStudent.subjects.join(', ')}
                   </p>
                 </div>
-                <button 
-                  onClick={() => setActiveStudent(selectedStudent)} 
-                  className="btn-primary"
-                  style={styles.startSessionBtn}
-                >
-                  <Play size={16} />
-                  <span>Start Learning Hub</span>
-                </button>
+                <div style={styles.sectionActions}>
+                  <button
+                    onClick={() => setActiveStudent(selectedStudent)}
+                    className="btn-primary"
+                    style={styles.startSessionBtn}
+                  >
+                    <Play size={16} />
+                    <span>Start Learning Hub</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveStudent(selectedStudent);
+                      setLiveModeActive(true);
+                    }}
+                    className="btn-secondary"
+                    style={styles.stemLiveBtn}
+                  >
+                    <Radio size={16} />
+                    <span>Open STEM Live</span>
+                  </button>
+                </div>
               </div>
 
               {loadingDetails ? (
@@ -476,6 +489,14 @@ const styles = {
     marginTop: '4px',
   },
   startSessionBtn: {
+    gap: '10px',
+  },
+  sectionActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  stemLiveBtn: {
     gap: '10px',
   },
   gridContainer: {

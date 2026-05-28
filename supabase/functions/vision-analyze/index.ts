@@ -33,6 +33,8 @@ type VisionResult = {
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'OPTIONS, POST',
+  'Access-Control-Max-Age': '86400',
 };
 
 const SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
@@ -353,7 +355,7 @@ const buildAnalysisResult = async (bytes: Uint8Array, context: { subject?: strin
 
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { status: 200, headers: corsHeaders });
   }
 
   try {

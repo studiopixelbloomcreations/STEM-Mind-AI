@@ -330,7 +330,7 @@ export default function QuizView() {
   return (
     <div style={styles.container} className="app-shell">
       {/* Header bar */}
-      <header className="navbar app-navbar quiz-nav mobile-stack" style={{ justifyContent: 'space-between' }}>
+      <header className="navbar app-navbar quiz-nav" style={{ justifyContent: 'space-between' }}>
         <div style={styles.navProgress}>
           <span>Question {questionCount} of 5</span>
           <span style={styles.difficultyBadge}>{difficulty.toUpperCase()}</span>

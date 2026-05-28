@@ -383,15 +383,15 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 24px;
 }
 
-/* Mobile-first responsive foundations */
+/* Desktop-first layout */
 html,
 body {
   width: 100%;
-  max-width: 100%;
+  min-width: 1100px;
 }
 
 body {
-  font-size: clamp(14px, 2.8vw, 16px);
+  font-size: 16px;
 }
 
 img,
@@ -401,220 +401,43 @@ svg {
   max-width: 100%;
 }
 
-button,
-.btn-primary,
-.btn-secondary,
-input,
-select,
-textarea {
-  min-height: 44px;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--accent-secondary);
-  outline-offset: 2px;
-}
-
 .app-shell {
   min-height: 100vh;
-  min-height: 100dvh;
 }
 
 .app-navbar {
-  padding-left: max(16px, env(safe-area-inset-left));
-  padding-right: max(16px, env(safe-area-inset-right));
-  min-height: 72px;
+  padding: 0 24px;
+  min-height: 76px;
 }
 
-.theme-toggle {
-  flex-shrink: 0;
-}
-
-.mobile-stack {
-  flex-wrap: wrap;
-  row-gap: 10px;
-}
-
-/* Login */
-.login-header {
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 16px max(16px, env(safe-area-inset-left));
-  gap: 12px;
-}
-
-.login-main {
-  padding: 24px 16px 32px;
-  align-items: stretch;
-  justify-content: center;
-  gap: 20px;
-}
-
-.login-hero,
-.login-card {
-  width: 100%;
-  max-width: 100%;
-}
-
-.login-hero {
-  text-align: left;
-}
-
-.login-headline {
-  font-size: clamp(2rem, 9vw, 3.8rem);
-  line-height: 1.1;
-}
-
-.login-tagline {
-  font-size: clamp(0.95rem, 3.8vw, 1.2rem);
-}
-
-/* Teacher dashboard */
-.teacher-nav {
-  gap: 12px;
-}
-
-.teacher-user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.teacher-email {
-  max-width: 220px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.teacher-body {
-  padding: 16px;
+.teacher-nav,
+.student-nav,
+.quiz-nav {
   gap: 16px;
 }
 
-.teacher-sidebar {
-  width: 100%;
-  max-height: none;
-}
-
-.teacher-detail {
-  min-height: auto;
-}
-
-.teacher-grid {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.teacher-details-header {
-  gap: 12px;
-}
-
-.teacher-empty {
-  padding: 32px 20px;
-}
-
-/* Student portal */
-.student-nav {
-  gap: 12px;
-}
-
-.student-nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.student-badge {
-  max-width: 100%;
-}
-
-.student-main {
-  padding: 16px;
-}
-
-.student-card {
-  padding: 20px 16px;
-}
-
-.student-title {
-  font-size: clamp(1.5rem, 6.5vw, 2.2rem);
-}
-
-.student-start-bar {
-  position: sticky;
-  bottom: max(12px, env(safe-area-inset-bottom));
-  width: 100%;
-  padding: 8px;
-  border-radius: 14px;
-  background: rgba(11, 12, 16, 0.8);
-  backdrop-filter: blur(10px);
-  z-index: 10;
-}
-
-/* Quiz */
-.quiz-nav {
-  gap: 12px;
-}
-
+.teacher-user-info,
+.student-nav-right,
 .quiz-top-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
+.teacher-body,
+.student-main,
 .quiz-main {
-  padding: 16px;
+  padding: 24px;
 }
 
-.quiz-grid {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-}
-
-.quiz-left,
-.quiz-right-card {
+.student-start-bar {
   width: 100%;
 }
 
-.quiz-question {
-  font-size: clamp(1.2rem, 5.5vw, 1.6rem);
-}
-
-.quiz-footer {
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.quiz-footer-actions {
+.vision-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  width: 100%;
-}
-
-.quiz-submit {
-  width: 100%;
-  justify-content: center;
-}
-
-.quiz-explanation-header,
-.quiz-step-controls,
-.quiz-teaching-header,
-.quiz-teaching-controls {
   gap: 10px;
-}
-
-/* Vision panel */
-.vision-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.vision-actions > button {
-  width: 100%;
-  justify-content: center;
 }
 
 .vision-meta {
@@ -625,123 +448,17 @@ textarea:focus-visible {
   align-items: flex-start;
 }
 
-/* Global breakpoints */
-@media (max-width: 1024px) {
-  .login-main {
-    flex-direction: column;
-  }
-
-  .login-hero {
-    text-align: center;
-    align-items: center !important;
-  }
-}
-
-@media (max-width: 768px) {
-  .container {
-    padding: 0 16px;
-  }
-
-  .card-glass {
-    padding: 16px;
-    border-radius: 14px;
-  }
-
-  .app-navbar {
-    min-height: 68px;
-  }
-
-  .teacher-nav,
-  .student-nav,
-  .quiz-nav {
-    align-items: flex-start;
-  }
-
-  .teacher-nav .nav-logo span,
-  .student-nav .nav-logo span,
-  .quiz-nav .nav-logo span {
-    font-size: 1rem !important;
-  }
-
-  .teacher-user-info,
-  .student-nav-right,
-  .quiz-top-right {
-    width: 100%;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  .teacher-email {
-    max-width: 100%;
-    white-space: normal;
-    line-height: 1.3;
-  }
-
-  .teacher-sidebar .btn-primary,
-  .teacher-sidebar .btn-secondary,
-  .student-card .btn-primary,
-  .student-card .btn-secondary,
-  .quiz-left .btn-primary,
-  .quiz-left .btn-secondary {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .quiz-step-controls {
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-
-  .vision-actions {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-@media (max-width: 420px) {
-  .login-header {
-    padding-top: max(12px, env(safe-area-inset-top));
-  }
-
-  .login-main {
-    padding: 16px 12px 24px;
-  }
-
-  .login-card {
-    padding: 18px 14px !important;
-  }
-
-  .teacher-body,
-  .student-main,
-  .quiz-main {
-    padding: 12px;
-  }
-
-  .student-card {
-    padding: 16px 12px;
-  }
-
-  .quiz-left {
-    padding: 16px !important;
-  }
-
-  .quiz-teaching-header,
-  .quiz-explanation-header {
-    flex-wrap: wrap;
-  }
-}
-
 .stem-live-screen {
   min-height: 100vh;
-  min-height: 100dvh;
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   overflow: hidden;
-  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-  background: radial-gradient(circle at 15% 20%, rgba(139, 92, 246, 0.2), transparent 45%),
-    radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.16), transparent 42%),
-    #07090f;
+  padding: 28px 36px 30px;
+  background: radial-gradient(circle at 50% 40%, rgba(111, 58, 255, 0.26), transparent 52%),
+    radial-gradient(circle at 50% 58%, rgba(54, 195, 255, 0.18), transparent 45%),
+    #05070d;
 }
 
 .stem-live-overlay {
@@ -762,7 +479,7 @@ textarea:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .stem-live-title {
@@ -807,16 +524,26 @@ textarea:focus-visible {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   text-align: center;
 }
 
+.stem-live-state-chip {
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.07);
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .voice-blob {
-  width: min(44vw, 280px);
-  height: min(44vw, 280px);
+  width: min(34vw, 370px);
+  height: min(34vw, 370px);
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.65), rgba(139, 92, 246, 0.92) 40%, rgba(6, 182, 212, 0.65) 75%);
-  box-shadow: 0 0 60px rgba(139, 92, 246, 0.45), 0 0 80px rgba(6, 182, 212, 0.28);
+  background: radial-gradient(circle at 35% 26%, rgba(246, 251, 255, 0.9), rgba(122, 86, 255, 0.93) 39%, rgba(34, 205, 255, 0.75) 76%);
+  box-shadow: 0 0 70px rgba(126, 86, 255, 0.48), 0 0 110px rgba(34, 205, 255, 0.34);
   transition: transform 110ms linear;
 }
 
@@ -845,14 +572,15 @@ textarea:focus-visible {
 }
 
 .stem-live-last {
-  max-width: min(720px, 95%);
-  font-size: clamp(1rem, 3vw, 1.2rem);
+  max-width: min(760px, 95%);
+  font-size: 1.12rem;
+  line-height: 1.55;
 }
 
 .stem-live-last-user {
   max-width: min(680px, 90%);
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .stem-live-meta {
@@ -887,17 +615,17 @@ textarea:focus-visible {
 }
 
 .stem-live-vision {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  color: var(--text-secondary);
-  font-size: 0.84rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
 }
 
 .stem-live-vision video {
-  width: min(42vw, 220px);
+  width: min(22vw, 260px);
   aspect-ratio: 16 / 9;
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -912,21 +640,21 @@ textarea:focus-visible {
 .stem-live-controls {
   display: flex;
   justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 10px;
 }
 
 .live-control {
-  min-width: 120px;
+  min-width: 140px;
   border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.34);
   color: var(--text-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 11px 18px;
   cursor: pointer;
 }
 
@@ -940,20 +668,19 @@ textarea:focus-visible {
   color: #fecaca;
 }
 
-.stem-live-guardrail {
-  max-width: min(720px, 95%);
-  color: var(--text-muted);
-  font-size: 0.8rem;
+.light-theme .stem-live-screen {
+  background: radial-gradient(circle at 50% 36%, rgba(140, 117, 255, 0.2), transparent 48%),
+    radial-gradient(circle at 50% 58%, rgba(68, 196, 255, 0.14), transparent 44%),
+    #eef3ff;
 }
 
-@media (max-width: 640px) {
-  .start-bar-buttons,
-  .student-start-bar > div {
-    flex-direction: column;
-  }
-  .live-control {
-    width: 100%;
-  }
+.light-theme .stem-live-overlay {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(225, 233, 247, 0.62));
 }
 
+.light-theme .stem-live-state-chip,
+.light-theme .stem-live-status,
+.light-theme .live-control {
+  background: rgba(255, 255, 255, 0.72);
+}
 

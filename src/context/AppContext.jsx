@@ -227,13 +227,16 @@ export const AppProvider = ({ children }) => {
 
       if (qError) throw qError;
 
-      const { data: analytics, error: aError } = await supabase
+      const { data: analyticsRows, error: aError } = await supabase
         .from('analytics')
         .select('*')
         .eq('student_id', studentId)
-        .single();
+        .order('last_updated', { ascending: false })
+        .limit(1);
 
-      // Ignore single row errors if no record exists yet
+      if (aError) throw aError;
+      const analytics = Array.isArray(analyticsRows) ? analyticsRows[0] : null;
+
       return {
         quizzes: quizzes || [],
         analytics: analytics || { strengths: [], weaknesses: [], topic_mastery: {} }

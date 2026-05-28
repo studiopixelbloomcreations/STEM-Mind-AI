@@ -32,6 +32,15 @@ In `.env.local`:
    - `supabase functions deploy stem-live`
 3. Deploy frontend build.
 
+## Hotfix Redeploy (CORS + analytics 406)
+
+If production shows CORS preflight failures on `/functions/v1/vision-analyze` or `/functions/v1/stem-live`, redeploy both functions immediately:
+
+- `supabase functions deploy vision-analyze --project-ref <your-project-ref>`
+- `supabase functions deploy stem-live --project-ref <your-project-ref>`
+
+If analytics requests for `/rest/v1/analytics` return 406, redeploy the frontend so the updated non-`.single()` query logic is live.
+
 ## End-to-End Verification
 
 1. Sign in as a teacher.

@@ -26,7 +26,7 @@ export default function Login() {
       <div style={styles.glowTop}></div>
       <div style={styles.glowBottom}></div>
 
-      <header style={styles.header} className="login-header mobile-stack">
+      <header style={styles.header} className="login-header">
         <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img src={logoImg} alt="STEMMind AI Logo" style={{ height: '36px', width: 'auto', borderRadius: '4px' }} />
           <span style={{ fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.02em', background: 'linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>STEM Mind AI</span>

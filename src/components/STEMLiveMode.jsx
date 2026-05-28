@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, CameraOff, Mic, MicOff, PhoneOff, AlertTriangle, LoaderCircle } from 'lucide-react';
+import { Camera, CameraOff, Menu, Mic, MicOff, Share2, Video, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
   endStemLiveSession,
@@ -35,7 +35,6 @@ export default function STEMLiveMode() {
   const [lastReply, setLastReply] = useState('');
   const [lastUserUtterance, setLastUserUtterance] = useState('');
   const [visionStatus, setVisionStatus] = useState('Visual context disabled');
-  const [metrics, setMetrics] = useState({ provider: '-', latencyMs: 0, turnCount: 0 });
   const [recognitionSupported] = useState(Boolean(SpeechRecognitionApi));
   const [booting, setBooting] = useState(true);
 
@@ -174,11 +173,6 @@ export default function STEMLiveMode() {
       });
       setLastReply(response.replyText || '');
       setVisionStatus(response.visionSummary || (isCameraOn ? 'Visual context active' : 'Visual context disabled'));
-      setMetrics((prev) => ({
-        provider: response.provider || prev.provider,
-        latencyMs: Number(response.latencyMs || response._clientLatencyMs || 0),
-        turnCount: prev.turnCount + 1,
-      }));
       reconnectAttemptsRef.current = 0;
       speakReply(response.replyText || 'I am here and listening.');
     } catch (turnError) {
@@ -392,78 +386,60 @@ export default function STEMLiveMode() {
     if (sessionId) startHeartbeat();
   }, [sessionId, startHeartbeat]);
 
-  const stateLabel = {
-    [STATES.idle]: 'Ready',
-    [STATES.listening]: 'Listening',
-    [STATES.thinking]: 'Thinking',
-    [STATES.speaking]: 'Speaking',
-    [STATES.disconnected]: 'Reconnecting',
-    [STATES.error]: 'Error',
-  }[status];
-
-  const permissionSummary = `Mic: ${micPermission} · Camera: ${cameraPermission}`;
+  const centerMessage = lastReply || `The mic is yours, ${activeStudent?.name || 'student'}`;
+  const canUseMic = !booting && recognitionSupported && micPermission !== 'denied';
 
   return (
     <div className={`stem-live-screen state-${status}`}>
-      <div className="stem-live-overlay" />
-      <header className="stem-live-header">
-        <div>
-          <div className="stem-live-title">STEM Live</div>
-          <div className="stem-live-subtitle">
-            {activeStudent?.name} - {activeSubject || 'General STEM'} {activeTopic ? `- ${activeTopic}` : ''}
-          </div>
-        </div>
-        <div className="stem-live-status">
-          <span className="status-dot" />
-          <span>{booting ? 'Booting...' : stateLabel}</span>
-        </div>
+      <div className="stem-live-vignette" />
+      <header className="stem-live-topbar">
+        <button type="button" className="live-icon-btn" aria-label="Open menu">
+          <Menu size={20} />
+        </button>
+        <button
+          type="button"
+          className={`live-icon-btn ${isCameraOn ? 'is-on' : ''}`}
+          onClick={toggleCamera}
+          aria-label="Toggle camera"
+          title={isCameraOn ? 'Camera On' : 'Camera Off'}
+        >
+          {isCameraOn ? <Camera size={20} /> : <CameraOff size={20} />}
+        </button>
       </header>
 
-      <main className="stem-live-main">
-        <p className="stem-live-state-chip">{booting ? 'Booting...' : stateLabel}</p>
-        <div
-          className="voice-blob"
-          style={{
-            transform: `scale(${1 + voiceLevel * 0.45})`,
-          }}
-        />
-        <p className="stem-live-last">
-          {lastReply || 'Start speaking naturally. STEM Live will listen and respond in voice.'}
+      <main className="stem-live-center">
+        <div className="live-star" />
+        <p className="live-main-text">{centerMessage}</p>
+        <p className="live-sub-text">
+          {booting ? 'Starting STEM Live...' : error || visionStatus}
         </p>
-        <p className="stem-live-last-user">{lastUserUtterance ? `You said: ${lastUserUtterance}` : ''}</p>
-        <p className="stem-live-meta">
-          {permissionSummary} · Provider: {metrics.provider} · Latency: {metrics.latencyMs}ms · Turns: {metrics.turnCount}
-        </p>
-        {error ? (
-          <div className="stem-live-error">
-            {status === STATES.disconnected ? <LoaderCircle size={16} className="spin" /> : <AlertTriangle size={16} />}
-            <span>{error}</span>
-          </div>
-        ) : null}
-        <div className="stem-live-vision">
-          <span>{visionStatus}</span>
-          <video ref={videoRef} autoPlay playsInline muted className={isCameraOn ? 'preview-on' : 'preview-off'} />
-        </div>
-        {!recognitionSupported && (
-          <div className="stem-live-error">
-            <AlertTriangle size={16} />
-            <span>Speech recognition is not supported in this browser. Use a Chromium-based browser.</span>
-          </div>
-        )}
+        <p className="live-sub-text">{lastUserUtterance ? `You said: ${lastUserUtterance}` : ''}</p>
+        <video ref={videoRef} autoPlay playsInline muted className="live-hidden-preview" />
       </main>
 
-      <footer className="stem-live-controls">
-        <button className={`live-control ${isCameraOn ? 'is-on' : ''}`} onClick={toggleCamera} aria-label="Toggle camera">
-          {isCameraOn ? <Camera size={20} /> : <CameraOff size={20} />}
-          <span>{isCameraOn ? 'Camera On' : 'Camera Off'}</span>
+      <footer className="stem-live-bottom">
+        <button type="button" className={`live-control-btn ${isCameraOn ? 'is-on' : ''}`} onClick={toggleCamera} aria-label="Toggle camera">
+          {isCameraOn ? <Video size={20} /> : <CameraOff size={20} />}
         </button>
-        <button className={`live-control ${!isMicMuted ? 'is-on' : ''}`} onClick={toggleMic} aria-label="Toggle microphone">
-          {isMicMuted ? <MicOff size={20} /> : <Mic size={20} />}
-          <span>{isMicMuted ? 'Mic Muted' : 'Mic Live'}</span>
+        <button type="button" className="live-control-btn" aria-label="Share">
+          <Share2 size={18} />
         </button>
-        <button className="live-control danger" onClick={closeLive} aria-label="End live mode">
-          <PhoneOff size={20} />
-          <span>End</span>
+        <div
+          className="live-orb"
+          style={{
+            transform: `scale(${1 + voiceLevel * 0.2})`,
+          }}
+        />
+        <button
+          type="button"
+          className={`live-control-btn ${canUseMic && !isMicMuted ? 'is-on' : ''}`}
+          onClick={toggleMic}
+          aria-label="Toggle microphone"
+        >
+          {isMicMuted ? <MicOff size={18} /> : <Mic size={18} />}
+        </button>
+        <button type="button" className="live-control-btn danger" onClick={closeLive} aria-label="End live mode">
+          <X size={20} />
         </button>
       </footer>
     </div>

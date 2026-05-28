@@ -93,6 +93,41 @@ function getActiveProvider(exclude = []) {
 }
 
 /**
+ * Generates a syllabus-aligned topic suggestion for the selected grade and subject.
+ * The topic references Sri Lankan government curriculum expectations without relying on static lists.
+ */
+export async function generateQuizTopic(subject, grade) {
+  const provider = getActiveProvider();
+  const prompt = `You are a Sri Lankan curriculum advisor for STEMMind AI.
+Generate a single, syllabus-aligned quiz topic for Grade ${grade} ${subject} using the Sri Lankan government school curriculum expectations.
+Return only a raw JSON object with these exact keys:
+{
+  "topic": "Specific topic name",
+  "syllabusReference": "Short note on how it aligns with the Sri Lankan government syllabus",
+  "whyRelevant": "One sentence explaining why this topic fits the selected grade and subject"
+}
+Do not include markdown formatting or extra explanations.`;
+
+  const response = await callProvider(provider, [{ role: 'user', content: prompt }]);
+
+  try {
+    const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
+    return {
+      topic: parsed.topic || 'General topic',
+      syllabusReference: parsed.syllabusReference || 'Sri Lankan government syllabus alignment',
+      whyRelevant: parsed.whyRelevant || 'AI-generated syllabus-aligned topic.'
+    };
+  } catch (err) {
+    const fallbackTopic = response.replace(/```json|```/g, '').trim().split('\n')[0].replace(/^[-*]\s*/, '');
+    return {
+      topic: fallbackTopic || `${subject} Fundamentals`,
+      syllabusReference: 'Sri Lankan government syllabus alignment',
+      whyRelevant: 'AI-generated syllabus-aligned topic.'
+    };
+  }
+}
+
+/**
  * 1. TEACHER AI: Generates educational question sets and quizzes.
  */
 export async function runTeacherAgent(subject, topic, grade, difficulty) {

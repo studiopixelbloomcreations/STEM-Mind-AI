@@ -1,9 +1,9 @@
-import React from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { runHarmonyCouncil } from '../harmony/harmonyEngine';
+import { generateQuizTopic, runHarmonyCouncil } from '../harmony/harmonyEngine';
 import { 
-  BookOpen, ChevronLeft, Award, Play, 
-  Sparkles, CheckCircle, BarChart2,
+  ChevronLeft, Award, Play, 
+  Sparkles,
   Sun, Moon, Laptop
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
@@ -19,42 +19,75 @@ export default function StudentPortal() {
     themeSetting, handleThemeChange
   } = useApp();
 
+  const [topicLoading, setTopicLoading] = useState(false);
+  const [topicGenerationError, setTopicGenerationError] = useState('');
+
   const subjects = [
-    {
-      name: 'Mathematics',
-      topics: ['Quadratic Equations', 'Trigonometry', 'Probability', 'Coordinate Geometry']
-    },
-    {
-      name: 'Physics',
-      topics: ['Kinematics', 'Newtonian Mechanics', 'Thermodynamics', 'Electromagnetism']
-    },
-    {
-      name: 'Chemistry',
-      topics: ['Chemical Bonding', 'Stoichiometry', 'Acids and Bases', 'Organic Chemistry']
-    },
-    {
-      name: 'Biology',
-      topics: ['Cellular Respiration', 'Genetics', 'Photosynthesis', 'Human Systems']
-    }
+    'Mathematics',
+    'Physics',
+    'Chemistry',
+    'Biology'
   ];
 
-  const currentSubjectObj = subjects.find(s => s.name === activeSubject);
+  const refreshGeneratedTopic = async (subjectOverride = activeSubject, gradeOverride = activeGrade) => {
+    if (!subjectOverride) {
+      setActiveTopic('');
+      setTopicGenerationError('');
+      return;
+    }
+
+    setTopicLoading(true);
+    setTopicGenerationError('');
+
+    try {
+      const generated = await generateQuizTopic(subjectOverride, gradeOverride);
+      setActiveTopic(generated.topic);
+      setTopicGenerationError('');
+    } catch (err) {
+      console.error(err);
+      setActiveTopic(`${subjectOverride} Fundamentals`);
+      setTopicGenerationError('Generated fallback topic due to AI topic generation error.');
+    } finally {
+      setTopicLoading(false);
+    }
+  };
+
+  const handleGradeChange = async (grade) => {
+    setActiveGrade(grade);
+    if (!activeSubject) {
+      setActiveTopic('');
+      setTopicGenerationError('');
+      return;
+    }
+
+    await refreshGeneratedTopic(activeSubject, grade);
+  };
+
+  const handleSubjectChange = async (subject) => {
+    setActiveSubject(subject);
+    setActiveTopic('');
+    setTopicGenerationError('');
+    await refreshGeneratedTopic(subject, activeGrade);
+  };
 
   const startQuiz = async () => {
-    if (!activeSubject || !activeTopic) return;
-    
-    // Set quiz as loading
+    if (!activeSubject) return;
+
     setCurrentQuiz({ loading: true });
-    
+
     try {
+      const generated = await generateQuizTopic(activeSubject, activeGrade);
+      const freshTopic = generated.topic;
+      setActiveTopic(freshTopic);
+
       const quizPayload = await runHarmonyCouncil(
-        activeSubject, 
-        activeTopic, 
-        activeGrade, 
+        activeSubject,
+        freshTopic,
+        activeGrade,
         activeDifficulty,
         { streak: 0, history: [] } // Empty stats for new quiz initiation
       );
-      
+
       setCurrentQuiz({
         ...quizPayload,
         loading: false,
@@ -133,7 +166,7 @@ export default function StudentPortal() {
                 {[9, 10, 11].map(g => (
                   <button
                     key={g}
-                    onClick={() => setActiveGrade(g)}
+                    onClick={() => handleGradeChange(g)}
                     style={{
                       ...styles.optionBtn,
                       backgroundColor: activeGrade === g ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
@@ -152,44 +185,77 @@ export default function StudentPortal() {
               <div style={styles.optionGroup}>
                 {subjects.map(sub => (
                   <button
-                    key={sub.name}
-                    onClick={() => {
-                      setActiveSubject(sub.name);
-                      setActiveTopic('');
-                    }}
+                    key={sub}
+                    onClick={() => handleSubjectChange(sub)}
                     style={{
                       ...styles.optionBtn,
-                      backgroundColor: activeSubject === sub.name ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
-                      borderColor: activeSubject === sub.name ? '#8b5cf6' : 'rgba(255, 255, 255, 0.08)'
+                      backgroundColor: activeSubject === sub ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255, 255, 255, 0.02)',
+                      borderColor: activeSubject === sub ? '#8b5cf6' : 'rgba(255, 255, 255, 0.08)'
                     }}
                   >
-                    {sub.name}
+                    {sub}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Topic selection */}
-            {activeSubject && currentSubjectObj && (
-              <div style={styles.selectBlock}>
-                <label style={styles.label}>Select Topic</label>
-                <div style={styles.optionGroup}>
-                  {currentSubjectObj.topics.map(t => (
+            {/* AI-generated topic */}
+            <div style={styles.selectBlock}>
+              <label style={styles.label}>AI-Generated Topic</label>
+              <div style={{
+                ...styles.optionGroup,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'stretch',
+                gap: '10px'
+              }}>
+                <div style={{
+                  background: 'rgba(6, 182, 212, 0.08)',
+                  border: '1px solid rgba(6, 182, 212, 0.2)',
+                  borderRadius: '18px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Sparkles size={16} style={{ color: '#06b6d4' }} />
+                      <span style={{ fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#06b6d4' }}>Syllabus-Aligned Topic</span>
+                    </div>
                     <button
-                      key={t}
-                      onClick={() => setActiveTopic(t)}
+                      onClick={() => refreshGeneratedTopic()}
+                      disabled={!activeSubject || topicLoading}
                       style={{
                         ...styles.optionBtn,
-                        backgroundColor: activeTopic === t ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                        borderColor: activeTopic === t ? '#06b6d4' : 'rgba(255, 255, 255, 0.08)'
+                        padding: '6px 10px',
+                        fontSize: '0.72rem',
+                        minWidth: 'auto',
+                        opacity: (!activeSubject || topicLoading) ? 0.5 : 1,
+                        cursor: (!activeSubject || topicLoading) ? 'not-allowed' : 'pointer'
                       }}
                     >
-                      {t}
+                      {topicLoading ? 'Generating...' : 'Regenerate'}
                     </button>
-                  ))}
+                  </div>
+                  <div style={{
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    color: 'var(--text-primary)',
+                    minHeight: '24px'
+                  }}>
+                    {topicLoading ? 'Generating a fresh Sri Lankan syllabus-aligned topic...' : (activeTopic || 'Select a subject to generate a topic')}
+                  </div>
+                  <div style={{
+                    fontSize: '0.84rem',
+                    color: 'var(--text-muted)',
+                    lineHeight: '1.4'
+                  }}>
+                    {topicGenerationError || `Generated for Grade ${activeGrade} ${activeSubject || 'subject'} using Sri Lankan government syllabus alignment.`}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Difficulty selection */}
             <div style={styles.selectBlock}>

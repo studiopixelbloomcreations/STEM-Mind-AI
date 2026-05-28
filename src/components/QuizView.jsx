@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   runHarmonyCouncil, 
@@ -44,6 +44,24 @@ export default function QuizView() {
   const [loadingTeaching, setLoadingTeaching] = useState(false);
   const [teachingSimplerMode, setTeachingSimplerMode] = useState(false);
   const [speakingStep, setSpeakingStep] = useState(false);
+  const [autoPlayTeaching, setAutoPlayTeaching] = useState(false);
+  
+  const autoPlayTeachingRef = useRef(false);
+  const teachingModeRef = useRef(false);
+  const teachingStepsRef = useRef([]);
+
+  useEffect(() => {
+    autoPlayTeachingRef.current = autoPlayTeaching;
+  }, [autoPlayTeaching]);
+
+  useEffect(() => {
+    teachingModeRef.current = teachingMode;
+  }, [teachingMode]);
+
+  useEffect(() => {
+    teachingStepsRef.current = teachingSteps;
+  }, [teachingSteps]);
+
   
   // Quiz tracking
   const [quizScore, setQuizScore] = useState(0);
@@ -183,6 +201,23 @@ export default function QuizView() {
     }
   };
 
+  const playTeachingStep = (idx, stepsList = teachingSteps) => {
+    if (!stepsList[idx]) return;
+    setCurrentTeachingStep(idx);
+    setSpeakingStep(true);
+    voiceSynthesizer.speakPuter(stepsList[idx].speech, () => {
+      setSpeakingStep(false);
+      // Automatically advance to the next step if Auto Play is toggled and we are still in teaching mode
+      if (autoPlayTeachingRef.current && teachingModeRef.current && idx < stepsList.length - 1) {
+        setTimeout(() => {
+          if (autoPlayTeachingRef.current && teachingModeRef.current) {
+            playTeachingStep(idx + 1, stepsList);
+          }
+        }, 1500); // 1.5s pause before advancing automatically
+      }
+    });
+  };
+
   // Trigger interactive visual teaching mode
   const startInteractiveTeaching = async (simpler = false) => {
     setTeachingMode(true);
@@ -193,12 +228,13 @@ export default function QuizView() {
       setTeachingSteps(steps);
       setCurrentTeachingStep(0);
       if (steps && steps.length > 0) {
-        setSpeakingStep(true);
-        voiceSynthesizer.speakPuter(steps[0].speech, () => setSpeakingStep(false));
+        playTeachingStep(0, steps);
       }
     } catch (err) {
       console.error(err);
-      setTeachingSteps([{ visual: "<div style='color:red;'>Failed to load.</div>", speech: "Could not load teaching steps." }]);
+      const fallback = [{ visual: "<div style='color:red;'>Failed to load.</div>", speech: "Could not load teaching steps." }];
+      setTeachingSteps(fallback);
+      playTeachingStep(0, fallback);
     } finally {
       setLoadingTeaching(false);
     }
@@ -206,21 +242,16 @@ export default function QuizView() {
 
   const handleTeachingStepNext = () => {
     if (currentTeachingStep < teachingSteps.length - 1) {
-      const nextIdx = currentTeachingStep + 1;
-      setCurrentTeachingStep(nextIdx);
-      setSpeakingStep(true);
-      voiceSynthesizer.speakPuter(teachingSteps[nextIdx].speech, () => setSpeakingStep(false));
+      playTeachingStep(currentTeachingStep + 1);
     }
   };
 
   const handleTeachingStepPrev = () => {
     if (currentTeachingStep > 0) {
-      const prevIdx = currentTeachingStep - 1;
-      setCurrentTeachingStep(prevIdx);
-      setSpeakingStep(true);
-      voiceSynthesizer.speakPuter(teachingSteps[prevIdx].speech, () => setSpeakingStep(false));
+      playTeachingStep(currentTeachingStep - 1);
     }
   };
+
 
   // Reload explanation on ELI10 toggle
   const toggleEli10 = async () => {
@@ -342,16 +373,35 @@ export default function QuizView() {
                 <BookOpen size={24} />
                 <span>Interactive Visual Masterclass</span>
               </h2>
-              <button 
-                onClick={() => {
-                  voiceSynthesizer.stop();
-                  setTeachingMode(false);
-                }}
-                className="btn-secondary"
-                style={{ padding: '6px 12px', fontSize: '0.85rem' }}
-              >
-                Exit Teaching
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                {/* Auto Play Option */}
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-secondary)', background: 'var(--glass-bg)', padding: '6px 12px', borderRadius: '100px', border: '1px solid var(--border-color)', userSelect: 'none' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={autoPlayTeaching} 
+                    onChange={(e) => {
+                      setAutoPlayTeaching(e.target.checked);
+                      // If toggled on while narration is not playing, kickstart it from the current step
+                      if (e.target.checked && !speakingStep) {
+                        playTeachingStep(currentTeachingStep);
+                      }
+                    }} 
+                    style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                  />
+                  <span>Autoplay Steps</span>
+                </label>
+
+                <button 
+                  onClick={() => {
+                    voiceSynthesizer.stop();
+                    setTeachingMode(false);
+                  }}
+                  className="btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.85rem' }}
+                >
+                  Exit Teaching
+                </button>
+              </div>
             </div>
 
             {loadingTeaching ? (

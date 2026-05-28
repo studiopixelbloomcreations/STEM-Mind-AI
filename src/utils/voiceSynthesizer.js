@@ -10,6 +10,8 @@ class VoiceSynthesizer {
     this.utterance = null;
     this.currentAudio = null;
     this._voicesReady = false;
+    this._unlocked = false;
+    this._pendingSpeak = null;
     if (this.synth) {
       const primeVoices = () => {
         if (this.synth.getVoices().length > 0) this._voicesReady = true;
@@ -30,10 +32,40 @@ class VoiceSynthesizer {
     }
   }
 
+  /**
+   * Call after a user gesture (mic permission, tap, etc.) so autoplay policies allow TTS.
+   */
+  unlock() {
+    if (this._unlocked) return;
+    this._unlocked = true;
+    if (this.synth?.paused) {
+      try {
+        this.synth.resume();
+      } catch {
+        // ignore
+      }
+    }
+    const pending = this._pendingSpeak;
+    if (pending) {
+      this._pendingSpeak = null;
+      this.speak(pending.text, pending.onEnd, pending.onStart);
+    }
+  }
+
+  get isUnlocked() {
+    return this._unlocked;
+  }
+
   speakBrowser(text, { onStart = null, onEnd = null } = {}) {
     if (!this.synth || !text?.trim()) {
       onEnd?.();
       return false;
+    }
+
+    try {
+      if (this.synth.paused) this.synth.resume();
+    } catch {
+      // ignore
     }
 
     this.utterance = new SpeechSynthesisUtterance(text);
@@ -124,12 +156,19 @@ class VoiceSynthesizer {
       return;
     }
 
+    if (!this._unlocked) {
+      this._pendingSpeak = { text: trimmed, onEnd: onEndCallback, onStart: onStartCallback };
+      return;
+    }
+
     this.stop();
 
     const callbacks = { onStart: onStartCallback, onEnd: onEndCallback };
     const runBrowserFallback = (reason) => {
       if (reason) console.warn('TTS fallback:', reason);
-      this.speakBrowser(trimmed, callbacks);
+      window.setTimeout(() => {
+        this.speakBrowser(trimmed, callbacks);
+      }, 40);
     };
 
     if (window.puter?.ai?.txt2speech) {
@@ -153,10 +192,14 @@ class VoiceSynthesizer {
           };
           audio.addEventListener('play', safeStart, { once: true });
           audio.addEventListener('ended', finish, { once: true });
-          audio.addEventListener('error', () => {
-            this.currentAudio = null;
-            runBrowserFallback('puter audio element error');
-          }, { once: true });
+          audio.addEventListener(
+            'error',
+            () => {
+              this.currentAudio = null;
+              runBrowserFallback('puter audio element error');
+            },
+            { once: true }
+          );
 
           const playPromise = audio.play();
           if (!playPromise?.then) return;

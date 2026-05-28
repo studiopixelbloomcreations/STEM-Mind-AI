@@ -144,7 +144,21 @@ export default function STEMLiveMode() {
     setStatus((prev) => (prev === STATES.speaking ? STATES.idle : prev));
   };
 
+  const resetVoiceLevel = () => {
+    voiceLevelRef.current = 0;
+    setVoiceLevel(0);
+    if (dockPillRef.current) {
+      dockPillRef.current.style.setProperty('--voice-level', '0');
+    }
+  };
+
   const monitorVoiceLevel = () => {
+    if (isMicMutedRef.current) {
+      resetVoiceLevel();
+      rafRef.current = requestAnimationFrame(monitorVoiceLevel);
+      return;
+    }
+
     const analyser = mediaAnalyserRef.current;
     const data = mediaDataRef.current;
     if (!analyser || !data) return;
@@ -164,7 +178,7 @@ export default function STEMLiveMode() {
       dockPillRef.current.style.setProperty('--voice-level', smoothed.toFixed(3));
     }
 
-    if (speechActiveRef.current && normalized > 0.2 && !isMicMuted) {
+    if (speechActiveRef.current && normalized > 0.2 && !isMicMutedRef.current) {
       stopSpeech();
       setStatus(STATES.listening);
     }
@@ -174,6 +188,7 @@ export default function STEMLiveMode() {
   const speakReply = (text) => {
     const trimmed = String(text || '').replace(/\s+/g, ' ').trim();
     if (!trimmed) return;
+    voiceSynthesizer.unlock();
     stopSpeech();
     voiceSynthesizer.speak(
       trimmed,
@@ -210,7 +225,9 @@ export default function STEMLiveMode() {
           voiceLevel: Number(voiceLevel.toFixed(3)),
         },
       });
-      const replyText = String(response.replyText || '').replace(/\s+/g, ' ').trim();
+      const replyText = String(response.replyText || response.ttsText || '')
+        .replace(/\s+/g, ' ')
+        .trim();
       setLastReply(replyText);
       setVisionStatus(response.visionSummary || (isCameraOn ? 'Visual context active' : 'Visual context disabled'));
       reconnectAttemptsRef.current = 0;
@@ -424,6 +441,7 @@ export default function STEMLiveMode() {
     setIsMicMuted(true);
     isMicMutedRef.current = true;
     stopRecognition();
+    resetVoiceLevel();
     setStatus(STATES.idle);
   };
 
@@ -487,6 +505,7 @@ export default function STEMLiveMode() {
           setWelcomeMessage(clampLiveCaption(session.welcomeMessage));
         }
         await startMicrophone();
+        voiceSynthesizer.unlock();
         if (session.welcomeMessage) {
           speakReply(clampLiveCaption(session.welcomeMessage));
         }
@@ -516,6 +535,16 @@ export default function STEMLiveMode() {
   }, [sessionId, startHeartbeat]);
 
   useEffect(() => {
+    const unlockTts = () => voiceSynthesizer.unlock();
+    window.addEventListener('pointerdown', unlockTts, { once: true, passive: true });
+    window.addEventListener('keydown', unlockTts, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlockTts);
+      window.removeEventListener('keydown', unlockTts);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isCameraOn || !cameraStreamRef.current || !videoRef.current) return undefined;
     const video = videoRef.current;
     video.srcObject = cameraStreamRef.current;
@@ -529,7 +558,14 @@ export default function STEMLiveMode() {
   }, [isCameraOn]);
 
   const studentFirstName = firstNameFrom(activeStudent?.name);
+  const heroWelcome =
+    welcomeMessage || (booting ? 'Connecting...' : `Ready, ${studentFirstName}.`);
   const captionLine = lastReply || welcomeMessage;
+  const dockVoiceLevel = isMicMuted ? 0 : voiceLevel;
+  const dockPillClass = [
+    'stem-live-dock-pill',
+    isMicMuted ? 'stem-live-dock-pill--inactive' : 'stem-live-dock-pill--active',
+  ].join(' ');
   const statusLine = booting
     ? 'Starting STEM Live...'
     : error || visionStatus || (!recognitionSupported ? 'Speech recognition needs Chrome over HTTPS.' : '');
@@ -566,13 +602,17 @@ export default function STEMLiveMode() {
       <main className="stem-live-center">
         <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
         {captionsOn ? (
-          <p className="live-caption-text">
-            {captionLine || (booting ? 'Connecting...' : `Ready, ${studentFirstName}.`)}
-          </p>
-        ) : null}
-        {captionsOn && lastUserUtterance ? (
-          <p className="live-caption-user">You: {lastUserUtterance}</p>
-        ) : null}
+          <>
+            <p className="live-caption-text">
+              {captionLine || (booting ? 'Connecting...' : `Ready, ${studentFirstName}.`)}
+            </p>
+            {lastUserUtterance ? (
+              <p className="live-caption-user">You: {lastUserUtterance}</p>
+            ) : null}
+          </>
+        ) : (
+          <p className="live-main-text">{heroWelcome}</p>
+        )}
         <p className="live-sub-text">{statusLine}</p>
         <div className={`live-camera-preview-wrap ${isCameraOn ? '' : 'is-hidden'}`}>
           <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
@@ -589,8 +629,8 @@ export default function STEMLiveMode() {
         </button>
         <div
           ref={dockPillRef}
-          className="stem-live-dock-pill"
-          style={{ '--voice-level': voiceLevel }}
+          className={dockPillClass}
+          style={{ '--voice-level': dockVoiceLevel }}
           aria-hidden="true"
         />
         <button

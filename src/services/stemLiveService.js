@@ -44,6 +44,12 @@ const request = async (payload) => {
     if (error?.name === 'AbortError') {
       throw new Error('[REQUEST_TIMEOUT] STEM Live request timed out. Please check your connection.');
     }
+    const message = error?.message || '';
+    if (error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message)) {
+      throw new Error(
+        'STEM Live could not reach the server. Check your connection, or deploy the stem-live Supabase Edge Function if this is a new environment.'
+      );
+    }
     throw error;
   } finally {
     window.clearTimeout(timeout);
@@ -51,7 +57,12 @@ const request = async (payload) => {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const code = data?.errorCode ? `[${data.errorCode}] ` : '';
-    throw new Error(`${code}${data?.error || 'STEM Live request failed.'}`);
+    const serverMsg = data?.error || 'STEM Live request failed.';
+    const deployHint =
+      response.status === 404 || response.status === 502
+        ? ' If the function is missing, deploy the stem-live Edge Function.'
+        : '';
+    throw new Error(`${code}${serverMsg}${deployHint}`);
   }
   return {
     ...data,

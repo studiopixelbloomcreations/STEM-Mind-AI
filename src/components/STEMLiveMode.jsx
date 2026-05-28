@@ -52,7 +52,7 @@ export default function STEMLiveMode() {
   const mediaDataRef = useRef(null);
   const rafRef = useRef(0);
   const videoRef = useRef(null);
-  const blobRef = useRef(null);
+  const dockPillRef = useRef(null);
   const voiceLevelRef = useRef(0);
   const frameTimerRef = useRef(0);
   const heartbeatTimerRef = useRef(0);
@@ -129,8 +129,8 @@ export default function STEMLiveMode() {
     const smoothed = voiceLevelRef.current * 0.62 + normalized * 0.38;
     voiceLevelRef.current = smoothed;
     setVoiceLevel(smoothed);
-    if (blobRef.current) {
-      blobRef.current.style.setProperty('--voice-level', smoothed.toFixed(3));
+    if (dockPillRef.current) {
+      dockPillRef.current.style.setProperty('--voice-level', smoothed.toFixed(3));
     }
 
     if (speechActiveRef.current && normalized > 0.2 && !isMicMuted) {
@@ -450,12 +450,6 @@ export default function STEMLiveMode() {
 
       <main className="stem-live-center">
         <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
-        <div
-          ref={blobRef}
-          className="live-gradient-blob"
-          style={{ '--voice-level': voiceLevel }}
-          aria-hidden="true"
-        />
         <p className="live-main-text">{centerMessage}</p>
         <p className="live-sub-text">
           {booting ? 'Starting STEM Live...' : error || visionStatus}
@@ -479,11 +473,10 @@ export default function STEMLiveMode() {
           <Share2 size={18} />
         </button>
         <div
-          className="live-orb"
-          style={{
-            transform: `scale(${1 + voiceLevel * 0.35})`,
-            filter: `brightness(${1 + voiceLevel * 0.45})`,
-          }}
+          ref={dockPillRef}
+          className="stem-live-dock-pill"
+          style={{ '--voice-level': voiceLevel }}
+          aria-hidden="true"
         />
         <button
           type="button"

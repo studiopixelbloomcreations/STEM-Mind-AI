@@ -9,31 +9,48 @@ import { Client } from "@gradio/client";
 const USE_PUTER_SPEECH = false;
 // ═══════════════════════════════════════════════════════════════
 
-// Kokoro-82M Gradio Space configuration (free, unlimited, no key needed)
+// Kokoro-82M Gradio Spaces configurations (free, unlimited, no key needed)
 const KOKORO_SPACES = [
-  "Pendrokar/Kokoro-TTS",    // Primary — has /generate_first endpoint
-  "Remsky/Kokoro-TTS-Zero",  // Fallback
+  {
+    name: "Remsky/Kokoro-TTS-Zero",
+    endpoint: "/generate_speech_from_ui",
+    getParams: (text) => [text, ["af_heart"], 1.0]
+  },
+  {
+    name: "brainzcode/hexgrad-Kokoro-82M",
+    endpoint: "/predict",
+    getParams: (text) => [text]
+  },
+  {
+    name: "tgu6/hexgrad-Kokoro-82M",
+    endpoint: "/predict",
+    getParams: (text) => [text]
+  },
+  {
+    name: "Pendrokar/Kokoro-TTS",
+    endpoint: "/generate_first",
+    getParams: (text) => [text, "af_heart", 1, "False", "en-us"]
+  }
 ];
-const KOKORO_VOICE = "af_heart"; // Female American English voice
-const KOKORO_SPEED = 1;
 
-// Reusable Gradio client cache to avoid reconnecting on every call
-let _gradioClientCache = null;
-let _gradioClientSpaceIndex = 0;
+let _activeSpaceIndex = 0;
+let _gradioClient = null;
 
 async function getGradioClient() {
-  if (_gradioClientCache) return _gradioClientCache;
+  if (_gradioClient) return { client: _gradioClient, config: KOKORO_SPACES[_activeSpaceIndex] };
 
-  for (let i = _gradioClientSpaceIndex; i < KOKORO_SPACES.length; i++) {
+  for (let i = 0; i < KOKORO_SPACES.length; i++) {
+    const spaceIdx = (_activeSpaceIndex + i) % KOKORO_SPACES.length;
+    const spaceConfig = KOKORO_SPACES[spaceIdx];
     try {
-      console.log(`[Kokoro TTS] Connecting to Space: ${KOKORO_SPACES[i]}...`);
-      _gradioClientCache = await Client.connect(KOKORO_SPACES[i]);
-      _gradioClientSpaceIndex = i;
-      console.log(`[Kokoro TTS] Connected to ${KOKORO_SPACES[i]} ✓`);
-      return _gradioClientCache;
+      console.log(`[Kokoro TTS] Connecting to Space: ${spaceConfig.name}...`);
+      const client = await Client.connect(spaceConfig.name);
+      _gradioClient = client;
+      _activeSpaceIndex = spaceIdx;
+      console.log(`[Kokoro TTS] Connected to ${spaceConfig.name} ✓`);
+      return { client, config: spaceConfig };
     } catch (err) {
-      console.warn(`[Kokoro TTS] Failed to connect to ${KOKORO_SPACES[i]}:`, err);
-      _gradioClientCache = null;
+      console.warn(`[Kokoro TTS] Failed to connect to ${spaceConfig.name}:`, err);
     }
   }
   throw new Error("All Kokoro TTS spaces are unreachable.");
@@ -53,49 +70,47 @@ class VoiceSynthesizer {
   async speakKokoro(text, onEndCallback = null) {
     this.stop();
 
-    try {
-      const client = await getGradioClient();
+    let attempts = 0;
+    while (attempts < KOKORO_SPACES.length) {
+      try {
+        const { client, config } = await getGradioClient();
+        console.log(`[Kokoro TTS] Generating speech using ${config.name} (endpoint: ${config.endpoint}) for: "${text.substring(0, 60)}..."`);
+        
+        const params = config.getParams(text);
+        const result = await client.predict(config.endpoint, params);
 
-      console.log(`[Kokoro TTS] Generating speech for: "${text.substring(0, 60)}..."`);
-      const result = await client.predict("/generate_first", {
-        text: text,
-        voice: KOKORO_VOICE,
-        speed: KOKORO_SPEED,
-        use_gpu: "False",
-        lang: "en-us",
-      });
+        // result.data[0] is the audio file info object with a .url property or a string url
+        const audioData = result.data[0];
+        const audioUrl = audioData?.url || audioData;
 
-      // result.data[0] is the audio file info object with a .url property
-      const audioData = result.data[0];
-      const audioUrl = audioData.url || audioData;
+        if (!audioUrl) {
+          throw new Error("No audio URL returned from space.");
+        }
 
-      const audio = new Audio(audioUrl);
-      this.currentAudio = audio;
+        const audio = new Audio(audioUrl);
+        this.currentAudio = audio;
 
-      if (onEndCallback) {
-        audio.addEventListener('ended', onEndCallback);
+        if (onEndCallback) {
+          audio.addEventListener('ended', onEndCallback);
+        }
+
+        await audio.play();
+        console.log("[Kokoro TTS] Audio playing ✓");
+        return; // Success!
+      } catch (err) {
+        console.error(`[Kokoro TTS] Error with space at index ${_activeSpaceIndex}:`, err);
+        
+        // Invalidate current client connection
+        _gradioClient = null;
+        
+        // Move to the next space in the list
+        _activeSpaceIndex = (_activeSpaceIndex + 1) % KOKORO_SPACES.length;
+        attempts++;
       }
-
-      await audio.play();
-      console.log("[Kokoro TTS] Audio playing ✓");
-    } catch (err) {
-      console.error("[Kokoro TTS] Generation failed:", err);
-
-      // Reset client cache so next call tries fresh connection
-      _gradioClientCache = null;
-
-      // Try the next space on failure
-      if (_gradioClientSpaceIndex < KOKORO_SPACES.length - 1) {
-        _gradioClientSpaceIndex++;
-        console.log(`[Kokoro TTS] Retrying with next space...`);
-        return this.speakKokoro(text, onEndCallback);
-      }
-
-      // Reset to primary space for next attempt
-      _gradioClientSpaceIndex = 0;
-      console.error("[Kokoro TTS] All spaces failed. Speech not generated.");
-      if (onEndCallback) onEndCallback();
     }
+
+    console.error("[Kokoro TTS] All spaces failed. Speech not generated.");
+    if (onEndCallback) onEndCallback();
   }
 
   // ═══════════════════════════════════════════════════════════════

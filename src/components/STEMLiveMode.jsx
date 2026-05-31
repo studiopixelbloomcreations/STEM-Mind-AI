@@ -8,6 +8,8 @@ import {
   sendStemLiveTurn,
   startStemLiveSession,
 } from '../services/stemLiveService';
+import { analyzeLiveFrame, isWhisperReady, preloadVisionModels, transcribeAudioBlob } from '../ml/transformersClient';
+import ModelLoadProgress from './ModelLoadProgress';
 import voiceSynthesizer from '../utils/voiceSynthesizer';
 
 const WELCOME_MAX_WORDS = 5;
@@ -75,11 +77,19 @@ export default function STEMLiveMode() {
   const frameTimerRef = useRef(0);
   const heartbeatTimerRef = useRef(0);
   const latestFrameRef = useRef(null);
+  const latestVisualContextRef = useRef(null);
+  const frameAnalysisInFlightRef = useRef(false);
+  const sttModeRef = useRef('webspeech');
+  const sttRecorderRef = useRef(null);
+  const sttChunksRef = useRef([]);
+  const sttSpeakingRef = useRef(false);
+  const sttSilenceTimerRef = useRef(0);
   const endingRef = useRef(false);
   const inFlightTurnRef = useRef(false);
   const queuedTranscriptRef = useRef('');
   const reconnectAttemptsRef = useRef(0);
   const isMicMutedRef = useRef(false);
+  const processTurnRef = useRef(null);
 
   const context = useMemo(
     () => ({
@@ -93,6 +103,95 @@ export default function STEMLiveMode() {
   useEffect(() => {
     isMicMutedRef.current = isMicMuted;
   }, [isMicMuted]);
+
+  const stopWhisperStt = () => {
+    if (sttSilenceTimerRef.current) {
+      window.clearTimeout(sttSilenceTimerRef.current);
+      sttSilenceTimerRef.current = 0;
+    }
+    sttSpeakingRef.current = false;
+    sttChunksRef.current = [];
+    if (sttRecorderRef.current) {
+      sttRecorderRef.current.ondataavailable = null;
+      try {
+        if (sttRecorderRef.current.state !== 'inactive') sttRecorderRef.current.stop();
+      } catch {
+        // ignore
+      }
+      sttRecorderRef.current = null;
+    }
+  };
+
+  const flushWhisperChunk = async () => {
+    const chunks = sttChunksRef.current;
+    sttChunksRef.current = [];
+    if (!chunks.length) return;
+    const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
+    try {
+      const text = await transcribeAudioBlob(blob);
+      if (text.trim()) {
+        setLastUserUtterance(text.trim());
+        processTurnRef.current?.(text.trim());
+      }
+    } catch (err) {
+      console.warn('Whisper transcription failed:', err);
+    }
+  };
+
+  const setupWhisperStt = (stream) => {
+    if (!stream || sttRecorderRef.current) return;
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : 'audio/webm';
+    const recorder = new MediaRecorder(stream, { mimeType });
+    recorder.ondataavailable = (event) => {
+      if (event.data?.size > 0) sttChunksRef.current.push(event.data);
+    };
+    recorder.onstop = () => {
+      if (sttModeRef.current === 'whisper') flushWhisperChunk();
+    };
+    sttRecorderRef.current = recorder;
+  };
+
+  const handleWhisperVad = (normalized) => {
+    if (sttModeRef.current !== 'whisper' || isMicMutedRef.current || endingRef.current) return;
+    const recorder = sttRecorderRef.current;
+    if (!recorder) return;
+
+    if (normalized > 0.22) {
+      if (!sttSpeakingRef.current) {
+        sttSpeakingRef.current = true;
+        sttChunksRef.current = [];
+        if (recorder.state === 'inactive') {
+          try {
+            recorder.start(250);
+          } catch {
+            // ignore
+          }
+        }
+        setStatus(STATES.listening);
+      }
+      if (sttSilenceTimerRef.current) {
+        window.clearTimeout(sttSilenceTimerRef.current);
+        sttSilenceTimerRef.current = 0;
+      }
+      return;
+    }
+
+    if (sttSpeakingRef.current && normalized < 0.12 && !sttSilenceTimerRef.current) {
+      sttSilenceTimerRef.current = window.setTimeout(() => {
+        sttSpeakingRef.current = false;
+        sttSilenceTimerRef.current = 0;
+        if (recorder.state === 'recording') {
+          try {
+            recorder.stop();
+          } catch {
+            // ignore
+          }
+        }
+      }, 750);
+    }
+  };
 
   const stopRecognition = () => {
     if (!speechRecognitionRef.current) return;
@@ -109,6 +208,7 @@ export default function STEMLiveMode() {
 
   const cleanupMic = () => {
     stopRecognition();
+    stopWhisperStt();
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
@@ -181,6 +281,7 @@ export default function STEMLiveMode() {
       stopSpeech();
       setStatus(STATES.listening);
     }
+    handleWhisperVad(normalized);
     rafRef.current = requestAnimationFrame(monitorVoiceLevel);
   };
 
@@ -216,12 +317,13 @@ export default function STEMLiveMode() {
         sessionId,
         transcript: transcript.trim(),
         context,
-        visionFrame: isCameraOn ? latestFrameRef.current : null,
+        visualContext: isCameraOn ? latestVisualContextRef.current : null,
         clientState: {
           status,
           isMicMuted,
           isCameraOn,
           voiceLevel: Number(voiceLevel.toFixed(3)),
+          sttMode: sttModeRef.current,
         },
       });
       const replyText = String(response.replyText || response.ttsText || '')
@@ -251,6 +353,10 @@ export default function STEMLiveMode() {
       }
     }
   }, [context, isCameraOn, isMicMuted, sessionId, status, voiceLevel]);
+
+  useEffect(() => {
+    processTurnRef.current = processTurn;
+  }, [processTurn]);
 
   const initRecognition = () => {
     if (!SpeechRecognitionApi) return;
@@ -316,6 +422,23 @@ export default function STEMLiveMode() {
     }
   };
 
+  const initSpeechInput = async (stream) => {
+    const whisperReady = await isWhisperReady();
+    if (whisperReady && !endingRef.current) {
+      sttModeRef.current = 'whisper';
+      setupWhisperStt(stream);
+      setStatus(STATES.listening);
+      return;
+    }
+    sttModeRef.current = 'webspeech';
+    if (recognitionSupported) {
+      initRecognition();
+    } else {
+      setStatus(STATES.error);
+      setError('STT_UNSUPPORTED: Speech recognition requires Chrome, Edge, or Safari over HTTPS.');
+    }
+  };
+
   const startMicrophone = async () => {
     if (!navigator?.mediaDevices?.getUserMedia) {
       setStatus(STATES.error);
@@ -346,12 +469,7 @@ export default function STEMLiveMode() {
       mediaDataRef.current = new Uint8Array(analyser.frequencyBinCount);
       monitorVoiceLevel();
       setMicPermission('granted');
-      if (recognitionSupported) {
-        initRecognition();
-      } else {
-        setStatus(STATES.error);
-        setError('STT_UNSUPPORTED: Speech recognition requires Chrome, Edge, or Safari over HTTPS.');
-      }
+      await initSpeechInput(stream);
     } catch (micError) {
       const name = micError?.name || '';
       setStatus(STATES.error);
@@ -379,6 +497,19 @@ export default function STEMLiveMode() {
       base64Data: dataUrl.split(',')[1] || '',
       capturedAt: new Date().toISOString(),
     };
+
+    const framePayload = latestFrameRef.current;
+    if (!frameAnalysisInFlightRef.current && framePayload.base64Data) {
+      frameAnalysisInFlightRef.current = true;
+      analyzeLiveFrame(framePayload.base64Data, framePayload.mimeType)
+        .then((ctx) => {
+          latestVisualContextRef.current = ctx;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          frameAnalysisInFlightRef.current = false;
+        });
+    }
   };
 
   const startCamera = async () => {
@@ -429,12 +560,17 @@ export default function STEMLiveMode() {
         await startMicrophone();
         return;
       }
-      initRecognition();
+      if (sttModeRef.current === 'webspeech') {
+        initRecognition();
+      } else {
+        setStatus(STATES.listening);
+      }
       return;
     }
     setIsMicMuted(true);
     isMicMutedRef.current = true;
     stopRecognition();
+    stopWhisperStt();
     resetVoiceLevel();
     setStatus(STATES.idle);
   };
@@ -487,6 +623,7 @@ export default function STEMLiveMode() {
   }, [isCameraOn, isMicMuted, sessionId, status, voiceLevel]);
 
   useEffect(() => {
+    preloadVisionModels();
     const init = async () => {
       try {
         if (!activeStudent?.id) throw new Error('No active student selected.');
@@ -573,6 +710,7 @@ export default function STEMLiveMode() {
 
   return (
     <div className={screenClass}>
+      <ModelLoadProgress label="Loading STEM Live models" />
       <div className="stem-live-vignette" />
       <header className="stem-live-topbar">
         <button type="button" className="live-icon-btn" aria-label="Open menu">

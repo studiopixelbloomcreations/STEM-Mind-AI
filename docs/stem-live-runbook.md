@@ -38,7 +38,7 @@ If production shows CORS preflight failures on `/functions/v1/vision-analyze` or
 
 ```bash
 curl -i -X OPTIONS "https://YOUR_REF.supabase.co/functions/v1/stem-live" \
-  -H "Origin: https://stemmindv1.netlify.app" \
+  -H "Origin: https://stemmindv1.vercel.app" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: authorization,apikey,content-type"
 ```

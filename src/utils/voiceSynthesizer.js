@@ -1,6 +1,8 @@
 /**
- * Voice narration: Puter ElevenLabs TTS with browser speechSynthesis fallback.
+ * Voice narration: Transformers.js SpeechT5 TTS with browser speechSynthesis fallback.
  */
+
+import { playSpeechSamples, preloadSpeechModels, synthesizeSpeech } from '../ml/transformersClient';
 
 const BENIGN_SPEECH_ERRORS = new Set(['interrupted', 'canceled', 'cancelled']);
 
@@ -9,9 +11,11 @@ class VoiceSynthesizer {
     this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     this.utterance = null;
     this.currentAudio = null;
+    this.currentAudioCtx = null;
     this._voicesReady = false;
     this._unlocked = false;
     this._pendingSpeak = null;
+    this._ttsWarmStarted = false;
     if (this.synth) {
       const primeVoices = () => {
         if (this.synth.getVoices().length > 0) this._voicesReady = true;
@@ -27,8 +31,17 @@ class VoiceSynthesizer {
     }
     this.utterance = null;
     if (this.currentAudio) {
-      this.currentAudio.pause();
+      try {
+        this.currentAudio.stop?.();
+        this.currentAudio.pause?.();
+      } catch {
+        // ignore
+      }
       this.currentAudio = null;
+    }
+    if (this.currentAudioCtx) {
+      this.currentAudioCtx.close().catch(() => undefined);
+      this.currentAudioCtx = null;
     }
   }
 
@@ -38,6 +51,10 @@ class VoiceSynthesizer {
   unlock() {
     if (this._unlocked) return;
     this._unlocked = true;
+    if (!this._ttsWarmStarted) {
+      this._ttsWarmStarted = true;
+      preloadSpeechModels();
+    }
     if (this.synth?.paused) {
       try {
         this.synth.resume();
@@ -110,44 +127,29 @@ class VoiceSynthesizer {
     return true;
   }
 
-  speakPuter(text, { onStart = null, onEnd = null } = {}) {
-    if (!window.puter?.ai?.txt2speech) {
-      return Promise.resolve(false);
-    }
-
-    return window.puter.ai
-      .txt2speech(text, {
-        provider: 'elevenlabs',
-        voice: 'Xb7hH8MSUJpSbSDYk0k2',
-      })
-      .then((audio) => {
-        this.currentAudio = audio;
-        const cleanup = () => {
-          if (this.currentAudio === audio) this.currentAudio = null;
-        };
-        audio.addEventListener('play', () => onStart?.(), { once: true });
-        audio.addEventListener('ended', () => {
-          cleanup();
+  async speakTransformers(text, { onStart = null, onEnd = null } = {}) {
+    try {
+      const result = await synthesizeSpeech(text);
+      if (!result?.audio?.length) return false;
+      const playback = await playSpeechSamples(result.audio, result.sampling_rate, {
+        onStart,
+        onEnd: () => {
+          if (this.currentAudio === playback?.source) this.currentAudio = null;
+          if (this.currentAudioCtx === playback?.audioCtx) this.currentAudioCtx = null;
           onEnd?.();
-        });
-        audio.addEventListener('error', () => {
-          cleanup();
-          onEnd?.();
-        });
-        const playResult = audio.play();
-        if (playResult?.then) {
-          return playResult.then(() => true).catch(() => false);
-        }
-        return true;
-      })
-      .catch((err) => {
-        console.warn('Puter txt2speech failed:', err);
-        return false;
+        },
       });
+      this.currentAudio = playback.source;
+      this.currentAudioCtx = playback.audioCtx;
+      return true;
+    } catch (err) {
+      console.warn('Transformers TTS failed:', err);
+      return false;
+    }
   }
 
   /**
-   * Speak with Puter when available; fall back to browser speech on any failure.
+   * Speak with Transformers.js TTS when available; fall back to browser speech on any failure.
    */
   speak(text, onEndCallback = null, onStartCallback = null) {
     const trimmed = String(text || '').trim();
@@ -171,60 +173,23 @@ class VoiceSynthesizer {
       }, 40);
     };
 
-    if (window.puter?.ai?.txt2speech) {
-      let started = false;
-      const safeStart = () => {
-        if (started) return;
-        started = true;
-        callbacks.onStart?.();
-      };
-
-      window.puter.ai
-        .txt2speech(trimmed, {
-          provider: 'elevenlabs',
-          voice: 'Xb7hH8MSUJpSbSDYk0k2',
-        })
-        .then((audio) => {
-          this.currentAudio = audio;
-          const finish = () => {
-            if (this.currentAudio === audio) this.currentAudio = null;
-            callbacks.onEnd?.();
-          };
-          audio.addEventListener('play', safeStart, { once: true });
-          audio.addEventListener('ended', finish, { once: true });
-          audio.addEventListener(
-            'error',
-            () => {
-              this.currentAudio = null;
-              runBrowserFallback('puter audio element error');
-            },
-            { once: true }
-          );
-
-          const playPromise = audio.play();
-          if (!playPromise?.then) return;
-          playPromise
-            .then(() => safeStart())
-            .catch((err) => {
-              this.currentAudio = null;
-              runBrowserFallback(err?.message || 'autoplay blocked');
-            });
-        })
-        .catch((err) => runBrowserFallback(err?.message || 'puter request failed'));
-      return;
-    }
-
-    runBrowserFallback('puter unavailable');
+    this.speakTransformers(trimmed, callbacks).then((ok) => {
+      if (!ok) runBrowserFallback('transformers unavailable');
+    });
   }
 
   pause() {
     if (this.synth?.speaking) this.synth.pause();
-    if (this.currentAudio) this.currentAudio.pause();
+    if (this.currentAudioCtx?.state === 'running') {
+      this.currentAudioCtx.suspend().catch(() => undefined);
+    }
   }
 
   resume() {
     if (this.synth?.paused) this.synth.resume();
-    if (this.currentAudio) this.currentAudio.play().catch(() => undefined);
+    if (this.currentAudioCtx?.state === 'suspended') {
+      this.currentAudioCtx.resume().catch(() => undefined);
+    }
   }
 }
 

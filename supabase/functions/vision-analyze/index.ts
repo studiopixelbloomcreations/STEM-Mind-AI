@@ -6,6 +6,16 @@ type AnalyzeModePayload = {
   mode: 'analyze';
   studentId: string;
   context?: { subject?: string | null; topic?: string | null };
+  clientAnalysis?: {
+    extractedText?: string;
+    confidence?: number;
+    warnings?: string[];
+    structuredSteps?: VisionStep[];
+    summary?: string;
+    caption?: string;
+    detectedObjects?: Array<{ label: string; score: number }>;
+    provider?: string;
+  };
   image: {
     sourceType: 'base64' | 'storagePath';
     fileName?: string;
@@ -327,6 +337,34 @@ const buildRuleBasedReasoning = (text: string, context: { subject?: string | nul
   };
 };
 
+const buildFromClientAnalysis = (
+  clientAnalysis: NonNullable<AnalyzeModePayload['clientAnalysis']>,
+  context: { subject?: string | null; topic?: string | null }
+): VisionResult => {
+  const extractedText = String(clientAnalysis.extractedText || '').trim();
+  const summary = String(clientAnalysis.summary || '').trim();
+  const warnings = Array.isArray(clientAnalysis.warnings) ? clientAnalysis.warnings.filter(Boolean) : [];
+  const structuredSteps = Array.isArray(clientAnalysis.structuredSteps)
+    ? clientAnalysis.structuredSteps.slice(0, 6).map((step, index) => ({
+        title: step?.title || `Step ${index + 1}`,
+        explanation: step?.explanation || '',
+      }))
+    : buildRuleBasedReasoning(extractedText, context).structuredSteps;
+
+  return {
+    extractedText,
+    confidence: Number.isFinite(clientAnalysis.confidence)
+      ? Math.max(0, Math.min(100, Number(clientAnalysis.confidence)))
+      : extractedText
+        ? 62
+        : 20,
+    warnings,
+    structuredSteps,
+    summary: summary || buildRuleBasedReasoning(extractedText, context).summary,
+    provider: clientAnalysis.provider || 'transformers.js-client',
+  };
+};
+
 const buildAnalysisResult = async (bytes: Uint8Array, context: { subject?: string | null; topic?: string | null }): Promise<VisionResult> => {
   const ocr = await extractText(bytes);
   const fallback = buildRuleBasedReasoning(ocr.text, context);
@@ -415,7 +453,9 @@ Deno.serve(async (request) => {
       bytes = await getImageBytesFromStoragePath(imagePath);
     }
 
-    const analysis = await buildAnalysisResult(bytes, parsed.context || {});
+    const analysis = parsed.clientAnalysis
+      ? buildFromClientAnalysis(parsed.clientAnalysis, parsed.context || {})
+      : await buildAnalysisResult(bytes, parsed.context || {});
 
     const { data: inserted, error: insertError } = await getSupabaseAdmin()
       .from('vision_attempts')

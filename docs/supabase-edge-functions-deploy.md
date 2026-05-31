@@ -7,7 +7,7 @@ This project uses two Edge Functions:
 
 Both must be deployed with CORS for:
 
-- `https://stemmindv1.netlify.app`
+- `https://stemmindv1.vercel.app`
 - `http://localhost:5173`
 
 **Project ref:** `jxhljizbivkrnpzwswce`  
@@ -45,7 +45,7 @@ Best if the Supabase CLI hangs or fails on Windows. No Docker, no `supabase logi
 
 4. For each function, turn **OFF** “Verify JWT with legacy secret” (matches `verify_jwt = false` in `supabase/config.toml`). Firebase auth runs inside the function; gateway JWT breaks CORS `OPTIONS`.
 5. Redeploy after setting secrets.
-6. Verify with curl (below) and test the Netlify app.
+6. Verify with curl (below) and test the Vercel app.
 
 Baby-step screenshots-style walkthrough: [`supabase/dashboard-deploy/README.md`](../supabase/dashboard-deploy/README.md).
 
@@ -122,21 +122,21 @@ If CLI deploy fails on Windows, use **Method A** or **Method B**.
 
 ```bash
 curl -i -X OPTIONS "https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/vision-analyze" \
-  -H "Origin: https://stemmindv1.netlify.app" \
+  -H "Origin: https://stemmindv1.vercel.app" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: authorization,apikey,content-type,x-client-info,x-supabase-api-version"
 ```
 
 Expect HTTP **204** (or **200**) and:
 
-- `Access-Control-Allow-Origin: https://stemmindv1.netlify.app`
+- `Access-Control-Allow-Origin: https://stemmindv1.vercel.app`
 - `Access-Control-Allow-Methods` includes `POST` and `OPTIONS`
 
 ### stem-live OPTIONS
 
 ```bash
 curl -i -X OPTIONS "https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/stem-live" \
-  -H "Origin: https://stemmindv1.netlify.app" \
+  -H "Origin: https://stemmindv1.vercel.app" \
   -H "Access-Control-Request-Method: POST" \
   -H "Access-Control-Request-Headers: authorization,apikey,content-type,x-client-info,x-supabase-api-version"
 ```
@@ -154,13 +154,13 @@ curl -i -X OPTIONS "https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/vision
 
 ## Frontend after functions deploy
 
-1. Set `VITE_SUPABASE_CONFIG` in Netlify (or `.env.local`):
+1. Set `VITE_SUPABASE_CONFIG` in Vercel (or `.env.local`):
 
 ```json
 {"url":"https://jxhljizbivkrnpzwswce.supabase.co","anonKey":"YOUR_ANON_KEY"}
 ```
 
-2. Redeploy the Netlify site (`stemmindv1.netlify.app`).
+2. Redeploy the Vercel site (`https://stemmindv1.vercel.app`).
 3. Sign in with Firebase, open a student, launch **STEM Live** from the teacher dashboard, and verify voice/camera turns.
 
 ---

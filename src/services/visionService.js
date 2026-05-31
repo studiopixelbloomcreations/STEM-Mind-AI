@@ -1,4 +1,5 @@
 ﻿import { auth } from '../config/firebase';
+import { buildClientVisionAnalysis } from '../ml/transformersClient';
 import { normalizeVisionResponse } from '../utils/visionValidation';
 
 const getSupabaseConfig = () => {
@@ -56,11 +57,19 @@ export const analyzeVisionImage = async ({
   fileName,
   mimeType,
   base64Image,
+  imageFile = null,
 }) => {
+  const clientAnalysis = await buildClientVisionAnalysis({
+    imageInput: imageFile || base64Image,
+    subject,
+    topic,
+  });
+
   const response = await callVisionFunction({
     mode: 'analyze',
     studentId,
     context: { subject, topic },
+    clientAnalysis,
     image: {
       sourceType: 'base64',
       fileName,

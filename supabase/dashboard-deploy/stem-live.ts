@@ -5,7 +5,7 @@
  */
 // --- CORS (inlined for Supabase Dashboard single-file deploy) ---
 const DEFAULT_ALLOWED_ORIGINS = [
-  'https://stemmindv1.netlify.app',
+  'https://stemmindv1.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:4173',
@@ -226,16 +226,44 @@ const generateWelcomeMessage = async (params: {
   return `Ready, ${firstName}.`;
 };
 
+const formatVisualContext = (visualContext: {
+  caption?: string;
+  extractedText?: string;
+  objects?: Array<{ label: string; score: number }>;
+  capturedAt?: string;
+} | null) => {
+  if (!visualContext) return '';
+  const parts: string[] = [];
+  if (visualContext.caption) parts.push(`Scene caption: ${visualContext.caption}`);
+  if (visualContext.extractedText) parts.push(`Visible text: ${visualContext.extractedText.slice(0, 800)}`);
+  if (Array.isArray(visualContext.objects) && visualContext.objects.length > 0) {
+    const labels = visualContext.objects
+      .slice(0, 6)
+      .map((obj) => `${obj.label} (${Math.round((obj.score || 0) * 100)}%)`)
+      .join(', ');
+    parts.push(`Detected objects: ${labels}`);
+  }
+  if (visualContext.capturedAt) parts.push(`Frame time: ${visualContext.capturedAt}`);
+  return parts.join('\n');
+};
+
 const runOpenRouterConversation = async (params: {
   transcript: string;
   subject?: string | null;
   topic?: string | null;
   studentName?: string | null;
   visionFrame?: { mimeType?: string; base64Data?: string; capturedAt?: string } | null;
+  visualContext?: {
+    caption?: string;
+    extractedText?: string;
+    objects?: Array<{ label: string; score: number }>;
+    capturedAt?: string;
+  } | null;
 }) => {
   if (!env.openrouterApiKey) return null;
+  const visualText = formatVisualContext(params.visualContext || null);
   const dataUrl =
-    params.visionFrame?.base64Data && params.visionFrame?.mimeType
+    !visualText && params.visionFrame?.base64Data && params.visionFrame?.mimeType
       ? `data:${params.visionFrame.mimeType};base64,${params.visionFrame.base64Data}`
       : null;
   const systemPrompt =
@@ -244,7 +272,8 @@ const runOpenRouterConversation = async (params: {
 Subject: ${params.subject || 'General STEM'}
 Topic: ${params.topic || 'None provided'}
 User said: ${params.transcript}
-If visual context exists, ground your reply in it.`;
+${visualText ? `Client-side visual context (Transformers.js):\n${visualText}` : 'No visual context for this turn.'}
+Ground your reply in the visual context when present.`;
   const content = dataUrl
     ? [
         { type: 'text', text: userPrompt },
@@ -389,21 +418,32 @@ Deno.serve(async (request) => {
     const rawVisionFrame = ((body as any).visionFrame || null) as
       | { mimeType?: string; base64Data?: string; capturedAt?: string }
       | null;
-    const visionFrame = validateVisionFrame(rawVisionFrame);
+    const visualContext = ((body as any).visualContext || null) as
+      | {
+          caption?: string;
+          extractedText?: string;
+          objects?: Array<{ label: string; score: number }>;
+          capturedAt?: string;
+        }
+      | null;
+    const visionFrame = visualContext ? null : validateVisionFrame(rawVisionFrame);
     const providerReply = await runOpenRouterConversation({
       transcript,
       subject: (context.subject as string) || session.subject,
       topic: (context.topic as string) || session.topic,
       studentName: context.studentName as string,
       visionFrame,
+      visualContext,
     });
     const replyText =
       providerReply?.text ||
       fallbackReply(transcript, (context.subject as string) || session.subject, (context.topic as string) || session.topic);
 
-    const visionSummary = visionFrame?.base64Data
-      ? `Vision frame used (${visionFrame.capturedAt || 'now'}).`
-      : 'Voice-only turn.';
+    const visionSummary = visualContext
+      ? `Client visual context (${visualContext.capturedAt || 'now'}).`
+      : visionFrame?.base64Data
+        ? `Vision frame used (${visionFrame.capturedAt || 'now'}).`
+        : 'Voice-only turn.';
     const provider = providerReply?.provider || 'local-fallback';
     const latencyMs = Date.now() - turnStarted;
     const clientState = safeObject((body as any).clientState);
@@ -413,13 +453,20 @@ Deno.serve(async (request) => {
       teacher_id: uid,
       user_utterance: transcript,
       assistant_reply: replyText,
-      vision_context: visionFrame
+      vision_context: visualContext
         ? {
             hasFrame: true,
-            mimeType: visionFrame.mimeType || 'image/jpeg',
-            capturedAt: visionFrame.capturedAt || null,
+            source: 'client-transformers',
+            caption: visualContext.caption || null,
+            capturedAt: visualContext.capturedAt || null,
           }
-        : { hasFrame: false },
+        : visionFrame
+          ? {
+              hasFrame: true,
+              mimeType: visionFrame.mimeType || 'image/jpeg',
+              capturedAt: visionFrame.capturedAt || null,
+            }
+          : { hasFrame: false },
       provider,
       metadata: {
         ...clientState,
@@ -430,7 +477,7 @@ Deno.serve(async (request) => {
     await logSessionEvent(sessionId, uid, 'turn_processed', {
       provider,
       latencyMs,
-      hasVision: Boolean(visionFrame?.base64Data),
+      hasVision: Boolean(visualContext || visionFrame?.base64Data),
     });
 
     return json(request, {

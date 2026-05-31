@@ -115,6 +115,7 @@ export const sendStemLiveTurn = async ({
   transcript,
   context,
   visionFrame,
+  visualContext,
   clientState,
 }) =>
   request({
@@ -123,6 +124,7 @@ export const sendStemLiveTurn = async ({
     transcript,
     context: context || {},
     visionFrame: visionFrame || null,
+    visualContext: visualContext || null,
     clientState: clientState || {},
   });
 

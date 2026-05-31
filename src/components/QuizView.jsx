@@ -176,7 +176,7 @@ export default function QuizView() {
       setCurrentWrongStep(0);
       if (steps && steps.length > 0) {
         setSpeakingStep(true);
-        voiceSynthesizer.speakPuter(steps[0].speech, () => setSpeakingStep(false));
+        voiceSynthesizer.speak(steps[0].speech, () => setSpeakingStep(false));
       }
     } catch (err) {
       console.error(err);
@@ -191,7 +191,7 @@ export default function QuizView() {
       const nextIdx = currentWrongStep + 1;
       setCurrentWrongStep(nextIdx);
       setSpeakingStep(true);
-      voiceSynthesizer.speakPuter(wrongSteps[nextIdx].speech, () => setSpeakingStep(false));
+      voiceSynthesizer.speak(wrongSteps[nextIdx].speech, () => setSpeakingStep(false));
     }
   };
 
@@ -200,7 +200,7 @@ export default function QuizView() {
       const prevIdx = currentWrongStep - 1;
       setCurrentWrongStep(prevIdx);
       setSpeakingStep(true);
-      voiceSynthesizer.speakPuter(wrongSteps[prevIdx].speech, () => setSpeakingStep(false));
+      voiceSynthesizer.speak(wrongSteps[prevIdx].speech, () => setSpeakingStep(false));
     }
   };
 
@@ -208,7 +208,7 @@ export default function QuizView() {
     if (!stepsList[idx]) return;
     setCurrentTeachingStep(idx);
     setSpeakingStep(true);
-    voiceSynthesizer.speakPuter(stepsList[idx].speech, () => {
+    voiceSynthesizer.speak(stepsList[idx].speech, () => {
       setSpeakingStep(false);
       // Automatically advance to the next step if Auto Play is toggled and we are still in teaching mode
       if (autoPlayTeachingRef.current && teachingModeRef.current && idx < stepsList.length - 1) {
@@ -457,7 +457,7 @@ export default function QuizView() {
                   <button
                     onClick={() => {
                       if (teachingSteps[currentTeachingStep]) {
-                        voiceSynthesizer.speakPuter(teachingSteps[currentTeachingStep].speech);
+                        voiceSynthesizer.speak(teachingSteps[currentTeachingStep].speech);
                       }
                     }}
                     className="btn-secondary"
@@ -672,7 +672,7 @@ export default function QuizView() {
                         <button
                           onClick={() => {
                             if (wrongSteps[currentWrongStep]) {
-                              voiceSynthesizer.speakPuter(wrongSteps[currentWrongStep].speech);
+                              voiceSynthesizer.speak(wrongSteps[currentWrongStep].speech);
                             }
                           }}
                           className="btn-secondary"

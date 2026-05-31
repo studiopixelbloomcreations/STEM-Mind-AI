@@ -19,6 +19,8 @@ import {
 import { fileToBase64, formatBytes, MAX_IMAGE_SIZE_BYTES, validateImageFile } from '../utils/visionValidation';
 import { useApp } from '../context/AppContext';
 import voiceSynthesizer from '../utils/voiceSynthesizer';
+import ModelLoadProgress from './ModelLoadProgress';
+import { preloadVisionModels } from '../ml/transformersClient';
 
 const CONSENT_SESSION_KEY = 'vision-camera-consent-v1';
 
@@ -67,6 +69,10 @@ export default function VisionCapturePanel() {
   }, [teachingMode]);
 
   useEffect(() => () => voiceSynthesizer.stop(), []);
+
+  useEffect(() => {
+    preloadVisionModels();
+  }, []);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -132,7 +138,7 @@ export default function VisionCapturePanel() {
     if (!stepsList[idx]) return;
     setCurrentTeachingStep(idx);
     setSpeakingStep(true);
-    voiceSynthesizer.speakPuter(stepsList[idx].speech, () => {
+    voiceSynthesizer.speak(stepsList[idx].speech, () => {
       setSpeakingStep(false);
       if (autoPlayTeachingRef.current && teachingModeRef.current && idx < stepsList.length - 1) {
         window.setTimeout(() => {
@@ -314,6 +320,7 @@ export default function VisionCapturePanel() {
         fileName: selectedFile.name,
         mimeType: selectedFile.type,
         base64Image,
+        imageFile: selectedFile,
       });
       const attempts = await fetchRecentVisionAttempts({ studentId, limit: 6 });
       setRecentAttempts(attempts);
@@ -331,13 +338,14 @@ export default function VisionCapturePanel() {
 
   return (
     <section style={styles.wrapper} className="card-glass vision-panel">
+      <ModelLoadProgress label="Preparing vision models" />
       {showConsent && (
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <h3 style={{ marginBottom: '10px' }}>Camera and Privacy Notice</h3>
             <p style={styles.modalText}>
-              Captured images are sent to the STEM Mind AI secure backend for OCR and analysis. Images are stored in
-              a private bucket and linked to the current student profile for teacher review.
+              Images are analyzed on your device with Transformers.js (OCR and vision). A copy is stored securely on
+              the STEM Mind AI backend for teacher review.
             </p>
             <div style={styles.modalActions}>
               <button type="button" className="btn-secondary" onClick={() => setShowConsent(false)}>
@@ -495,7 +503,7 @@ export default function VisionCapturePanel() {
                   className="btn-secondary"
                   onClick={() => {
                     if (teachingSteps[currentTeachingStep]) {
-                      voiceSynthesizer.speakPuter(teachingSteps[currentTeachingStep].speech);
+                      voiceSynthesizer.speak(teachingSteps[currentTeachingStep].speech);
                     }
                   }}
                 >

@@ -68,16 +68,16 @@ If you deploy via Management API instead, pass `"verify_jwt": false` in deploy m
 
 ```bash
 curl -i -X OPTIONS "https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/vision-analyze" ^
-  -H "Origin: https://stemmindv1.netlify.app" ^
+  -H "Origin: https://stemmindv1.vercel.app" ^
   -H "Access-Control-Request-Method: POST" ^
   -H "Access-Control-Request-Headers: authorization,apikey,content-type,x-client-info,x-supabase-api-version"
 ```
 
-Expect HTTP **204** or **200** and header `Access-Control-Allow-Origin: https://stemmindv1.netlify.app`.
+Expect HTTP **204** or **200** and header `Access-Control-Allow-Origin: https://stemmindv1.vercel.app`.
 
 Repeat with `/functions/v1/stem-live`.
 
-**App test:** Sign in on [https://stemmindv1.netlify.app](https://stemmindv1.netlify.app) with Firebase, open a student, launch **STEM Live** (student Photo Analyzer UI is not in the Learning Hub).
+**App test:** Sign in on [https://stemmindv1.vercel.app](https://stemmindv1.vercel.app) with Firebase, open a student, launch **STEM Live** (student Photo Analyzer UI is not in the Learning Hub).
 
 ---
 

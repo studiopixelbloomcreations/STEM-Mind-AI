@@ -20,7 +20,7 @@ import { fileToBase64, formatBytes, MAX_IMAGE_SIZE_BYTES, validateImageFile } fr
 import { useApp } from '../context/AppContext';
 import voiceSynthesizer from '../utils/voiceSynthesizer';
 import ModelLoadProgress from './ModelLoadProgress';
-import { preloadVisionModels } from '../ml/transformersClient';
+import { preloadObjectDetectionModel, preloadVisionModels } from '../ml/transformersClient';
 
 const CONSENT_SESSION_KEY = 'vision-camera-consent-v1';
 
@@ -72,6 +72,7 @@ export default function VisionCapturePanel() {
 
   useEffect(() => {
     preloadVisionModels();
+    preloadObjectDetectionModel();
   }, []);
 
   const stopCamera = () => {

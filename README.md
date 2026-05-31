@@ -20,7 +20,7 @@ Models download lazily from Hugging Face on first use and cache in the browser. 
 |------|-------|-------|
 | OCR (worksheets) | `Xenova/trocr-base-printed` | Printed text extraction |
 | Image caption | `Xenova/vit-gpt2-image-captioning` | Scene description for STEM Live frames |
-| Object detection | `Xenova/yolos-tiny` | Lightweight DETR-style detection |
+| Object detection | `Xenova/detr-resnet-50` | On-demand in Photo Analyzer only |
 | Text-to-speech | `Xenova/speecht5_tts` | Natural English teacher voice (SpeechT5 + speaker embeddings) |
 | Speech-to-text | `Xenova/whisper-tiny.en` | STEM Live STT; falls back to Web Speech API if slow/unavailable |
 
@@ -39,7 +39,19 @@ Architecture: `src/ml/transformersClient.js` wraps lazy `pipeline()` calls. Harm
 3. Start frontend:
    - `npm run dev`
 
-Vite is configured for Transformers.js (WASM/ONNX assets, worker format, COOP/COEP headers in dev).
+Vite is configured for Transformers.js (WASM/ONNX assets, worker format). Dev server uses `Cross-Origin-Opener-Policy: same-origin-allow-popups` so Firebase Google sign-in works locally.
+
+### Vercel / production headers
+
+`vercel.json` sets `Cross-Origin-Opener-Policy: same-origin-allow-popups` (required for Firebase popup auth). COEP is **not** set in production because it conflicts with OAuth popups and threaded WASM.
+
+ONNX Runtime runs **single-threaded** WASM by default (`src/ml/transformersEnv.js`):
+
+- `env.useWasmCache = false` — avoids `Cache.put` failures for large wasm files on Vercel
+- `env.backends.onnx.wasm.numThreads = 1` and `proxy = false`
+- Non-asyncify wasm paths from jsDelivr when not `crossOriginIsolated`
+
+Optional local multi-threading: set `VITE_TRANSFORMERS_MULTI_THREAD=true` and use vite dev headers with COEP `require-corp`.
 
 ## Supabase Setup (Required for STEM Live + Photo Analyzer persistence)
 

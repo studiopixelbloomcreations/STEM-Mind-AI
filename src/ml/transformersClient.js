@@ -4,11 +4,9 @@
  * Harmony NLP remains separate — this module handles vision, detection, and speech only.
  */
 
-import { env, pipeline } from '@huggingface/transformers';
+import './transformersEnv.js';
+import { pipeline } from '@huggingface/transformers';
 import { MODELS, SPEAKER_EMBEDDINGS_URL, TTS_AUDIO_GAIN } from './transformersModels';
-
-env.allowLocalModels = false;
-env.useBrowserCache = true;
 
 const pipelineCache = new Map();
 const progressListeners = new Set();
@@ -61,11 +59,17 @@ export const preloadSpeechModels = () => {
   getPipeline('text-to-speech', MODELS.tts, { quantized: false }).catch(() => undefined);
 };
 
+/** OCR + caption only — safe for STEM Live mount (no object-detection weights). */
 export const preloadVisionModels = () => {
   getPipeline('image-to-text', MODELS.ocr).catch(() => undefined);
   getPipeline('image-to-text', MODELS.caption).catch(() => undefined);
+};
+
+const preloadObjectDetectionModel = () => {
   getPipeline('object-detection', MODELS.objectDetection).catch(() => undefined);
 };
+
+export { preloadObjectDetectionModel };
 
 const toDataUrl = (input) => {
   if (typeof input === 'string') {
@@ -114,16 +118,20 @@ export const runImageCaption = async (imageInput) => {
 export const runObjectDetection = async (imageInput, { threshold = 0.35, topK = 8 } = {}) => {
   const dataUrl = toDataUrl(imageInput);
   try {
-    const detector = await getPipeline('object-detection', MODELS.objectDetection);
-    const raw = await detector(dataUrl, { threshold });
-    const objects = (Array.isArray(raw) ? raw : [])
-      .slice(0, topK)
-      .map((item) => ({
-        label: String(item?.label || item?.class || 'object'),
-        score: Number(item?.score ?? 0),
-      }))
-      .filter((item) => item.score >= threshold);
-    return { objects, provider: MODELS.objectDetection };
+    try {
+      const detector = await getPipeline('object-detection', MODELS.objectDetection);
+      const raw = await detector(dataUrl, { threshold });
+      const objects = (Array.isArray(raw) ? raw : [])
+        .slice(0, topK)
+        .map((item) => ({
+          label: String(item?.label || item?.class || 'object'),
+          score: Number(item?.score ?? 0),
+        }))
+        .filter((item) => item.score >= threshold);
+      return { objects, provider: MODELS.objectDetection };
+    } catch {
+      return { objects: [], provider: MODELS.objectDetection };
+    }
   } finally {
     revokeIfBlobUrl(dataUrl, imageInput);
   }
@@ -183,12 +191,9 @@ export const buildClientVisionAnalysis = async ({
     warnings.push(`Caption failed: ${err?.message || 'unknown error'}`);
   }
 
-  try {
-    const det = await runObjectDetection(imageInput);
-    objects = det.objects;
-  } catch (err) {
-    warnings.push(`Object detection failed: ${err?.message || 'unknown error'}`);
-  }
+  preloadObjectDetectionModel();
+  const det = await runObjectDetection(imageInput);
+  objects = det.objects;
 
   const hasText = ocrText.length > 0;
   const confidence = hasText ? Math.min(95, 55 + Math.min(ocrText.length / 8, 40)) : caption ? 45 : 20;
@@ -216,7 +221,6 @@ export const analyzeLiveFrame = async (base64Data, mimeType = 'image/jpeg') => {
   const warnings = [];
   let caption = '';
   let ocrText = '';
-  let objects = [];
 
   try {
     const cap = await runImageCaption(dataUrl);
@@ -232,17 +236,10 @@ export const analyzeLiveFrame = async (base64Data, mimeType = 'image/jpeg') => {
     // OCR optional for live frames
   }
 
-  try {
-    const det = await runObjectDetection(dataUrl, { threshold: 0.4, topK: 5 });
-    objects = det.objects;
-  } catch {
-    // detection optional for live frames
-  }
-
   return {
     caption,
     extractedText: ocrText,
-    objects,
+    objects: [],
     warnings,
     capturedAt: new Date().toISOString(),
   };
@@ -324,6 +321,7 @@ export default {
   onModelLoadProgress,
   preloadSpeechModels,
   preloadVisionModels,
+  preloadObjectDetectionModel,
   runOcr,
   runImageCaption,
   runObjectDetection,

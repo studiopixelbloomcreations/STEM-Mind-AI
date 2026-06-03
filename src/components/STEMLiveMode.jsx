@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CameraOff, ClosedCaption, Menu, Mic, MicOff, Share2, Subtitles, Video, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import logoImg from '../assets/logo.png';
@@ -6,7 +6,6 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { geminiLiveService } from '../services/geminiLiveService';
 import ModelLoadProgress from './ModelLoadProgress';
 
-const WELCOME_MAX_WORDS = 8;
 const FRAME_INTERVAL_MS = 1400; // Throttled webcam snapshot interval
 const EXIT_ANIMATION_MS = 420;
 
@@ -52,7 +51,6 @@ export default function STEMLiveMode() {
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [micPermission, setMicPermission] = useState('pending');
-  const [cameraPermission, setCameraPermission] = useState('pending');
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [lastReply, setLastReply] = useState('');
   const [lastUserUtterance, setLastUserUtterance] = useState('');
@@ -93,7 +91,9 @@ export default function STEMLiveMode() {
     if (audioProcessorRef.current) {
       try {
         audioProcessorRef.current.disconnect();
-      } catch (e) {}
+      } catch {
+        // Already disconnected.
+      }
       audioProcessorRef.current = null;
     }
     if (micStreamRef.current) {
@@ -103,7 +103,9 @@ export default function STEMLiveMode() {
     if (audioContextRef.current) {
       try {
         audioContextRef.current.close();
-      } catch (e) {}
+      } catch {
+        // Already closed.
+      }
       audioContextRef.current = null;
     }
     setVoiceLevel(0);
@@ -196,7 +198,7 @@ export default function STEMLiveMode() {
 
   const captureFrame = () => {
     const video = videoRef.current;
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0 || !isCameraOn) return;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0 || !isVideoOnRef.current) return;
     
     // Draw frame to a hidden canvas to extract resized JPEG data
     const canvas = document.createElement('canvas');
@@ -221,7 +223,6 @@ export default function STEMLiveMode() {
   const startCamera = async () => {
     if (!navigator?.mediaDevices?.getUserMedia) {
       setIsCameraOn(false);
-      setCameraPermission('denied');
       setError('Camera access is not supported by your browser.');
       return;
     }
@@ -239,17 +240,21 @@ export default function STEMLiveMode() {
 
       setIsCameraOn(true);
       isVideoOnRef.current = true;
-      setCameraPermission('granted');
       
       // Start throttled frame capture
       frameTimerRef.current = window.setInterval(captureFrame, FRAME_INTERVAL_MS);
+      window.setTimeout(captureFrame, 250);
+      geminiLiveService.sendTextMessage(
+        'Visual intelligence is now on. Use the live camera frames as current evidence. ' +
+        'When I ask what I am holding or showing, identify the actual visible object first. ' +
+        'If you cannot see it clearly, say so instead of guessing.'
+      );
 
       // Start the canvas rendering and landmark prediction loop
       requestAnimationFrame(predictWebcam);
     } catch (cameraError) {
       console.error('Camera initialization failed:', cameraError);
       setIsCameraOn(false);
-      setCameraPermission('denied');
       setError('Could not access camera. Continuing voice-only.');
     }
   };
@@ -330,7 +335,7 @@ export default function STEMLiveMode() {
     ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    const startTimeMs = performance.now();
+    const startTimeMs = videoRef.current.currentTime * 1000;
     if (handLandmarkerRef.current && videoRef.current.currentTime !== lastVideoTimeRef.current) {
       lastVideoTimeRef.current = videoRef.current.currentTime;
       const results = handLandmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
@@ -399,10 +404,13 @@ export default function STEMLiveMode() {
 
         // Connect directly to the Gemini Live WebSockets API
         const sysInstruction = 
-          `You are a friendly, warm, and highly pedagogical STEM teacher named STEMMind. ` +
-          `Your student is ${studentName}. You are talking about ${topic} in ${subject}. ` +
-          `Ground your descriptions in whatever items they show you via the camera (e.g. ball, book, cup). ` +
-          `Respond with complete, concise sentences, keeping responses short so conversations are responsive.`;
+          `You are STEMMind, a friendly, warm, and highly pedagogical STEM teacher for grade 9, grade 10, and grade 11 students. ` +
+          `Your student is ${studentName}. You are teaching ${topic} in ${subject} on a STEM learning platform. ` +
+          `Use clear age-appropriate explanations for science, technology, engineering, and math. ` +
+          `When visual intelligence is toggled on, treat the webcam frames as live current evidence. ` +
+          `If the student asks what they are holding or showing, look at the latest camera frame and name the actual visible object first, like a ball, phone, book, pen, or cup. ` +
+          `Do not answer with generic pretrained examples or guesses. If the object is not visible or unclear, say you cannot see it clearly and ask them to hold it in front of the camera. ` +
+          `Then connect the object to a useful grade 9-11 STEM idea in one or two concise sentences. Keep responses short so conversations stay responsive.`;
 
         // Set up Gemini service callbacks
         geminiLiveService.setCallback('onStatusChange', (statusText) => {

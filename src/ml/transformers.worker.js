@@ -1,4 +1,5 @@
 import { pipeline, env } from '@huggingface/transformers';
+import './transformersEnv.js';
 
 // Configure Transformers.js environments for browser/worker
 env.allowLocalModels = false;

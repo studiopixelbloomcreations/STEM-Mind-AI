@@ -22,7 +22,7 @@ const applySingleThreadWasm = (wasm) => {
   const ortVersion = env.backends?.onnx?.versions?.web;
   if (!ortVersion) return;
 
-  const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ortVersion}/dist/`;
+  const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ortVersion.includes('-') ? '1.19.0' : ortVersion}/dist/`;
   wasm.wasmPaths = {
     mjs: `${prefix}ort-wasm.mjs`,
     wasm: `${prefix}ort-wasm.wasm`,

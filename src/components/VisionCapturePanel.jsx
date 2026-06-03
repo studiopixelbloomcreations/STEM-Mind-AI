@@ -25,7 +25,7 @@ import { preloadVisionModels } from '../ml/transformersClient';
 const CONSENT_SESSION_KEY = 'vision-camera-consent-v1';
 
 export default function VisionCapturePanel() {
-  const { activeStudent, activeSubject, activeTopic } = useApp();
+  const { activeStudent, activeSubject, activeTopic, activeGrade } = useApp();
   const [error, setError] = useState('');
   const [cameraActive, setCameraActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -151,6 +151,7 @@ export default function VisionCapturePanel() {
   };
 
   const loadTeachingForQuestion = async (question, answer, simpler = false) => {
+    voiceSynthesizer.unlock();
     setLoadingTeaching(true);
     setTeachingSteps([]);
     setCurrentTeachingStep(0);
@@ -321,6 +322,7 @@ export default function VisionCapturePanel() {
         mimeType: selectedFile.type,
         base64Image,
         imageFile: selectedFile,
+        grade: activeGrade,
       });
       const attempts = await fetchRecentVisionAttempts({ studentId, limit: 6 });
       setRecentAttempts(attempts);

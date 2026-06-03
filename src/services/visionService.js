@@ -1,4 +1,5 @@
 ﻿import { auth } from '../config/firebase';
+import { runImageAnalyzerAgent } from '../harmony/geminiHarmonyEngine';
 import { buildClientVisionAnalysis } from '../ml/transformersClient';
 import { normalizeVisionResponse } from '../utils/visionValidation';
 
@@ -58,12 +59,25 @@ export const analyzeVisionImage = async ({
   mimeType,
   base64Image,
   imageFile = null,
+  grade = null,
 }) => {
-  const clientAnalysis = await buildClientVisionAnalysis({
-    imageInput: imageFile || base64Image,
-    subject,
-    topic,
-  });
+  let clientAnalysis;
+  try {
+    clientAnalysis = await runImageAnalyzerAgent({
+      base64Image,
+      mimeType,
+      subject,
+      topic,
+      grade,
+    });
+  } catch (geminiError) {
+    console.warn('Gemini Image Analyzer failed. Falling back to client vision analysis.', geminiError);
+    clientAnalysis = await buildClientVisionAnalysis({
+      imageInput: imageFile || base64Image,
+      subject,
+      topic,
+    });
+  }
 
   const response = await callVisionFunction({
     mode: 'analyze',

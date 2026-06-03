@@ -28,9 +28,18 @@ const AGENT_SYSTEM_PROMPTS = {
   council:
     `${GEMINI_ORCHESTRATOR_PROMPT} You are the Council Leader Agent. Fuse Gemini specialist outputs into one polished learning payload.`,
   visualTeacher:
-    `${GEMINI_ORCHESTRATOR_PROMPT} You are the Visual Teacher AI Agent. Create step-by-step visual lessons and voice narration.`,
+    `${GEMINI_ORCHESTRATOR_PROMPT} You are the Visual Teacher AI Agent. Create super-simple, engaging step-by-step visual lessons and friendly voice narration as if teaching a 10-year-old.`,
   stepExplainer:
-    `${GEMINI_ORCHESTRATOR_PROMPT} You are the Step-by-Step Explainer AI Agent. Break wrong answers into visual, narrated repair steps.`,
+    `${GEMINI_ORCHESTRATOR_PROMPT} You are the Step-by-Step Explainer AI Agent. Break wrong answers into super-simple visual, narrated repair steps as if teaching a 10-year-old.`,
+  imageAnalyzer:
+    `${GEMINI_ORCHESTRATOR_PROMPT} You are the Image Analyzer AI Agent. Analyze the actual uploaded or captured camera frame as current visual evidence before teaching from it.`,
+};
+
+const cleanJsonText = (text) => String(text || '').replace(/```json|```/g, '').trim();
+
+const toGeminiParts = (message) => {
+  if (Array.isArray(message.parts)) return message.parts;
+  return [{ text: String(message.content || '') }];
 };
 
 /**
@@ -48,7 +57,7 @@ async function callGeminiAgent(agentName, messages, responseFormat = null, tempe
     },
     contents: messages.map((message) => ({
       role: message.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(message.content || '') }],
+      parts: toGeminiParts(message),
     })),
     generationConfig: {
       temperature,
@@ -118,7 +127,7 @@ Do not include markdown formatting or extra explanations.`;
   const response = await callProvider(provider, [{ role: 'user', content: prompt }], { type: 'json_object' }, 0.95);
 
   try {
-    const parsed = JSON.parse(response.replace(/```json|```/g, '').trim());
+    const parsed = JSON.parse(cleanJsonText(response));
     const topics = Array.isArray(parsed.topics) ? parsed.topics : [];
 
     return topics.slice(0, 5).map((entry) => ({
@@ -127,7 +136,7 @@ Do not include markdown formatting or extra explanations.`;
       whyRelevant: entry.whyRelevant || 'AI-generated syllabus-aligned topic.'
     }));
   } catch {
-    const fallbackLines = response.replace(/```json|```/g, '').trim().split('\n').map(line => line.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
+    const fallbackLines = cleanJsonText(response).split('\n').map(line => line.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
     const fallbackTopics = fallbackLines.slice(0, 5);
 
     return fallbackTopics.map((topic, index) => ({
@@ -158,7 +167,7 @@ JSON Format:
 
   const response = await callProvider(provider, [{ role: 'user', content: prompt }], { type: 'json_object' }, 0.7);
   try {
-    return JSON.parse(response.replace(/```json|```/g, '').trim());
+    return JSON.parse(cleanJsonText(response));
   } catch {
     // If not JSON, parse text and build a basic representation
     return {
@@ -188,7 +197,7 @@ Output JSON only:
 
   const response = await callProvider(provider, [{ role: 'user', content: prompt }], { type: 'json_object' }, 0.35);
   try {
-    return JSON.parse(response.replace(/```json|```/g, '').trim());
+    return JSON.parse(cleanJsonText(response));
   } catch {
     return { recommendedDifficulty: currentDifficulty, reason: "Maintain current flow" };
   }
@@ -256,10 +265,91 @@ Output JSON only:
 
   const response = await callProvider(provider, [{ role: 'user', content: prompt }], { type: 'json_object' }, 0.35);
   try {
-    return JSON.parse(response.replace(/```json|```/g, '').trim());
+    return JSON.parse(cleanJsonText(response));
   } catch {
     return { strengths: [], weaknesses: [], recommendations: ["Keep practicing regularly"] };
   }
+}
+
+/**
+ * IMAGE ANALYZER AI: Reads the actual camera/upload frame before the Visual Teacher turns it into a lesson.
+ */
+export async function runImageAnalyzerAgent({
+  base64Image,
+  mimeType = 'image/jpeg',
+  subject = 'STEM',
+  topic = 'General worksheet analysis',
+  grade = null,
+}) {
+  if (!base64Image) {
+    throw new Error('Image Analyzer AI needs an image frame.');
+  }
+
+  const prompt = `You are the Gemini Image Analyzer AI for STEMMind AI.
+Analyze the actual provided image frame, not generic examples.
+Context:
+- Subject: ${subject || 'STEM'}
+- Topic: ${topic || 'General worksheet analysis'}
+- Grade: ${grade || '9-11'}
+
+Your job:
+1. Describe what is actually visible in the frame.
+2. Extract readable worksheet/text/math/science content if present.
+3. If the frame contains an object instead of a worksheet, identify the object from the image evidence and connect it to STEM.
+4. Do not invent text, answers, or objects that are not visible.
+5. If the image is blurry, blocked, or unclear, say that clearly in warnings.
+
+Return only a raw JSON object:
+{
+  "extractedText": "Readable text/math from the image, or a clear visible-object description if no text exists",
+  "confidence": 0-100,
+  "warnings": ["short warning strings"],
+  "summary": "1-2 sentence understanding based on the actual image",
+  "structuredSteps": [
+    {
+      "title": "Step or observation title",
+      "explanation": "Teaching-ready explanation grounded in the image"
+    }
+  ]
+}`;
+
+  const response = await callProvider(
+    'imageAnalyzer',
+    [
+      {
+        role: 'user',
+        parts: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType,
+              data: base64Image,
+            },
+          },
+        ],
+      },
+    ],
+    { type: 'json_object' },
+    0.25
+  );
+
+  const parsed = JSON.parse(cleanJsonText(response));
+  const structuredSteps = Array.isArray(parsed.structuredSteps) ? parsed.structuredSteps : [];
+  const warnings = Array.isArray(parsed.warnings) ? parsed.warnings.filter(Boolean) : [];
+
+  return {
+    extractedText: String(parsed.extractedText || '').trim(),
+    confidence: Number.isFinite(Number(parsed.confidence))
+      ? Math.max(0, Math.min(100, Number(parsed.confidence)))
+      : 70,
+    warnings,
+    structuredSteps: structuredSteps.slice(0, 6).map((step, index) => ({
+      title: step?.title || `Observation ${index + 1}`,
+      explanation: step?.explanation || '',
+    })),
+    summary: String(parsed.summary || '').trim(),
+    provider: `gemini-image-analyzer:${GEMINI_HARMONY_MODEL}`,
+  };
 }
 
 // Gemini Harmony keeps the copied multi-agent council active. The original Harmony file is preserved separately.
@@ -430,8 +520,8 @@ export function visionTeachingAnswerFor(analysis = {}) {
 export async function runVisualTeacherAgent(question, correctAnswer, simplerMode = false) {
   const provider = 'visualTeacher';
   const simplicityPrompt = simplerMode 
-    ? "Break this down even further with extremely simple real-world analogies, drawing basic pictures using HTML symbols or icons, like explaining to a 5-year-old child."
-    : "Break this down into easy mathematical steps with high-fidelity visual diagrams (HTML styled mathematical boxes, equations, colored steps).";
+    ? "Break this down like the student is 10 years old and still confused. Use tiny steps, real-world analogies, and playful visual cues."
+    : "Break this down like the student is 10 years old. Use simple words, friendly analogies, and engaging visual cues.";
 
   const prompt = `You are the Visual Teacher AI.
 Question: "${question}"
@@ -440,8 +530,8 @@ Correct Answer: "${correctAnswer}"
 ${simplicityPrompt}
 
 Generate exactly 3 to 5 sequential steps to teach the student how to solve this. For each step, create:
-1. "visual": A beautifully styled HTML snippet (using inline CSS) that represents a live diagram, formula, math box, or step-by-step progress visually. Do NOT include paragraphs of text or captions here. Keep it to math expressions, colored text, symbols, or blocks.
-2. "speech": What you will explain using voice narration (friendly, direct, clear explanation).
+1. "visual": An engaging HTML snippet (using inline CSS) that feels like a lively mini whiteboard: clear shapes, arrows, labels, color, progress, simple symbols, or equation blocks. Keep it clean and readable, not robotic. Do NOT include long paragraphs.
+2. "speech": Friendly voice narration in very simple language, as if explaining to a 10-year-old. Keep it short and warm.
 
 Output a raw JSON array of objects only. Do NOT wrap in markdown code blocks.
 Format:
@@ -472,8 +562,8 @@ Format:
 export async function runStepByStepExplanationAgent(question, correctAnswer, wrongAnswer, eli10 = false) {
   const provider = 'stepExplainer';
   const simplicityPrompt = eli10 
-    ? "Explain like I am 10 years old, using super simple analogies and basic visual symbols." 
-    : "Provide a clear, high-quality step-by-step academic breakdown with professional visual diagrams.";
+    ? "Explain like I am 10 years old and still confused, using super simple analogies and friendly visual symbols." 
+    : "Explain like I am 10 years old, using clear steps, simple language, and engaging visual symbols.";
 
   const prompt = `You are the Explanation AI. The student answered incorrectly.
 Question: "${question}"
@@ -483,9 +573,9 @@ Student's Answer: "${wrongAnswer}"
 ${simplicityPrompt}
 
 Break the explanation down into 3 to 5 logical steps so the student can follow along easily. For each step, provide:
-1. "visual": A beautifully styled HTML snippet (using inline CSS) that represents a live diagram, formula, math box, or step-by-step progress visually. Use colored text, math expressions, symbols, arrows, or highlighted boxes. Keep it visual and minimal — no long paragraphs.
+1. "visual": An engaging HTML snippet (using inline CSS) that represents a lively mini whiteboard. Use colored text, simple shapes, math expressions, symbols, arrows, or highlighted boxes. Keep it visual and minimal with no long paragraphs.
 2. "caption": A text summary of this step that will remain on-screen for the student to read.
-3. "speech": The friendly spoken voice narration explaining this step in detail.
+3. "speech": Friendly spoken voice narration in simple 10-year-old-level language.
 
 Output a raw JSON array of objects only. Do NOT wrap in markdown code blocks.
 Format:

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   runHarmonyCouncil, 
@@ -10,7 +10,7 @@ import voiceSynthesizer from '../utils/voiceSynthesizer';
 import { 
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 
   ChevronRight, Brain, Lightbulb, GraduationCap, Clock,
-  Sun, Moon, Laptop, RotateCcw, Play, ArrowRight, BookOpen
+  Sun, Moon, Laptop, RotateCcw, ArrowRight, BookOpen
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
@@ -42,7 +42,6 @@ export default function QuizView() {
   const [teachingSteps, setTeachingSteps] = useState([]);
   const [currentTeachingStep, setCurrentTeachingStep] = useState(0);
   const [loadingTeaching, setLoadingTeaching] = useState(false);
-  const [teachingSimplerMode, setTeachingSimplerMode] = useState(false);
   const [speakingStep, setSpeakingStep] = useState(false);
   const [autoPlayTeaching, setAutoPlayTeaching] = useState(false);
   
@@ -136,7 +135,7 @@ export default function QuizView() {
     try {
       const explContent = await runExplanationAgent(question, correctAnswer, studentAnswer, explanationMode);
       setExplanation(explContent);
-    } catch (e) {
+    } catch {
       setExplanation('Could not fetch explanation details.');
     } finally {
       setLoadingExplanation(false);
@@ -168,6 +167,7 @@ export default function QuizView() {
 
   // Trigger step-by-step wrong answer explanation loading
   const startWrongAnswerExplanation = async (studentAnswer, currentEli10 = eli10) => {
+    voiceSynthesizer.unlock();
     setLoadingWrongSteps(true);
     setExplanationExpandedMode(true);
     try {
@@ -223,9 +223,9 @@ export default function QuizView() {
 
   // Trigger interactive visual teaching mode
   const startInteractiveTeaching = async (simpler = false) => {
+    voiceSynthesizer.unlock();
     setTeachingMode(true);
     setLoadingTeaching(true);
-    setTeachingSimplerMode(simpler);
     try {
       const steps = await runVisualTeacherAgent(question, correctAnswer, simpler);
       setTeachingSteps(steps);
@@ -302,7 +302,6 @@ export default function QuizView() {
     setTeachingMode(false);
     setTeachingSteps([]);
     setCurrentTeachingStep(0);
-    setTeachingSimplerMode(false);
     voiceSynthesizer.stop();
 
     setCurrentQuiz({ loading: true });
@@ -322,7 +321,7 @@ export default function QuizView() {
         score: quizScore,
         startTime: Date.now()
       });
-    } catch (err) {
+    } catch {
       setCurrentQuiz({ error: 'Failed to generate next question from the council.' });
     }
   };

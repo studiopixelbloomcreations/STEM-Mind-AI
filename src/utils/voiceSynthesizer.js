@@ -164,29 +164,28 @@ class VoiceSynthesizer {
       return;
     }
 
-    if (!this._unlocked) {
-      this._pendingSpeak = { text: trimmed, onEnd: onEndCallback, onStart: onStartCallback };
-      return;
-    }
+    if (!this._unlocked) this.unlock();
 
     this.stop();
 
     const callbacks = { onStart: onStartCallback, onEnd: onEndCallback };
-    const runBrowserFallback = () => {
-      console.warn('Transformers TTS failed. Falling back to browser SpeechSynthesis.');
-      const browserStarted = this.speakBrowser(trimmed, callbacks);
-      if (!browserStarted) {
-        console.warn('TTS unavailable: browser and Transformers.js both failed');
-        onEndCallback?.();
-      }
-    };
-
-    // Prioritize high-quality local Transformers.js SpeechT5 TTS
-    this.speakTransformers(trimmed, callbacks).then((ok) => {
-      if (!ok) {
-        runBrowserFallback();
-      }
+    const browserStarted = this.speakBrowser(trimmed, {
+      ...callbacks,
+      onUnavailable: () => {
+        this.speakTransformers(trimmed, callbacks).then((ok) => {
+          if (!ok) {
+            console.warn('TTS unavailable: browser and Transformers.js both failed');
+            onEndCallback?.();
+          }
+        });
+      },
     });
+
+    if (!browserStarted) {
+      this.speakTransformers(trimmed, callbacks).then((ok) => {
+        if (!ok) onEndCallback?.();
+      });
+    }
   }
 
   pause() {

@@ -77,6 +77,11 @@ class GeminiLiveService {
     await this.initAudioContext();
     this.nextPlayTime = this.audioContext.currentTime;
 
+    const modelsToTry = ['models/gemini-2.0-flash-exp', 'models/gemini-2.0-flash-realtime-exp'];
+    const modelIndex = this.currentModelIndex || 0;
+    const selectedModel = modelsToTry[modelIndex % modelsToTry.length];
+    
+    console.log(`[Gemini WebSocket] Connecting using model: ${selectedModel}`);
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${key}`;
     this.callbacks.onStatusChange?.('Connecting to Gemini...');
 
@@ -91,27 +96,29 @@ class GeminiLiveService {
           // Send initial Setup payload
           const setupMsg = {
             setup: {
-              model: 'models/gemini-2.0-flash-exp',
+              model: selectedModel,
               generationConfig: {
                 responseModalities: ['AUDIO'],
                 speechConfig: {
                   voiceConfig: {
                     prebuiltVoiceConfig: {
-                      voiceName: 'Aoede' // Aoede (female tutor style), Puck, Fenrir, Kore
+                      voiceName: 'Aoede'
                     }
                   }
                 }
               },
               systemInstruction: {
-                parts: [
-                  {
-                    text: systemInstruction || 
-                      'You are a friendly, warm, and highly visual STEM teacher. ' +
-                      'You respond concisely in natural spoken language. ' +
-                      'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
-                      'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
-                  }
-                ]
+                content: {
+                  parts: [
+                    {
+                      text: systemInstruction || 
+                        'You are a friendly, warm, and highly visual STEM teacher. ' +
+                        'You respond concisely in natural spoken language. ' +
+                        'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
+                        'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
+                    }
+                  ]
+                }
               }
             }
           };
@@ -144,6 +151,15 @@ class GeminiLiveService {
         this.ws.onclose = (event) => {
           this.isConnected = false;
           console.warn(`[Gemini WebSocket Close] Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
+          
+          // Fallback logic for invalid argument (code 1007)
+          if (event.code === 1007 && modelIndex < modelsToTry.length - 1) {
+            console.log(`[Gemini WebSocket Fallback] Retrying with next model...`);
+            this.currentModelIndex = modelIndex + 1;
+            this.connect(systemInstruction).then(resolve).catch(reject);
+            return;
+          }
+
           this.callbacks.onStatusChange?.('Disconnected');
           this.callbacks.onClose?.(event);
         };

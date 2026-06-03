@@ -143,6 +143,7 @@ class GeminiLiveService {
 
         this.ws.onclose = (event) => {
           this.isConnected = false;
+          console.warn(`[Gemini WebSocket Close] Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
           this.callbacks.onStatusChange?.('Disconnected');
           this.callbacks.onClose?.(event);
         };

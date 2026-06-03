@@ -1,43 +1,31 @@
 /**
- * Voice narration: browser speechSynthesis (primary) with Transformers.js MMS TTS fallback.
+ * Voice narration: Gemini native audio only.
  */
 
-import { playSpeechSamples, preloadSpeechModels, synthesizeSpeech } from '../ml/transformersClient';
+import { getGeminiApiKey } from '../services/geminiLiveService';
 
-const BENIGN_SPEECH_ERRORS = new Set(['interrupted', 'canceled', 'cancelled']);
+const GEMINI_TTS_MODEL = import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+const GEMINI_TTS_VOICE = import.meta.env.VITE_GEMINI_TTS_VOICE || 'Kore';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_TTS_SAMPLE_RATE = 24000;
 
 class VoiceSynthesizer {
   constructor() {
-    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-    this.utterance = null;
-    this.currentAudio = null;
+    this.currentSource = null;
     this.currentAudioCtx = null;
-    this._voicesReady = false;
     this._unlocked = false;
-    this._pendingSpeak = null;
-    this._ttsWarmStarted = false;
-    if (this.synth) {
-      const primeVoices = () => {
-        if (this.synth.getVoices().length > 0) this._voicesReady = true;
-      };
-      primeVoices();
-      this.synth.addEventListener('voiceschanged', primeVoices, { once: true });
-    }
+    this._requestId = 0;
   }
 
   stop() {
-    if (this.synth) {
-      this.synth.cancel();
-    }
-    this.utterance = null;
-    if (this.currentAudio) {
+    this._requestId += 1;
+    if (this.currentSource) {
       try {
-        this.currentAudio.stop?.();
-        this.currentAudio.pause?.();
+        this.currentSource.stop();
       } catch {
-        // ignore
+        // Already stopped.
       }
-      this.currentAudio = null;
+      this.currentSource = null;
     }
     if (this.currentAudioCtx) {
       this.currentAudioCtx.close().catch(() => undefined);
@@ -45,118 +33,106 @@ class VoiceSynthesizer {
     }
   }
 
-  /**
-   * Call after a user gesture (mic permission, tap, etc.) so autoplay policies allow TTS.
-   */
   unlock() {
-    if (this._unlocked) return;
     this._unlocked = true;
-    if (!this._ttsWarmStarted) {
-      this._ttsWarmStarted = true;
-      preloadSpeechModels();
-    }
-    if (this.synth?.paused) {
-      try {
-        this.synth.resume();
-      } catch {
-        // ignore
-      }
-    }
-    const pending = this._pendingSpeak;
-    if (pending) {
-      this._pendingSpeak = null;
-      this.speak(pending.text, pending.onEnd, pending.onStart);
-    }
   }
 
   get isUnlocked() {
     return this._unlocked;
   }
 
-  speakBrowser(text, { onStart = null, onEnd = null, onUnavailable = null } = {}) {
-    if (!this.synth || !text?.trim()) {
-      onUnavailable?.();
-      return false;
+  async generateGeminiAudio(text) {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      throw new Error('Gemini API key is not configured for voice narration.');
     }
 
-    try {
-      if (this.synth.paused) this.synth.resume();
-    } catch {
-      // ignore
+    const response = await fetch(
+      `${GEMINI_API_BASE}/models/${encodeURIComponent(GEMINI_TTS_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text:
+                    'Read this as a warm STEM teacher speaking to a grade 9-11 student. ' +
+                    'Use a clear, encouraging, natural pace: ' +
+                    text,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: {
+                  voiceName: GEMINI_TTS_VOICE,
+                },
+              },
+            },
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Gemini native audio failed: ${response.status} - ${errorText}`);
     }
 
-    this.utterance = new SpeechSynthesisUtterance(text);
-    this.utterance.rate = 0.95;
-    this.utterance.pitch = 1.05;
-    const voices = this.synth.getVoices();
-    const preferred =
-      voices.find((v) => v.lang?.startsWith('en') && /google|natural|samantha|zira|microsoft.*natural/i.test(v.name)) ||
-      voices.find((v) => v.lang?.startsWith('en-US')) ||
-      voices.find((v) => v.lang?.startsWith('en'));
-    if (preferred) this.utterance.voice = preferred;
+    const data = await response.json();
+    const inlineData = data?.candidates?.[0]?.content?.parts?.find((part) => part.inlineData)?.inlineData;
+    const base64Audio = inlineData?.data;
+    if (!base64Audio) {
+      throw new Error('Gemini native audio returned no audio data.');
+    }
+    return base64Audio;
+  }
 
-    let started = false;
-    this.utterance.onstart = () => {
-      started = true;
-      onStart?.();
-    };
-    this.utterance.onend = () => {
-      this.utterance = null;
+  async playPcmBase64(base64Audio, requestId, { onStart = null, onEnd = null } = {}) {
+    if (requestId !== this._requestId) return;
+
+    const binary = atob(base64Audio);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    const int16 = new Int16Array(bytes.buffer);
+    const float32 = new Float32Array(int16.length);
+    for (let i = 0; i < int16.length; i++) {
+      float32[i] = int16[i] / 32768;
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const audioCtx = new AudioContextClass({ sampleRate: GEMINI_TTS_SAMPLE_RATE });
+    if (audioCtx.state === 'suspended') {
+      await audioCtx.resume();
+    }
+
+    const buffer = audioCtx.createBuffer(1, float32.length, GEMINI_TTS_SAMPLE_RATE);
+    buffer.getChannelData(0).set(float32);
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.onended = () => {
+      if (this.currentSource === source) this.currentSource = null;
+      if (this.currentAudioCtx === audioCtx) this.currentAudioCtx = null;
+      audioCtx.close().catch(() => undefined);
       onEnd?.();
     };
-    this.utterance.onerror = (event) => {
-      const code = event?.error || '';
-      this.utterance = null;
-      if (BENIGN_SPEECH_ERRORS.has(code)) {
-        onEnd?.();
-        return;
-      }
-      console.warn('Browser speech synthesis error:', code || event);
-      if (!started) onUnavailable?.();
-      else onEnd?.();
-    };
 
-    const start = () => {
-      try {
-        this.synth.speak(this.utterance);
-      } catch (err) {
-        console.warn('speechSynthesis.speak failed:', err);
-        onUnavailable?.();
-      }
-    };
-
-    if (!this._voicesReady && this.synth.getVoices().length === 0) {
-      this.synth.addEventListener('voiceschanged', start, { once: true });
-    } else {
-      start();
-    }
-    return true;
+    this.currentAudioCtx = audioCtx;
+    this.currentSource = source;
+    onStart?.();
+    source.start();
   }
 
-  async speakTransformers(text, { onStart = null, onEnd = null } = {}) {
-    try {
-      const result = await synthesizeSpeech(text);
-      if (!result?.audio?.length) return false;
-      const playback = await playSpeechSamples(result.audio, result.sampling_rate, {
-        onStart,
-        onEnd: () => {
-          if (this.currentAudio === playback?.source) this.currentAudio = null;
-          if (this.currentAudioCtx === playback?.audioCtx) this.currentAudioCtx = null;
-          onEnd?.();
-        },
-      });
-      this.currentAudio = playback.source;
-      this.currentAudioCtx = playback.audioCtx;
-      return true;
-    } catch (err) {
-      console.warn('Transformers TTS failed:', err);
-      return false;
-    }
-  }
-
-  /**
-   * Speak with Transformers.js SpeechT5 TTS first (natural teacher voice); fall back to browser speechSynthesis on failure.
-   */
   speak(text, onEndCallback = null, onStartCallback = null) {
     const trimmed = String(text || '').trim();
     if (!trimmed) {
@@ -164,39 +140,30 @@ class VoiceSynthesizer {
       return;
     }
 
-    if (!this._unlocked) this.unlock();
-
+    this.unlock();
     this.stop();
+    const requestId = this._requestId;
 
-    const callbacks = { onStart: onStartCallback, onEnd: onEndCallback };
-    const browserStarted = this.speakBrowser(trimmed, {
-      ...callbacks,
-      onUnavailable: () => {
-        this.speakTransformers(trimmed, callbacks).then((ok) => {
-          if (!ok) {
-            console.warn('TTS unavailable: browser and Transformers.js both failed');
-            onEndCallback?.();
-          }
-        });
-      },
-    });
-
-    if (!browserStarted) {
-      this.speakTransformers(trimmed, callbacks).then((ok) => {
-        if (!ok) onEndCallback?.();
+    this.generateGeminiAudio(trimmed)
+      .then((base64Audio) =>
+        this.playPcmBase64(base64Audio, requestId, {
+          onStart: onStartCallback,
+          onEnd: onEndCallback,
+        })
+      )
+      .catch((error) => {
+        console.error('Gemini native audio narration failed:', error);
+        onEndCallback?.();
       });
-    }
   }
 
   pause() {
-    if (this.synth?.speaking) this.synth.pause();
     if (this.currentAudioCtx?.state === 'running') {
       this.currentAudioCtx.suspend().catch(() => undefined);
     }
   }
 
   resume() {
-    if (this.synth?.paused) this.synth.resume();
     if (this.currentAudioCtx?.state === 'suspended') {
       this.currentAudioCtx.resume().catch(() => undefined);
     }

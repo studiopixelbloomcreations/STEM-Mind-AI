@@ -44,6 +44,8 @@ class GeminiLiveService {
     };
     this.isConnected = false;
     this.activeAudioSources = [];
+    this.currentModelIndex = 0;
+    this.useMinimalSetup = false;
   }
 
   setCallback(name, fn) {
@@ -85,7 +87,7 @@ class GeminiLiveService {
     const modelIndex = this.currentModelIndex || 0;
     const selectedModel = modelsToTry[modelIndex % modelsToTry.length];
     
-    console.log(`[Gemini WebSocket] Connecting using model: ${selectedModel}`);
+    console.log(`[Gemini WebSocket] Connecting using model: ${selectedModel} (minimal setup: ${this.useMinimalSetup})`);
     const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${key}`;
     this.callbacks.onStatusChange?.('Connecting to Gemini...');
 
@@ -97,18 +99,25 @@ class GeminiLiveService {
           this.isConnected = true;
           this.callbacks.onStatusChange?.('Connected');
           
-          // Send initial Setup payload
+          // Send initial Setup payload (using gRPC-compliant snake_case keys)
           const setupMsg = {
             setup: {
               model: selectedModel,
-              generationConfig: {
-                responseModalities: ['AUDIO']
+              generation_config: {
+                response_modalities: ['AUDIO'],
+                speech_config: {
+                  voice_config: {
+                    prebuilt_voice_config: {
+                      voice_name: 'Aoede' // Kore, Aoede, Fenrir, Puck, Charon
+                    }
+                  }
+                }
               }
             }
           };
 
           if (!this.useMinimalSetup) {
-            setupMsg.setup.systemInstruction = {
+            setupMsg.setup.system_instruction = {
               parts: [
                 {
                   text: systemInstruction || 
@@ -176,18 +185,22 @@ class GeminiLiveService {
   }
 
   handleServerMessage(msg) {
-    // 1. Check for audio output content
-    const parts = msg.serverContent?.modelTurn?.parts || [];
+    // 1. Check for audio output content (support both snake_case and camelCase fallback)
+    const serverContent = msg.server_content || msg.serverContent;
+    const modelTurn = serverContent?.model_turn || serverContent?.modelTurn;
+    const parts = modelTurn?.parts || [];
+    
     for (const part of parts) {
       // Handle voice output audio
-      if (part.inlineData && part.inlineData.mimeType?.startsWith('audio/pcm')) {
-        const base64Audio = part.inlineData.data;
+      const inlineData = part.inline_data || part.inlineData;
+      if (inlineData && (inlineData.mime_type || inlineData.mimeType)?.startsWith('audio/pcm')) {
+        const base64Audio = inlineData.data;
         this.playPCMChunk(base64Audio);
       }
     }
 
     // 2. Check for speech-to-text transcriptions
-    const modelTranscriptions = msg.serverContent?.modelTurn?.parts
+    const modelTranscriptions = parts
       ?.map(p => p.text)
       .filter(Boolean)
       .join(' ');
@@ -197,7 +210,8 @@ class GeminiLiveService {
     }
 
     // Handle user transcription (what the user said) if available
-    const userTranscription = msg.serverContent?.turnComplete?.transcription;
+    const turnComplete = serverContent?.turn_complete || serverContent?.turnComplete;
+    const userTranscription = turnComplete?.transcription;
     if (userTranscription && userTranscription.trim()) {
       this.callbacks.onTranscription?.(userTranscription.trim(), 'User');
     }
@@ -260,14 +274,14 @@ class GeminiLiveService {
     if (!this.isConnected || !this.ws) return;
     
     const textMsg = {
-      clientContent: {
+      client_content: {
         turns: [
           {
             role: 'user',
             parts: [{ text }]
           }
         ],
-        turnComplete: true
+        turn_complete: true
       }
     };
     
@@ -282,10 +296,10 @@ class GeminiLiveService {
     if (!this.isConnected || !this.ws) return;
 
     const frameMsg = {
-      realtimeInput: {
-        mediaChunks: [
+      realtime_input: {
+        media_chunks: [
           {
-            mimeType: 'image/jpeg',
+            mime_type: 'image/jpeg',
             data: base64Jpeg
           }
         ]
@@ -312,10 +326,10 @@ class GeminiLiveService {
     const base64Data = btoa(binary);
 
     const audioMsg = {
-      realtimeInput: {
-        mediaChunks: [
+      realtime_input: {
+        media_chunks: [
           {
-            mimeType: 'audio/pcm',
+            mime_type: 'audio/pcm',
             data: base64Data
           }
         ]

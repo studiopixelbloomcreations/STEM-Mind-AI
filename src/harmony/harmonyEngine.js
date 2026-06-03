@@ -261,11 +261,55 @@ Output JSON only:
   }
 }
 
+// Temporary toggle to disable the Harmony council's multi-agent calls in favor of a single Gemini Flash response
+export const HARMONY_SYSTEM_DISABLED = true;
+
 /**
  * 7. COUNCIL LEADER AI (Fusion & Scoring Engine):
  * Collects and scores quality of outputs from all agents and merges them.
  */
 export async function runHarmonyCouncil(subject, topic, grade, currentDifficulty, studentStats, lastQuizState = null) {
+  if (HARMONY_SYSTEM_DISABLED) {
+    try {
+      console.log(`[Harmony Engine] Bypassing council for single Gemini query on ${topic} (${subject})`);
+      const provider = 'openrouter'; // Direct Gemini Flash query
+      const systemPrompt = `You are a professional STEM teacher generating a high-quality assessment quiz question for Grade ${grade} on the topic "${topic}" in the subject "${subject}" at a "${currentDifficulty}" level.
+Return a raw JSON object ONLY.
+Format:
+{
+  "question": "The question text",
+  "choices": ["choice A", "choice B", "choice C", "choice D"],
+  "correctAnswer": "The correct answer value matching one choice exactly",
+  "hints": ["Hint 1", "Hint 2"],
+  "examTips": "Strategic advice for answering",
+  "motivatorQuote": "An encouraging quote to motivate the student"
+}`;
+
+      const response = await callProvider(provider, [{ role: 'user', content: systemPrompt }], null, 0.5);
+      const cleanedResponse = response.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(cleanedResponse);
+
+      return {
+        subject,
+        topic,
+        grade,
+        difficulty: currentDifficulty,
+        diffReason: "Adaptive single-turn Gemini reasoning engine.",
+        question: parsed.question,
+        questionType: 'MCQ',
+        choices: parsed.choices,
+        correctAnswer: parsed.correctAnswer,
+        hints: parsed.hints || ["Think carefully"],
+        examTips: parsed.examTips || "Read the options thoroughly.",
+        motivatorQuote: parsed.motivatorQuote || "You've got this, keep going!",
+        confidenceScore: 98
+      };
+    } catch (e) {
+      console.warn("Single Gemini generation failed, falling back to multi-agent council:", e);
+    }
+  }
+
+  // Original Harmony multi-agent council system remains fully intact as a fallback:
   // 1. Difficulty agent adjusts difficulty
   let difficulty = currentDifficulty;
   let diffReason = "Starting topic assessment.";

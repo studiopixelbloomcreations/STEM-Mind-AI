@@ -89,37 +89,6 @@ export class TransformersService {
     return this._sendRequest('tts', { text, model, options });
   }
 
-  /**
-   * 2. Speech-to-Text (STT)
-   * Transcribe raw PCM float32 audio samples using Whisper.
-   */
-  async transcribeAudio(audioData, model = 'Xenova/whisper-tiny.en', options = {}) {
-    return this._sendRequest('stt', { audioData, model, options });
-  }
-
-  /**
-   * 3. Object Detection & Image Segmentation
-   * Perform inference on image URLs, Base64 strings, or ImageBitmaps.
-   */
-  async detectObjects(image, model = 'Xenova/detr-resnet-50', options = {}) {
-    return this._sendRequest('object-detection', { image, model, options });
-  }
-
-  /**
-   * Image Captioning & OCR (Image-to-Text)
-   */
-  async imageToText(image, model, options = {}) {
-    return this._sendRequest('image-to-text', { image, model, options });
-  }
-
-  /**
-   * 4. Text Embeddings
-   * Extract feature vectors for downstream semantic search or similarity.
-   */
-  async getEmbeddings(text, model = 'Xenova/all-MiniLM-L6-v2', options = {}) {
-    return this._sendRequest('embed', { text, model, options });
-  }
-
   // ═══════════════════════════════════════════════════════════════
   // BLUEPRINT API COMPATIBILITY METHODS
   // ═══════════════════════════════════════════════════════════════
@@ -138,64 +107,6 @@ export class TransformersService {
     }
     try {
       return await this.synthesizeSpeech(text, 'Xenova/speecht5_tts', { useGPU: true });
-    } finally {
-      if (unsubscribe) unsubscribe();
-    }
-  }
-
-  /**
-   * Cursor Blueprint speechToText API
-   */
-  async speechToText(audioFloat32Array, onProgress) {
-    let unsubscribe;
-    if (onProgress) {
-      unsubscribe = this.onProgress((prog) => {
-        if (prog.task === 'automatic-speech-recognition' || prog.file) {
-          onProgress({ file: prog.file, percentage: prog.percentage });
-        }
-      });
-    }
-    try {
-      return await this.transcribeAudio(audioFloat32Array, 'Xenova/whisper-tiny.en', { useGPU: true });
-    } finally {
-      if (unsubscribe) unsubscribe();
-    }
-  }
-
-  /**
-   * Cursor Blueprint detectObjects API
-   */
-  async detectObjectsBlueprint(imageUrl, onProgress) {
-    let unsubscribe;
-    if (onProgress) {
-      unsubscribe = this.onProgress((prog) => {
-        if (prog.task === 'object-detection' || prog.file) {
-          onProgress({ file: prog.file, percentage: prog.percentage });
-        }
-      });
-    }
-    try {
-      return await this.detectObjects(imageUrl, 'Xenova/detr-resnet-50', { useGPU: true });
-    } finally {
-      if (unsubscribe) unsubscribe();
-    }
-  }
-
-  /**
-   * Cursor Blueprint generateEmbeddings API
-   */
-  async generateEmbeddings(text, onProgress) {
-    let unsubscribe;
-    if (onProgress) {
-      unsubscribe = this.onProgress((prog) => {
-        if (prog.task === 'feature-extraction' || prog.file) {
-          onProgress({ file: prog.file, percentage: prog.percentage });
-        }
-      });
-    }
-    try {
-      const result = await this.getEmbeddings(text, 'Xenova/all-MiniLM-L6-v2', { useGPU: true });
-      return Array.from(result.data || result);
     } finally {
       if (unsubscribe) unsubscribe();
     }

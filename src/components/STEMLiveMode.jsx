@@ -2,37 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CameraOff, ClosedCaption, Menu, Mic, MicOff, Share2, Subtitles, Video, X } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import logoImg from '../assets/logo.png';
-import {
-  endStemLiveSession,
-  heartbeatStemLiveSession,
-  sendStemLiveTurn,
-  startStemLiveSession,
-} from '../services/stemLiveService';
-import { analyzeLiveFrame, isWhisperReady, preloadVisionModels, transcribeAudioBlob } from '../ml/transformersClient';
+import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import { geminiLiveService } from '../services/geminiLiveService';
 import ModelLoadProgress from './ModelLoadProgress';
-import voiceSynthesizer from '../utils/voiceSynthesizer';
 
-const WELCOME_MAX_WORDS = 5;
-
-const firstNameFrom = (name) => {
-  const trimmed = String(name || '').trim();
-  if (!trimmed) return 'there';
-  return trimmed.split(/\s+/)[0] || 'there';
-};
-
-const clampLiveCaption = (text, maxWords = WELCOME_MAX_WORDS) => {
-  const cleaned = String(text || '')
-    .replace(/["'`]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (!cleaned) return '';
-  return cleaned.split(' ').filter(Boolean).slice(0, maxWords).join(' ');
-};
-
-const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
-const FRAME_INTERVAL_MS = 1400;
-const HEARTBEAT_INTERVAL_MS = 12000;
-const MAX_RECONNECT_ATTEMPTS = 2;
+const WELCOME_MAX_WORDS = 8;
+const FRAME_INTERVAL_MS = 1400; // Throttled webcam snapshot interval
 const EXIT_ANIMATION_MS = 420;
 
 const STATES = {
@@ -44,6 +19,31 @@ const STATES = {
   error: 'error',
 };
 
+// Downsampler utility to convert native microphone rates to 16kHz PCM required by Gemini
+function downsampleBuffer(buffer, inputSampleRate, outputSampleRate) {
+  if (inputSampleRate === outputSampleRate) {
+    return buffer;
+  }
+  const sampleRateRatio = inputSampleRate / outputSampleRate;
+  const newLength = Math.round(buffer.length / sampleRateRatio);
+  const result = new Float32Array(newLength);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+    let accum = 0;
+    let count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      accum += buffer[i];
+      count++;
+    }
+    result[offsetResult] = count > 0 ? accum / count : 0;
+    offsetResult++;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
 export default function STEMLiveMode() {
   const { activeStudent, activeSubject, activeTopic, setLiveModeActive } = useApp();
   const [status, setStatus] = useState(STATES.idle);
@@ -53,396 +53,79 @@ export default function STEMLiveMode() {
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [micPermission, setMicPermission] = useState('pending');
   const [cameraPermission, setCameraPermission] = useState('pending');
-  const [sessionId, setSessionId] = useState('');
   const [welcomeMessage, setWelcomeMessage] = useState('');
   const [lastReply, setLastReply] = useState('');
   const [lastUserUtterance, setLastUserUtterance] = useState('');
   const [captionsOn, setCaptionsOn] = useState(true);
-  const [recognitionSupported] = useState(Boolean(SpeechRecognitionApi));
   const [booting, setBooting] = useState(true);
   const [isEntering, setIsEntering] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
 
-  const speechActiveRef = useRef(false);
-  const speechRecognitionRef = useRef(null);
-  const micStreamRef = useRef(null);
+  // Refs for audio capturing/processing
   const audioContextRef = useRef(null);
-  const cameraStreamRef = useRef(null);
-  const mediaAnalyserRef = useRef(null);
-  const mediaDataRef = useRef(null);
-  const rafRef = useRef(0);
-  const videoRef = useRef(null);
-  const dockPillRef = useRef(null);
-  const voiceLevelRef = useRef(0);
-  const frameTimerRef = useRef(0);
-  const heartbeatTimerRef = useRef(0);
-  const latestFrameRef = useRef(null);
-  const latestVisualContextRef = useRef(null);
-  const frameAnalysisInFlightRef = useRef(false);
-  const sttModeRef = useRef('webspeech');
-  const sttRecorderRef = useRef(null);
-  const sttChunksRef = useRef([]);
-  const sttSpeakingRef = useRef(false);
-  const sttSilenceTimerRef = useRef(0);
-  const endingRef = useRef(false);
-  const inFlightTurnRef = useRef(false);
-  const queuedTranscriptRef = useRef('');
-  const reconnectAttemptsRef = useRef(0);
+  const audioProcessorRef = useRef(null);
+  const micStreamRef = useRef(null);
   const isMicMutedRef = useRef(false);
-  const processTurnRef = useRef(null);
 
-  const context = useMemo(
-    () => ({
-      subject: activeSubject || null,
-      topic: activeTopic || null,
-      studentName: activeStudent?.name || 'Student',
-    }),
-    [activeStudent?.name, activeSubject, activeTopic]
-  );
+  // Refs for camera/canvas rendering
+  const cameraStreamRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const frameTimerRef = useRef(0);
+  const isVideoOnRef = useRef(false);
+
+  // Hand tracking refs
+  const handLandmarkerRef = useRef(null);
+  const lastVideoTimeRef = useRef(-1);
+
+  // UI display refs
+  const dockPillRef = useRef(null);
 
   useEffect(() => {
     isMicMutedRef.current = isMicMuted;
   }, [isMicMuted]);
 
-  const stopWhisperStt = () => {
-    if (sttSilenceTimerRef.current) {
-      window.clearTimeout(sttSilenceTimerRef.current);
-      sttSilenceTimerRef.current = 0;
-    }
-    sttSpeakingRef.current = false;
-    sttChunksRef.current = [];
-    if (sttRecorderRef.current) {
-      sttRecorderRef.current.ondataavailable = null;
-      try {
-        if (sttRecorderRef.current.state !== 'inactive') sttRecorderRef.current.stop();
-      } catch {
-        // ignore
-      }
-      sttRecorderRef.current = null;
-    }
-  };
-
-  const flushWhisperChunk = async () => {
-    const chunks = sttChunksRef.current;
-    sttChunksRef.current = [];
-    if (!chunks.length) return;
-    const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
-    try {
-      const text = await transcribeAudioBlob(blob);
-      if (text.trim()) {
-        setLastUserUtterance(text.trim());
-        processTurnRef.current?.(text.trim());
-      }
-    } catch (err) {
-      console.warn('Whisper transcription failed:', err);
-    }
-  };
-
-  const setupWhisperStt = (stream) => {
-    if (!stream || sttRecorderRef.current) return;
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : 'audio/webm';
-    const recorder = new MediaRecorder(stream, { mimeType });
-    recorder.ondataavailable = (event) => {
-      if (event.data?.size > 0) sttChunksRef.current.push(event.data);
-    };
-    recorder.onstop = () => {
-      if (sttModeRef.current === 'whisper') flushWhisperChunk();
-    };
-    sttRecorderRef.current = recorder;
-  };
-
-  const handleWhisperVad = (normalized) => {
-    if (sttModeRef.current !== 'whisper' || isMicMutedRef.current || endingRef.current) return;
-    const recorder = sttRecorderRef.current;
-    if (!recorder) return;
-
-    if (normalized > 0.22) {
-      if (!sttSpeakingRef.current) {
-        sttSpeakingRef.current = true;
-        sttChunksRef.current = [];
-        if (recorder.state === 'inactive') {
-          try {
-            recorder.start(250);
-          } catch {
-            // ignore
-          }
-        }
-        setStatus(STATES.listening);
-      }
-      if (sttSilenceTimerRef.current) {
-        window.clearTimeout(sttSilenceTimerRef.current);
-        sttSilenceTimerRef.current = 0;
-      }
-      return;
-    }
-
-    if (sttSpeakingRef.current && normalized < 0.12 && !sttSilenceTimerRef.current) {
-      sttSilenceTimerRef.current = window.setTimeout(() => {
-        sttSpeakingRef.current = false;
-        sttSilenceTimerRef.current = 0;
-        if (recorder.state === 'recording') {
-          try {
-            recorder.stop();
-          } catch {
-            // ignore
-          }
-        }
-      }, 750);
-    }
-  };
-
-  const stopRecognition = () => {
-    if (!speechRecognitionRef.current) return;
-    speechRecognitionRef.current.onresult = null;
-    speechRecognitionRef.current.onerror = null;
-    speechRecognitionRef.current.onend = null;
-    try {
-      speechRecognitionRef.current.stop();
-    } catch {
-      // ignore stop races
-    }
-    speechRecognitionRef.current = null;
-  };
+  useEffect(() => {
+    isVideoOnRef.current = isCameraOn;
+  }, [isCameraOn]);
 
   const cleanupMic = () => {
-    stopRecognition();
-    stopWhisperStt();
+    if (audioProcessorRef.current) {
+      try {
+        audioProcessorRef.current.disconnect();
+      } catch (e) {}
+      audioProcessorRef.current = null;
+    }
     if (micStreamRef.current) {
       micStreamRef.current.getTracks().forEach((track) => track.stop());
       micStreamRef.current = null;
     }
     if (audioContextRef.current) {
-      audioContextRef.current.close().catch(() => undefined);
+      try {
+        audioContextRef.current.close();
+      } catch (e) {}
       audioContextRef.current = null;
     }
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = 0;
+    setVoiceLevel(0);
   };
 
   const cleanupCamera = () => {
-    if (frameTimerRef.current) clearInterval(frameTimerRef.current);
-    frameTimerRef.current = 0;
-    latestFrameRef.current = null;
+    if (frameTimerRef.current) {
+      clearInterval(frameTimerRef.current);
+      frameTimerRef.current = 0;
+    }
     if (cameraStreamRef.current) {
       cameraStreamRef.current.getTracks().forEach((track) => track.stop());
       cameraStreamRef.current = null;
     }
     if (videoRef.current) videoRef.current.srcObject = null;
-  };
-
-  const cleanupHeartbeat = () => {
-    if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
-    heartbeatTimerRef.current = 0;
-  };
-
-  const stopSpeech = () => {
-    voiceSynthesizer.stop();
-    speechActiveRef.current = false;
-    setStatus((prev) => (prev === STATES.speaking ? STATES.idle : prev));
-  };
-
-  const resetVoiceLevel = () => {
-    voiceLevelRef.current = 0;
-    setVoiceLevel(0);
-    if (dockPillRef.current) {
-      dockPillRef.current.style.setProperty('--voice-level', '0');
-    }
-  };
-
-  const monitorVoiceLevel = () => {
-    if (isMicMutedRef.current) {
-      resetVoiceLevel();
-      rafRef.current = requestAnimationFrame(monitorVoiceLevel);
-      return;
-    }
-
-    const analyser = mediaAnalyserRef.current;
-    const data = mediaDataRef.current;
-    if (!analyser || !data) return;
-
-    analyser.getByteFrequencyData(data);
-    let sum = 0;
-    const voiceBins = Math.min(48, data.length);
-    for (let i = 0; i < voiceBins; i += 1) {
-      sum += data[i];
-    }
-    const average = sum / voiceBins / 255;
-    const normalized = Math.min(1, Math.pow(average, 0.72) * 2.4);
-    const smoothed = voiceLevelRef.current * 0.62 + normalized * 0.38;
-    voiceLevelRef.current = smoothed;
-    setVoiceLevel(smoothed);
-    if (dockPillRef.current) {
-      dockPillRef.current.style.setProperty('--voice-level', smoothed.toFixed(3));
-    }
-
-    if (speechActiveRef.current && normalized > 0.2 && !isMicMutedRef.current) {
-      stopSpeech();
-      setStatus(STATES.listening);
-    }
-    handleWhisperVad(normalized);
-    rafRef.current = requestAnimationFrame(monitorVoiceLevel);
-  };
-
-  const speakReply = (text) => {
-    const trimmed = String(text || '').replace(/\s+/g, ' ').trim();
-    if (!trimmed) return;
-    voiceSynthesizer.unlock();
-    stopSpeech();
-    voiceSynthesizer.speak(
-      trimmed,
-      () => {
-        speechActiveRef.current = false;
-        setStatus((prev) => (prev === STATES.speaking ? STATES.idle : prev));
-      },
-      () => {
-        speechActiveRef.current = true;
-        setStatus(STATES.speaking);
-      }
-    );
-  };
-
-  const processTurn = useCallback(async (transcript) => {
-    if (!sessionId || !transcript.trim()) return;
-    if (inFlightTurnRef.current) {
-      queuedTranscriptRef.current = transcript.trim();
-      return;
-    }
-    inFlightTurnRef.current = true;
-    setStatus(STATES.thinking);
-    setError('');
-    try {
-      const response = await sendStemLiveTurn({
-        sessionId,
-        transcript: transcript.trim(),
-        context,
-        visualContext: isCameraOn ? latestVisualContextRef.current : null,
-        clientState: {
-          status,
-          isMicMuted,
-          isCameraOn,
-          voiceLevel: Number(voiceLevel.toFixed(3)),
-          sttMode: sttModeRef.current,
-        },
-      });
-      const replyText = String(response.replyText || response.ttsText || '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      setLastReply(replyText);
-      reconnectAttemptsRef.current = 0;
-      speakReply(replyText || 'Listening.');
-    } catch (turnError) {
-      const message = turnError.message || 'TURN_FAILED: Could not process STEM Live turn.';
-      const isNetwork = /timeout|network|fetch|connection|cors/i.test(message);
-      if (isNetwork && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-        reconnectAttemptsRef.current += 1;
-        setStatus(STATES.disconnected);
-        setError(`Connection dropped. Reconnecting (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`);
-        window.setTimeout(() => processTurn(transcript), 800 * reconnectAttemptsRef.current);
-      } else {
-        setStatus(STATES.error);
-        setError(message);
-      }
-    } finally {
-      inFlightTurnRef.current = false;
-      if (queuedTranscriptRef.current) {
-        const queued = queuedTranscriptRef.current;
-        queuedTranscriptRef.current = '';
-        processTurn(queued);
-      }
-    }
-  }, [context, isCameraOn, isMicMuted, sessionId, status, voiceLevel]);
-
-  useEffect(() => {
-    processTurnRef.current = processTurn;
-  }, [processTurn]);
-
-  const initRecognition = () => {
-    if (!SpeechRecognitionApi) return;
-    if (isMicMutedRef.current || endingRef.current) return;
-    stopRecognition();
-    const recognition = new SpeechRecognitionApi();
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;
-    recognition.continuous = true;
-    recognition.onresult = (event) => {
-      const result = event.results[event.results.length - 1];
-      const transcript = result?.[0]?.transcript || '';
-      if (!transcript.trim()) return;
-      setLastUserUtterance(transcript.trim());
-      if (result.isFinal) {
-        processTurn(transcript.trim());
-      } else {
-        setStatus(STATES.listening);
-      }
-    };
-    recognition.onerror = (event) => {
-      const code = event.error || 'unknown';
-      const benign = ['no-speech', 'aborted', 'audio-capture'];
-      if (benign.includes(code)) {
-        if (!isMicMutedRef.current && !endingRef.current) {
-          window.setTimeout(() => {
-            try {
-              recognition.start();
-            } catch {
-              // ignore restart races
-            }
-          }, 250);
-        }
-        return;
-      }
-      if (code === 'not-allowed') {
-        setStatus(STATES.error);
-        setError('MIC_PERMISSION_DENIED: Allow microphone access for speech recognition (Chrome recommended).');
-        setMicPermission('denied');
-        return;
-      }
-      setStatus(STATES.error);
-      setError(`STT_ERROR_${code}: Speech recognition failed. Use Chrome over HTTPS and allow the microphone.`);
-    };
-    recognition.onend = () => {
-      if (!isMicMutedRef.current && !endingRef.current && speechRecognitionRef.current === recognition) {
-        window.setTimeout(() => {
-          try {
-            recognition.start();
-          } catch {
-            // ignore restart races
-          }
-        }, 200);
-      }
-    };
-    try {
-      recognition.start();
-      speechRecognitionRef.current = recognition;
-      setStatus(STATES.listening);
-    } catch {
-      setStatus(STATES.error);
-      setError('STT_START_FAILED: Could not start speech recognition. Try Chrome and reload.');
-    }
-  };
-
-  const initSpeechInput = async (stream) => {
-    const whisperReady = await isWhisperReady();
-    if (whisperReady && !endingRef.current) {
-      sttModeRef.current = 'whisper';
-      setupWhisperStt(stream);
-      setStatus(STATES.listening);
-      return;
-    }
-    sttModeRef.current = 'webspeech';
-    if (recognitionSupported) {
-      initRecognition();
-    } else {
-      setStatus(STATES.error);
-      setError('STT_UNSUPPORTED: Speech recognition requires Chrome, Edge, or Safari over HTTPS.');
-    }
+    isVideoOnRef.current = false;
   };
 
   const startMicrophone = async () => {
     if (!navigator?.mediaDevices?.getUserMedia) {
       setStatus(STATES.error);
-      setError('MIC_UNSUPPORTED: Microphone access is not available in this browser.');
+      setError('Microphone access is not supported by your browser.');
       setMicPermission('denied');
       return;
     }
@@ -455,60 +138,83 @@ export default function STEMLiveMode() {
         },
       });
       micStreamRef.current = stream;
-      const audioCtx = new AudioContext();
+      setMicPermission('granted');
+
+      // Hook up Gemini Live socket streaming
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       audioContextRef.current = audioCtx;
       if (audioCtx.state === 'suspended') {
         await audioCtx.resume();
       }
+
       const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.82;
-      source.connect(analyser);
-      mediaAnalyserRef.current = analyser;
-      mediaDataRef.current = new Uint8Array(analyser.frequencyBinCount);
-      monitorVoiceLevel();
-      setMicPermission('granted');
-      await initSpeechInput(stream);
+      // ScriptProcessorNode handles chunk extraction
+      const processor = audioCtx.createScriptProcessor(2048, 1, 1);
+      audioProcessorRef.current = processor;
+      
+      source.connect(processor);
+      processor.connect(audioCtx.destination);
+
+      processor.onaudioprocess = (e) => {
+        if (isMicMutedRef.current || !geminiLiveService.isConnected) {
+          setVoiceLevel(0);
+          return;
+        }
+
+        const inputData = e.inputBuffer.getChannelData(0);
+
+        // Calculate simple volume level for visualizer
+        let sum = 0;
+        for (let i = 0; i < inputData.length; i++) {
+          sum += inputData[i] * inputData[i];
+        }
+        const rms = Math.sqrt(sum / inputData.length);
+        const level = Math.min(1, rms * 4);
+        setVoiceLevel(level);
+        if (dockPillRef.current) {
+          dockPillRef.current.style.setProperty('--voice-level', level.toFixed(3));
+        }
+
+        // Downsample input data to 16kHz
+        const downsampled = downsampleBuffer(inputData, audioCtx.sampleRate, 16000);
+        const int16Array = new Int16Array(downsampled.length);
+        for (let i = 0; i < downsampled.length; i++) {
+          int16Array[i] = Math.max(-32768, Math.min(32767, downsampled[i] * 32768));
+        }
+
+        // Stream raw audio to Gemini Live API
+        geminiLiveService.sendAudioChunk(int16Array);
+      };
+
     } catch (micError) {
-      const name = micError?.name || '';
+      console.error('Microphone initialization failed:', micError);
       setStatus(STATES.error);
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setError('MIC_PERMISSION_DENIED: Allow microphone access in browser settings for STEM Live.');
-      } else {
-        setError('MIC_START_FAILED: Could not open the microphone. Check permissions and try again.');
-      }
+      setError('Allow microphone access in browser settings to start.');
       setMicPermission('denied');
     }
   };
 
   const captureFrame = () => {
     const video = videoRef.current;
-    if (!video || video.videoWidth === 0 || video.videoHeight === 0) return;
+    if (!video || video.videoWidth === 0 || video.videoHeight === 0 || !isCameraOn) return;
+    
+    // Draw frame to a hidden canvas to extract resized JPEG data
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = 640;
+    canvas.height = 360;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    // Draw mirrored to match local display canvas
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-    latestFrameRef.current = {
-      mimeType: 'image/jpeg',
-      base64Data: dataUrl.split(',')[1] || '',
-      capturedAt: new Date().toISOString(),
-    };
-
-    const framePayload = latestFrameRef.current;
-    if (!frameAnalysisInFlightRef.current && framePayload.base64Data) {
-      frameAnalysisInFlightRef.current = true;
-      analyzeLiveFrame(framePayload.base64Data, framePayload.mimeType)
-        .then((ctx) => {
-          latestVisualContextRef.current = ctx;
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          frameAnalysisInFlightRef.current = false;
-        });
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+    const base64Data = dataUrl.split(',')[1] || '';
+    
+    if (geminiLiveService.isConnected && base64Data) {
+      geminiLiveService.sendVideoFrame(base64Data);
     }
   };
 
@@ -516,7 +222,7 @@ export default function STEMLiveMode() {
     if (!navigator?.mediaDevices?.getUserMedia) {
       setIsCameraOn(false);
       setCameraPermission('denied');
-      setError('CAMERA_UNSUPPORTED: Camera is not available in this browser.');
+      setError('Camera access is not supported by your browser.');
       return;
     }
     try {
@@ -525,18 +231,26 @@ export default function STEMLiveMode() {
         audio: false,
       });
       cameraStreamRef.current = stream;
-      frameTimerRef.current = window.setInterval(captureFrame, FRAME_INTERVAL_MS);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
       setIsCameraOn(true);
+      isVideoOnRef.current = true;
       setCameraPermission('granted');
+      
+      // Start throttled frame capture
+      frameTimerRef.current = window.setInterval(captureFrame, FRAME_INTERVAL_MS);
+
+      // Start the canvas rendering and landmark prediction loop
+      requestAnimationFrame(predictWebcam);
     } catch (cameraError) {
+      console.error('Camera initialization failed:', cameraError);
       setIsCameraOn(false);
       setCameraPermission('denied');
-      const name = cameraError?.name || '';
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
-        setError('CAMERA_PERMISSION_DENIED: Allow camera access in browser settings, or continue voice-only.');
-      } else {
-        setError('CAMERA_START_FAILED: Could not open the camera. Continuing voice-only.');
-      }
+      setError('Could not access camera. Continuing voice-only.');
     }
   };
 
@@ -549,148 +263,211 @@ export default function STEMLiveMode() {
     await startCamera();
   };
 
-  const toggleMic = async () => {
+  const toggleMic = () => {
     if (isMicMuted) {
       setIsMicMuted(false);
       isMicMutedRef.current = false;
-      if (audioContextRef.current?.state === 'suspended') {
-        await audioContextRef.current.resume().catch(() => undefined);
-      }
-      if (!micStreamRef.current) {
-        await startMicrophone();
-        return;
-      }
-      if (sttModeRef.current === 'webspeech') {
-        initRecognition();
-      } else {
-        setStatus(STATES.listening);
-      }
-      return;
+      setStatus(STATES.listening);
+    } else {
+      setIsMicMuted(true);
+      isMicMutedRef.current = true;
+      setVoiceLevel(0);
+      setStatus(STATES.idle);
     }
-    setIsMicMuted(true);
-    isMicMutedRef.current = true;
-    stopRecognition();
-    stopWhisperStt();
-    resetVoiceLevel();
-    setStatus(STATES.idle);
   };
 
-  const finishClose = async () => {
-    endingRef.current = true;
-    stopSpeech();
-    cleanupMic();
-    cleanupCamera();
-    cleanupHeartbeat();
-    if (sessionId) {
-      try {
-        await endStemLiveSession({ sessionId });
-      } catch {
-        // do not block close on network failures
-      }
-    }
-    setLiveModeActive(false);
-  };
-
-  const closeLive = async () => {
+  const closeLive = () => {
     if (isClosing) return;
     setIsClosing(true);
+    geminiLiveService.disconnect();
+    cleanupMic();
+    cleanupCamera();
     window.setTimeout(() => {
-      finishClose();
+      setLiveModeActive(false);
     }, EXIT_ANIMATION_MS);
   };
 
-  const startHeartbeat = useCallback(() => {
-    cleanupHeartbeat();
-    heartbeatTimerRef.current = window.setInterval(async () => {
-      if (!sessionId || endingRef.current) return;
-      try {
-        await heartbeatStemLiveSession({
-          sessionId,
-          clientState: {
-            status,
-            isMicMuted,
-            isCameraOn,
-            voiceLevel: Number(voiceLevel.toFixed(3)),
-          },
-        });
-      } catch {
-        if (!endingRef.current) {
-          setStatus(STATES.disconnected);
-          setError('Realtime heartbeat lost. Trying to recover...');
-        }
+  const initHandLandmarker = async () => {
+    try {
+      console.log('Initializing MediaPipe HandLandmarker...');
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm'
+      );
+      handLandmarkerRef.current = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: '/hand_landmarker.task',
+          delegate: 'GPU',
+        },
+        runningMode: 'VIDEO',
+        numHands: 1,
+      });
+      console.log('MediaPipe HandLandmarker loaded successfully.');
+    } catch (e) {
+      console.error('Failed to initialize HandLandmarker:', e);
+    }
+  };
+
+  const predictWebcam = () => {
+    if (!videoRef.current || !canvasRef.current || !isVideoOnRef.current) return;
+
+    if (videoRef.current.readyState < 2 || videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+      requestAnimationFrame(predictWebcam);
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    if (canvas.width !== videoRef.current.videoWidth || canvas.height !== videoRef.current.videoHeight) {
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+    }
+
+    // Mirror image for a natural look
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    const startTimeMs = performance.now();
+    if (handLandmarkerRef.current && videoRef.current.currentTime !== lastVideoTimeRef.current) {
+      lastVideoTimeRef.current = videoRef.current.currentTime;
+      const results = handLandmarkerRef.current.detectForVideo(videoRef.current, startTimeMs);
+
+      if (results.landmarks && results.landmarks.length > 0) {
+        const landmarks = results.landmarks[0];
+        drawSkeleton(ctx, landmarks, canvas.width, canvas.height);
       }
-    }, HEARTBEAT_INTERVAL_MS);
-  }, [isCameraOn, isMicMuted, sessionId, status, voiceLevel]);
+    }
+
+    if (isVideoOnRef.current) {
+      requestAnimationFrame(predictWebcam);
+    }
+  };
+
+  const drawSkeleton = (ctx, landmarks, width, height) => {
+    ctx.strokeStyle = '#22d3ee'; // cyan-400
+    ctx.lineWidth = 3;
+    ctx.fillStyle = '#06b6d4'; // cyan-500
+
+    const connections = [
+      [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
+      [0, 5], [5, 6], [6, 7], [7, 8], // Index
+      [0, 9], [9, 10], [10, 11], [11, 12], // Middle
+      [0, 13], [13, 14], [14, 15], [15, 16], // Ring
+      [0, 17], [17, 18], [18, 19], [19, 20], // Pinky
+      [5, 9], [9, 13], [13, 17] // Palm
+    ];
+
+    // Draw connection lines
+    for (const [start, end] of connections) {
+      const ptStart = landmarks[start];
+      const ptEnd = landmarks[end];
+      if (ptStart && ptEnd) {
+        const xStart = (1 - ptStart.x) * width;
+        const yStart = ptStart.y * height;
+        const xEnd = (1 - ptEnd.x) * width;
+        const yEnd = ptEnd.y * height;
+
+        ctx.beginPath();
+        ctx.moveTo(xStart, yStart);
+        ctx.lineTo(xEnd, yEnd);
+        ctx.stroke();
+      }
+    }
+
+    // Draw joints
+    for (const landmark of landmarks) {
+      const x = (1 - landmark.x) * width;
+      const y = landmark.y * height;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  };
 
   useEffect(() => {
-    preloadVisionModels();
     const init = async () => {
       try {
-        if (!activeStudent?.id) throw new Error('No active student selected.');
-        const session = await startStemLiveSession({
-          studentId: activeStudent.id,
-          context,
+        // Load MediaPipe hand model first
+        await initHandLandmarker();
+
+        const studentName = activeStudent?.name || 'Student';
+        const subject = activeSubject || 'STEM';
+        const topic = activeTopic || 'General STEM';
+
+        // Connect directly to the Gemini Live WebSockets API
+        const sysInstruction = 
+          `You are a friendly, warm, and highly pedagogical STEM teacher named STEMMind. ` +
+          `Your student is ${studentName}. You are talking about ${topic} in ${subject}. ` +
+          `Ground your descriptions in whatever items they show you via the camera (e.g. ball, book, cup). ` +
+          `Respond with complete, concise sentences, keeping responses short so conversations are responsive.`;
+
+        // Set up Gemini service callbacks
+        geminiLiveService.setCallback('onStatusChange', (statusText) => {
+          if (statusText === 'Connected') {
+            setStatus(STATES.idle);
+            setWelcomeMessage(`Connected to STEM Live!`);
+            // Trigger introductory greeting
+            geminiLiveService.sendTextMessage(`Hello! Introduce yourself to the student Maya.`);
+          } else {
+            console.log(`[Gemini Socket Status] ${statusText}`);
+          }
         });
-        setSessionId(session.sessionId);
-        if (session.welcomeMessage) {
-          setWelcomeMessage(clampLiveCaption(session.welcomeMessage));
-        }
+
+        geminiLiveService.setCallback('onTranscription', (text, sender) => {
+          if (sender === 'AI') {
+            setLastReply(text);
+          } else {
+            setLastUserUtterance(text);
+            // Interrupt playback immediately if the user starts speaking
+            geminiLiveService.interruptPlayback();
+          }
+        });
+
+        geminiLiveService.setCallback('onAudioStart', () => {
+          setStatus(STATES.speaking);
+        });
+
+        geminiLiveService.setCallback('onAudioEnd', () => {
+          setStatus(STATES.idle);
+        });
+
+        geminiLiveService.setCallback('onError', (err) => {
+          setStatus(STATES.error);
+          setError(err.message || 'Gemini connection error');
+        });
+
+        geminiLiveService.setCallback('onClose', () => {
+          setStatus(STATES.disconnected);
+        });
+
+        await geminiLiveService.connect(sysInstruction);
         await startMicrophone();
-        voiceSynthesizer.unlock();
-        if (session.welcomeMessage) {
-          speakReply(clampLiveCaption(session.welcomeMessage));
-        }
-        startHeartbeat();
-      } catch (sessionError) {
+      } catch (err) {
         setStatus(STATES.error);
-        setError(sessionError.message || 'SESSION_START_FAILED');
+        setError(err.message || 'Connection failed.');
       } finally {
         setBooting(false);
       }
     };
+
     init();
+
     const enterTimer = window.setTimeout(() => setIsEntering(false), 40);
     return () => {
       window.clearTimeout(enterTimer);
-      endingRef.current = true;
-      stopSpeech();
+      geminiLiveService.disconnect();
       cleanupMic();
       cleanupCamera();
-      cleanupHeartbeat();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (sessionId) startHeartbeat();
-  }, [sessionId, startHeartbeat]);
-
-  useEffect(() => {
-    const unlockTts = () => voiceSynthesizer.unlock();
-    window.addEventListener('pointerdown', unlockTts, { once: true, passive: true });
-    window.addEventListener('keydown', unlockTts, { once: true });
-    return () => {
-      window.removeEventListener('pointerdown', unlockTts);
-      window.removeEventListener('keydown', unlockTts);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isCameraOn || !cameraStreamRef.current || !videoRef.current) return undefined;
-    const video = videoRef.current;
-    video.srcObject = cameraStreamRef.current;
-    const playPromise = video.play();
-    if (playPromise?.catch) {
-      playPromise.catch(() => {
-        setError('CAMERA_PREVIEW_FAILED: Could not start camera preview. Toggle camera off and on.');
-      });
-    }
-    return undefined;
-  }, [isCameraOn]);
-
-  const studentFirstName = firstNameFrom(activeStudent?.name);
-  const defaultWelcome = booting ? 'Connecting...' : `Ready, ${studentFirstName}.`;
-  const heroWelcome = clampLiveCaption(welcomeMessage || defaultWelcome, WELCOME_MAX_WORDS);
+  const studentFirstName = activeStudent?.name ? activeStudent.name.split(' ')[0] : 'there';
+  const defaultWelcome = booting ? 'Connecting to Gemini...' : `Ready, ${studentFirstName}.`;
+  const heroWelcome = welcomeMessage || defaultWelcome;
   const captionAiLine = lastReply.trim();
   const captionUserLine = lastUserUtterance.trim();
   const dockVoiceLevel = isMicMuted ? 0 : voiceLevel;
@@ -698,7 +475,7 @@ export default function STEMLiveMode() {
     'stem-live-dock-pill',
     isMicMuted ? 'stem-live-dock-pill--inactive' : 'stem-live-dock-pill--active',
   ].join(' ');
-  const canUseMic = !booting && recognitionSupported && micPermission !== 'denied';
+  const canUseMic = !booting && micPermission !== 'denied';
   const screenClass = [
     'stem-live-screen',
     `state-${status}`,
@@ -710,7 +487,7 @@ export default function STEMLiveMode() {
 
   return (
     <div className={screenClass}>
-      <ModelLoadProgress label="Loading STEM Live models" />
+      <ModelLoadProgress label="Connecting to Gemini Live Core" />
       <div className="stem-live-vignette" />
       <header className="stem-live-topbar">
         <button type="button" className="live-icon-btn" aria-label="Open menu">
@@ -742,7 +519,8 @@ export default function STEMLiveMode() {
           <p className="live-main-text">{heroWelcome}</p>
         )}
         <div className={`live-camera-preview-wrap ${isCameraOn ? '' : 'is-hidden'}`}>
-          <video ref={videoRef} autoPlay playsInline muted className="live-camera-preview" />
+          <video ref={videoRef} autoPlay playsInline muted style={{ display: 'none' }} />
+          <canvas ref={canvasRef} className="live-camera-preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           {isCameraOn ? <span className="live-camera-badge">Visual intelligence on</span> : null}
         </div>
       </main>

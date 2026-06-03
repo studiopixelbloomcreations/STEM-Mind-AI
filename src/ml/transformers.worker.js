@@ -125,69 +125,6 @@ self.onmessage = async (event) => {
         break;
       }
 
-      case 'stt': {
-        const { audioData, model, options = {} } = payload;
-        const generator = await getPipeline('automatic-speech-recognition', model || 'Xenova/whisper-tiny.en', options, id);
-
-        const result = await generator(audioData, {
-          chunk_length_s: 30,
-          stride_length_s: 5,
-          ...options
-        });
-
-        self.postMessage({
-          id,
-          type: 'success',
-          result: result,
-          payload: result
-        });
-        break;
-      }
-
-      case 'object-detection': {
-        const { image, model, options = {} } = payload;
-        const detector = await getPipeline('object-detection', model || 'Xenova/detr-resnet-50', options, id);
-
-        const result = await detector(image, options);
-        self.postMessage({
-          id,
-          type: 'success',
-          result: result,
-          payload: result
-        });
-        break;
-      }
-
-      case 'image-to-text': {
-        const { image, model, options = {} } = payload;
-        const captioner = await getPipeline('image-to-text', model, options, id);
-
-        const result = await captioner(image, options);
-        self.postMessage({
-          id,
-          type: 'success',
-          result: result,
-          payload: result
-        });
-        break;
-      }
-
-      case 'embed': {
-        const { text, model, options = {} } = payload;
-        const embedder = await getPipeline('feature-extraction', model || 'Xenova/all-MiniLM-L6-v2', options, id);
-
-        const output = await embedder(text, { pooling: 'mean', normalize: true, ...options });
-        const data = output.data; // Float32Array representation
-
-        self.postMessage({
-          id,
-          type: 'success',
-          result: Array.from(data),
-          payload: { data, dims: output.dims }
-        }, data instanceof Float32Array ? [data.buffer] : []);
-        break;
-      }
-
       default:
         throw new Error(`Unsupported pipeline execution task type: ${type}`);
     }

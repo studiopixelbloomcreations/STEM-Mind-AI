@@ -10,10 +10,26 @@
 
 import { API_KEYS } from '../config/config';
 
+const LIVE_API_ENDPOINT =
+  'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+
+const GEMINI_LIVE_MODELS = [
+  'models/gemini-2.5-flash-native-audio-preview-12-2025',
+  'models/gemini-live-2.5-flash-preview',
+  'models/gemini-2.0-flash-live-001',
+];
+
+const DEFAULT_SYSTEM_INSTRUCTION =
+  'You are a friendly, warm, and highly visual STEM teacher named STEMMind. ' +
+  'You respond concisely in natural spoken language. ' +
+  'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
+  'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.';
+
 // Try to resolve the Gemini API Key
 export const getGeminiApiKey = () => {
-  if (import.meta.env.VITE_GEMINI_API_KEY) {
-    return import.meta.env.VITE_GEMINI_API_KEY;
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
+  if (envKey) {
+    return envKey;
   }
   
   // Look in the Harmony configuration JSON keys
@@ -43,9 +59,10 @@ class GeminiLiveService {
       onStatusChange: null, // (statusText)
     };
     this.isConnected = false;
+    this.isSetupComplete = false;
     this.activeAudioSources = [];
     this.currentModelIndex = 0;
-    this.useMinimalSetup = false;
+    this.connectAttemptId = 0;
   }
 
   setCallback(name, fn) {
@@ -76,65 +93,74 @@ class GeminiLiveService {
     }
 
     this.disconnect();
+    const attemptId = ++this.connectAttemptId;
     await this.initAudioContext();
     this.nextPlayTime = this.audioContext.currentTime;
 
-    const modelsToTry = [
-      'models/gemini-2.5-flash-native-audio-preview-12-2025',
-      'models/gemini-2.0-flash-exp',
-      'models/gemini-2.0-flash-realtime-exp'
-    ];
     const modelIndex = this.currentModelIndex || 0;
-    const selectedModel = modelsToTry[modelIndex % modelsToTry.length];
+    const selectedModel = GEMINI_LIVE_MODELS[modelIndex % GEMINI_LIVE_MODELS.length];
     
-    console.log(`[Gemini WebSocket] Connecting using model: ${selectedModel} (minimal setup: ${this.useMinimalSetup})`);
-    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${key}`;
+    console.log(`[Gemini WebSocket] Connecting using model: ${selectedModel}`);
+    const url = `${LIVE_API_ENDPOINT}?key=${encodeURIComponent(key)}`;
     this.callbacks.onStatusChange?.('Connecting to Gemini...');
 
     return new Promise((resolve, reject) => {
+      let settled = false;
+
+      const resolveOnce = () => {
+        if (!settled) {
+          settled = true;
+          resolve(this);
+        }
+      };
+
+      const rejectOnce = (err) => {
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
+      };
+
       try {
-        this.ws = new WebSocket(url);
+        const ws = new WebSocket(url);
+        this.ws = ws;
         
-        this.ws.onopen = () => {
+        ws.onopen = () => {
+          if (attemptId !== this.connectAttemptId) return;
           this.isConnected = true;
-          this.callbacks.onStatusChange?.('Connected');
           
-          // Send initial Setup payload (using gRPC-compliant snake_case keys)
+          // The native WebSocket API expects lowerCamelCase JSON field names.
           const setupMsg = {
             setup: {
               model: selectedModel,
-              generation_config: {
-                response_modalities: ['AUDIO'],
-                speech_config: {
-                  voice_config: {
-                    prebuilt_voice_config: {
-                      voice_name: 'Aoede' // Kore, Aoede, Fenrir, Puck, Charon
-                    }
-                  }
-                }
-              }
+              generationConfig: {
+                responseModalities: ['AUDIO'],
+                speechConfig: {
+                  voiceConfig: {
+                    prebuiltVoiceConfig: {
+                      voiceName: 'Aoede',
+                    },
+                  },
+                },
+              },
+              systemInstruction: {
+                role: 'system',
+                parts: [
+                  {
+                    text: systemInstruction || DEFAULT_SYSTEM_INSTRUCTION,
+                  },
+                ],
+              },
+              inputAudioTranscription: {},
+              outputAudioTranscription: {},
             }
           };
 
-          if (!this.useMinimalSetup) {
-            setupMsg.setup.system_instruction = {
-              parts: [
-                {
-                  text: systemInstruction || 
-                    'You are a friendly, warm, and highly visual STEM teacher named STEMMind. ' +
-                    'You respond concisely in natural spoken language. ' +
-                    'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
-                    'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
-                }
-              ]
-            };
-          }
-
-          this.ws.send(JSON.stringify(setupMsg));
-          resolve(this);
+          ws.send(JSON.stringify(setupMsg));
         };
 
-        this.ws.onmessage = async (event) => {
+        ws.onmessage = async (event) => {
+          if (attemptId !== this.connectAttemptId) return;
           try {
             let data;
             if (event.data instanceof Blob) {
@@ -144,42 +170,47 @@ class GeminiLiveService {
               data = JSON.parse(event.data);
             }
 
+            if (data.setupComplete || data.setup_complete) {
+              this.isSetupComplete = true;
+              this.callbacks.onStatusChange?.('Connected');
+              resolveOnce();
+              return;
+            }
+
             this.handleServerMessage(data);
           } catch (e) {
             console.error('Error parsing Gemini Live WebSocket message:', e);
           }
         };
 
-        this.ws.onerror = (err) => {
+        ws.onerror = (err) => {
+          if (attemptId !== this.connectAttemptId) return;
           this.callbacks.onError?.(err);
-          reject(err);
+          rejectOnce(err);
         };
 
-        this.ws.onclose = (event) => {
+        ws.onclose = (event) => {
+          if (attemptId !== this.connectAttemptId) return;
           this.isConnected = false;
+          this.isSetupComplete = false;
           console.warn(`[Gemini WebSocket Close] Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
           
           // Fallback logic for invalid argument (code 1007)
           if (event.code === 1007) {
-            if (modelIndex < modelsToTry.length - 1) {
+            if (modelIndex < GEMINI_LIVE_MODELS.length - 1) {
               console.log(`[Gemini WebSocket Fallback] Retrying with next model...`);
               this.currentModelIndex = modelIndex + 1;
-              this.connect(systemInstruction).then(resolve).catch(reject);
-              return;
-            } else if (!this.useMinimalSetup) {
-              console.log(`[Gemini WebSocket Fallback] All models failed. Retrying with minimal setup payload...`);
-              this.useMinimalSetup = true;
-              this.currentModelIndex = 0;
-              this.connect(systemInstruction).then(resolve).catch(reject);
+              this.connect(systemInstruction).then(resolveOnce).catch(rejectOnce);
               return;
             }
           }
 
           this.callbacks.onStatusChange?.('Disconnected');
           this.callbacks.onClose?.(event);
+          rejectOnce(new Error(event.reason || `Gemini Live WebSocket closed with code ${event.code}.`));
         };
       } catch (err) {
-        reject(err);
+        rejectOnce(err);
       }
     });
   }
@@ -189,6 +220,10 @@ class GeminiLiveService {
     const serverContent = msg.server_content || msg.serverContent;
     const modelTurn = serverContent?.model_turn || serverContent?.modelTurn;
     const parts = modelTurn?.parts || [];
+
+    if (serverContent?.interrupted) {
+      this.interruptPlayback();
+    }
     
     for (const part of parts) {
       // Handle voice output audio
@@ -200,6 +235,12 @@ class GeminiLiveService {
     }
 
     // 2. Check for speech-to-text transcriptions
+    const outputTranscription =
+      serverContent?.outputTranscription?.text || serverContent?.output_transcription?.text;
+    if (outputTranscription?.trim()) {
+      this.callbacks.onTranscription?.(outputTranscription.trim(), 'AI');
+    }
+
     const modelTranscriptions = parts
       ?.map(p => p.text)
       .filter(Boolean)
@@ -210,8 +251,8 @@ class GeminiLiveService {
     }
 
     // Handle user transcription (what the user said) if available
-    const turnComplete = serverContent?.turn_complete || serverContent?.turnComplete;
-    const userTranscription = turnComplete?.transcription;
+    const userTranscription =
+      serverContent?.inputTranscription?.text || serverContent?.input_transcription?.text;
     if (userTranscription && userTranscription.trim()) {
       this.callbacks.onTranscription?.(userTranscription.trim(), 'User');
     }
@@ -271,17 +312,17 @@ class GeminiLiveService {
    * @param {string} text 
    */
   sendTextMessage(text) {
-    if (!this.isConnected || !this.ws) return;
+    if (!this.isReady()) return;
     
     const textMsg = {
-      client_content: {
+      clientContent: {
         turns: [
           {
             role: 'user',
             parts: [{ text }]
           }
         ],
-        turn_complete: true
+        turnComplete: true
       }
     };
     
@@ -293,16 +334,14 @@ class GeminiLiveService {
    * @param {string} base64Jpeg Only the base64 characters (exclude data:image/jpeg;base64,)
    */
   sendVideoFrame(base64Jpeg) {
-    if (!this.isConnected || !this.ws) return;
+    if (!this.isReady()) return;
 
     const frameMsg = {
-      realtime_input: {
-        media_chunks: [
-          {
-            mime_type: 'image/jpeg',
-            data: base64Jpeg
-          }
-        ]
+      realtimeInput: {
+        video: {
+          mimeType: 'image/jpeg',
+          data: base64Jpeg,
+        },
       }
     };
 
@@ -314,7 +353,7 @@ class GeminiLiveService {
    * @param {Int16Array} int16PcmData 
    */
   sendAudioChunk(int16PcmData) {
-    if (!this.isConnected || !this.ws) return;
+    if (!this.isReady()) return;
 
     // Convert Int16Array to base64
     const uint8View = new Uint8Array(int16PcmData.buffer);
@@ -326,17 +365,19 @@ class GeminiLiveService {
     const base64Data = btoa(binary);
 
     const audioMsg = {
-      realtime_input: {
-        media_chunks: [
-          {
-            mime_type: 'audio/pcm',
-            data: base64Data
-          }
-        ]
+      realtimeInput: {
+        audio: {
+          mimeType: 'audio/pcm;rate=16000',
+          data: base64Data,
+        },
       }
     };
 
     this.ws.send(JSON.stringify(audioMsg));
+  }
+
+  isReady() {
+    return this.isConnected && this.isSetupComplete && this.ws?.readyState === WebSocket.OPEN;
   }
 
   /**
@@ -346,7 +387,7 @@ class GeminiLiveService {
     this.activeAudioSources.forEach(source => {
       try {
         source.stop();
-      } catch (e) {
+      } catch {
         // Already stopped/ended
       }
     });
@@ -361,12 +402,13 @@ class GeminiLiveService {
     if (this.ws) {
       try {
         this.ws.close();
-      } catch (e) {
+      } catch {
         // ignore
       }
       this.ws = null;
     }
     this.isConnected = false;
+    this.isSetupComplete = false;
   }
 }
 

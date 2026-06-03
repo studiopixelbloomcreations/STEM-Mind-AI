@@ -156,7 +156,7 @@ export default function STEMLiveMode() {
       processor.connect(audioCtx.destination);
 
       processor.onaudioprocess = (e) => {
-        if (isMicMutedRef.current || !geminiLiveService.isConnected) {
+        if (isMicMutedRef.current || !geminiLiveService.isReady()) {
           setVoiceLevel(0);
           return;
         }
@@ -213,7 +213,7 @@ export default function STEMLiveMode() {
     const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
     const base64Data = dataUrl.split(',')[1] || '';
     
-    if (geminiLiveService.isConnected && base64Data) {
+    if (geminiLiveService.isReady() && base64Data) {
       geminiLiveService.sendVideoFrame(base64Data);
     }
   };

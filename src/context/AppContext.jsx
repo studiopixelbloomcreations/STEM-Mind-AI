@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, loginWithGoogle, logoutUser } from '../config/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { supabase } from '../config/supabase';
-import { runAnalyticsAgent } from '../harmony/harmonyEngine';
+import { runAnalyticsAgent } from '../harmony/geminiHarmonyEngine';
 
 const AppContext = createContext();
 

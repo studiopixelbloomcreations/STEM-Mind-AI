@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { generateQuizTopic, runHarmonyCouncil } from '../harmony/harmonyEngine';
+import { generateQuizTopic, runHarmonyCouncil } from '../harmony/geminiHarmonyEngine';
 import { 
   ChevronLeft, Award, Play, 
   Sparkles, ScanLine,
@@ -122,7 +122,7 @@ export default function StudentPortal() {
       });
     } catch (err) {
       console.error(err);
-      setCurrentQuiz({ error: 'Failed to launch the Harmony Council. Please check API keys.' });
+      setCurrentQuiz({ error: 'Failed to launch Gemini Harmony. Please check the Gemini API key.' });
     }
   };
 
@@ -176,9 +176,9 @@ export default function StudentPortal() {
         <div style={styles.card} className="card-glass student-card">
           <div style={styles.introHeader}>
             <Sparkles size={36} style={{ color: '#8b5cf6', marginBottom: '12px' }} />
-            <h1 style={styles.title} className="student-title">Harmony Adaptive Learning</h1>
+            <h1 style={styles.title} className="student-title">Gemini Harmony Adaptive Learning</h1>
             <p style={styles.subtitle}>
-              Configure your focus area. The Harmony Council will adapt the curriculum, difficulty, and hints in real time.
+              Configure your focus area. Gemini Harmony agents adapt the curriculum, difficulty, explanations, voice lessons, and hints in real time.
             </p>
           </div>
 

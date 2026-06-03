@@ -6,7 +6,8 @@ STEM Mind AI is a React + Vite learning platform that uses Firebase authenticati
 
 This release includes:
 
-- **Harmony engine** (unchanged) for adaptive quiz NLP, visual teaching agents, and STEM Live reply orchestration via existing providers.
+- **Gemini Harmony engine** (`src/harmony/geminiHarmonyEngine.js`) as the temporary main AI brain for adaptive quiz NLP, specialist agents, explanations, analytics, and visual voice lessons.
+- **Original Harmony engine** (`src/harmony/harmonyEngine.js`) is preserved intact as the legacy multi-provider council, but the active app imports now use Gemini Harmony.
 - **Transformers.js** (`@huggingface/transformers`) for browser-side vision and speech.
 - **STEM Live** — full-screen voice mode with client-side frame analysis, Whisper STT (Web Speech fallback), and browser TTS (MMS fallback).
 - **Photo Analyzer** — worksheet capture with on-device OCR + Visual Teacher walkthrough.
@@ -25,7 +26,7 @@ Models download lazily from Hugging Face on first use and cache in the browser. 
 
 **First load:** expect ~50–200 MB total model downloads depending on features used. Subsequent visits use cached weights.
 
-Architecture: `src/ml/transformersClient.js` wraps lazy `pipeline()` calls. Harmony (`src/harmony/harmonyEngine.js`) is **not** replaced by Transformers.js.
+Architecture: `src/ml/transformersClient.js` wraps lazy `pipeline()` calls. Harmony/Gemini reasoning is separate from Transformers.js.
 
 ## Local Setup
 
@@ -34,7 +35,9 @@ Architecture: `src/ml/transformersClient.js` wraps lazy `pipeline()` calls. Harm
 2. Configure frontend env in `.env.local`:
    - `VITE_FIREBASE_WEBAPP_CONFIG` (JSON string from Firebase web app settings)
    - `VITE_SUPABASE_CONFIG` (JSON string: `{"url":"https://<project>.supabase.co","anonKey":"<anon-key>"}`)
-   - `VITE_PI_MODEL_API_KEYS_JSON` (optional for existing quiz features)
+   - `VITE_PI_MODEL_API_KEYS_JSON` (optional legacy Harmony/provider config)
+   - `VITE_GEMINI_API_KEY` (required for Gemini Harmony and STEM Live Gemini)
+   - `VITE_GEMINI_HARMONY_MODEL` (optional, defaults to `gemini-2.5-flash`)
 3. Start frontend:
    - `npm run dev`
 

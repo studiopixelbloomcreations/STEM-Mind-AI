@@ -5,7 +5,7 @@ import {
   runExplanationAgent, 
   runVisualTeacherAgent, 
   runStepByStepExplanationAgent 
-} from '../harmony/harmonyEngine';
+} from '../harmony/geminiHarmonyEngine';
 import voiceSynthesizer from '../utils/voiceSynthesizer';
 import { 
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 
@@ -101,9 +101,9 @@ export default function QuizView() {
       <div style={styles.loadingContainer}>
         <div className="shimmer card-glass" style={styles.loadingCard}>
           <Brain size={48} className="glow-pulse" style={{ color: '#8b5cf6', marginBottom: '24px' }} />
-          <h2 style={{ marginBottom: '8px' }}>Harmony AI Council is Thinking...</h2>
+          <h2 style={{ marginBottom: '8px' }}>Gemini Harmony AI Council is Thinking...</h2>
           <p style={{ color: 'var(--text-secondary)' }}>
-            Teacher AI, Difficulty AI, and Exam Coach AI are collaborating to generate your next adaptive question.
+            Gemini Teacher AI, Difficulty AI, Explainer AI, and Exam Coach AI are collaborating to generate your next adaptive question.
           </p>
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function QuizView() {
     return (
       <div style={styles.loadingContainer}>
         <div className="card-glass" style={styles.loadingCard}>
-          <h2 style={{ color: '#ef4444', marginBottom: '12px' }}>Harmony Orchestration Error</h2>
+          <h2 style={{ color: '#ef4444', marginBottom: '12px' }}>Gemini Harmony Orchestration Error</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
             {currentQuiz.error}
           </p>
@@ -945,4 +945,3 @@ const styles = {
     textAlign: 'center',
   }
 };
-

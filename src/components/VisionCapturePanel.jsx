@@ -15,7 +15,7 @@ import {
   extractVisionTeachingQuestions,
   runVisualTeacherAgent,
   visionTeachingAnswerFor,
-} from '../harmony/harmonyEngine';
+} from '../harmony/geminiHarmonyEngine';
 import { fileToBase64, formatBytes, MAX_IMAGE_SIZE_BYTES, validateImageFile } from '../utils/visionValidation';
 import { useApp } from '../context/AppContext';
 import voiceSynthesizer from '../utils/voiceSynthesizer';

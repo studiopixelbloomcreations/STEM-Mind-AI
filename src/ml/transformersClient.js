@@ -1,12 +1,12 @@
 /**
  * Client-side Transformers.js service layer.
  * Wraps lazy pipeline() loading with progress callbacks and structured vision/STT/TTS helpers.
- * Harmony NLP remains separate — this module handles vision, detection, and speech only.
+ * Harmony NLP remains separate — this module handles vision and speech only.
  */
 
 import './transformersEnv.js';
 import { pipeline } from '@huggingface/transformers';
-import { MODELS, SPEAKER_EMBEDDINGS_URL, TTS_AUDIO_GAIN } from './transformersModels';
+import { MODELS, TTS_AUDIO_GAIN } from './transformersModels';
 
 const pipelineCache = new Map();
 const progressListeners = new Set();
@@ -34,7 +34,7 @@ const wrapProgress = (task, modelId) => (progress) => {
 };
 
 const getPipeline = async (task, modelId, options = {}) => {
-  const key = `${task}:${modelId}`;
+  const key = `${task}:${modelId}:${JSON.stringify(options)}`;
   if (pipelineCache.has(key)) return pipelineCache.get(key);
 
   const loadPromise = pipeline(task, modelId, {
@@ -56,7 +56,7 @@ export const onModelLoadProgress = (listener) => {
 };
 
 export const preloadSpeechModels = () => {
-  getPipeline('text-to-speech', MODELS.tts, { quantized: false }).catch(() => undefined);
+  getPipeline('text-to-speech', MODELS.tts, { quantized: true }).catch(() => undefined);
 };
 
 /** OCR + caption only — safe for STEM Live mount (no object-detection weights). */
@@ -64,12 +64,6 @@ export const preloadVisionModels = () => {
   getPipeline('image-to-text', MODELS.ocr).catch(() => undefined);
   getPipeline('image-to-text', MODELS.caption).catch(() => undefined);
 };
-
-const preloadObjectDetectionModel = () => {
-  getPipeline('object-detection', MODELS.objectDetection).catch(() => undefined);
-};
-
-export { preloadObjectDetectionModel };
 
 const toDataUrl = (input) => {
   if (typeof input === 'string') {
@@ -115,28 +109,6 @@ export const runImageCaption = async (imageInput) => {
   }
 };
 
-export const runObjectDetection = async (imageInput, { threshold = 0.35, topK = 8 } = {}) => {
-  const dataUrl = toDataUrl(imageInput);
-  try {
-    try {
-      const detector = await getPipeline('object-detection', MODELS.objectDetection);
-      const raw = await detector(dataUrl, { threshold });
-      const objects = (Array.isArray(raw) ? raw : [])
-        .slice(0, topK)
-        .map((item) => ({
-          label: String(item?.label || item?.class || 'object'),
-          score: Number(item?.score ?? 0),
-        }))
-        .filter((item) => item.score >= threshold);
-      return { objects, provider: MODELS.objectDetection };
-    } catch {
-      return { objects: [], provider: MODELS.objectDetection };
-    }
-  } finally {
-    revokeIfBlobUrl(dataUrl, imageInput);
-  }
-};
-
 const buildStructuredSteps = (text, context = {}) => {
   const trimmed = String(text || '').trim();
   const hasText = trimmed.length > 0;
@@ -175,7 +147,6 @@ export const buildClientVisionAnalysis = async ({
 
   let ocrText = '';
   let caption = '';
-  let objects = [];
 
   try {
     const ocr = await runOcr(imageInput);
@@ -190,10 +161,6 @@ export const buildClientVisionAnalysis = async ({
   } catch (err) {
     warnings.push(`Caption failed: ${err?.message || 'unknown error'}`);
   }
-
-  preloadObjectDetectionModel();
-  const det = await runObjectDetection(imageInput);
-  objects = det.objects;
 
   const hasText = ocrText.length > 0;
   const confidence = hasText ? Math.min(95, 55 + Math.min(ocrText.length / 8, 40)) : caption ? 45 : 20;
@@ -211,7 +178,7 @@ export const buildClientVisionAnalysis = async ({
     structuredSteps,
     summary,
     caption,
-    detectedObjects: objects,
+    detectedObjects: [],
     provider: 'transformers.js-client',
   };
 };
@@ -245,27 +212,12 @@ export const analyzeLiveFrame = async (base64Data, mimeType = 'image/jpeg') => {
   };
 };
 
-let speakerEmbeddingsPromise = null;
-
-const getSpeakerEmbeddings = () => {
-  if (!speakerEmbeddingsPromise) {
-    speakerEmbeddingsPromise = fetch(SPEAKER_EMBEDDINGS_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load speaker embeddings.');
-        return res.arrayBuffer();
-      })
-      .then((buffer) => new Float32Array(buffer));
-  }
-  return speakerEmbeddingsPromise;
-};
-
 export const synthesizeSpeech = async (text) => {
   const trimmed = String(text || '').trim();
   if (!trimmed) return null;
 
-  const synthesizer = await getPipeline('text-to-speech', MODELS.tts, { quantized: false });
-  const speaker_embeddings = await getSpeakerEmbeddings();
-  const output = await synthesizer(trimmed.slice(0, 500), { speaker_embeddings });
+  const synthesizer = await getPipeline('text-to-speech', MODELS.tts, { quantized: true });
+  const output = await synthesizer(trimmed.slice(0, 500));
 
   let audio = output?.audio;
   if (!audio && output instanceof Float32Array) audio = output;
@@ -321,10 +273,8 @@ export default {
   onModelLoadProgress,
   preloadSpeechModels,
   preloadVisionModels,
-  preloadObjectDetectionModel,
   runOcr,
   runImageCaption,
-  runObjectDetection,
   buildClientVisionAnalysis,
   analyzeLiveFrame,
   synthesizeSpeech,

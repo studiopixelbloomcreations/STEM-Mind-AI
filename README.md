@@ -7,8 +7,8 @@ STEM Mind AI is a React + Vite learning platform that uses Firebase authenticati
 This release includes:
 
 - **Harmony engine** (unchanged) for adaptive quiz NLP, visual teaching agents, and STEM Live reply orchestration via existing providers.
-- **Transformers.js** (`@huggingface/transformers`) for browser-side vision, speech, and object detection.
-- **STEM Live** — full-screen voice mode with client-side frame analysis, Whisper STT (Web Speech fallback), and SpeechT5 TTS.
+- **Transformers.js** (`@huggingface/transformers`) for browser-side vision and speech.
+- **STEM Live** — full-screen voice mode with client-side frame analysis, Whisper STT (Web Speech fallback), and browser TTS (MMS fallback).
 - **Photo Analyzer** — worksheet capture with on-device OCR + Visual Teacher walkthrough.
 - Session and turn persistence for observability/debugging.
 
@@ -20,8 +20,7 @@ Models download lazily from Hugging Face on first use and cache in the browser. 
 |------|-------|-------|
 | OCR (worksheets) | `Xenova/trocr-base-printed` | Printed text extraction |
 | Image caption | `Xenova/vit-gpt2-image-captioning` | Scene description for STEM Live frames |
-| Object detection | `Xenova/detr-resnet-50` | On-demand in Photo Analyzer only |
-| Text-to-speech | `Xenova/speecht5_tts` | Natural English teacher voice (SpeechT5 + speaker embeddings) |
+| Text-to-speech | `Xenova/mms-tts-eng` (fallback) | Browser `speechSynthesis` primary; quantized MMS VITS if unavailable |
 | Speech-to-text | `Xenova/whisper-tiny.en` | STEM Live STT; falls back to Web Speech API if slow/unavailable |
 
 **First load:** expect ~50–200 MB total model downloads depending on features used. Subsequent visits use cached weights.
@@ -47,7 +46,7 @@ Vite is configured for Transformers.js (WASM/ONNX assets, worker format). Dev se
 
 ONNX Runtime runs **single-threaded** WASM by default (`src/ml/transformersEnv.js`):
 
-- `env.useWasmCache = false` — avoids `Cache.put` failures for large wasm files on Vercel
+- `env.useBrowserCache = false` and `env.useWasmCache = false` — avoids `Cache.put` failures on Vercel
 - `env.backends.onnx.wasm.numThreads = 1` and `proxy = false`
 - Non-asyncify wasm paths from jsDelivr when not `crossOriginIsolated`
 

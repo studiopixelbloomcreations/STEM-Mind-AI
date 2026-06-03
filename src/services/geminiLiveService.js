@@ -77,7 +77,11 @@ class GeminiLiveService {
     await this.initAudioContext();
     this.nextPlayTime = this.audioContext.currentTime;
 
-    const modelsToTry = ['models/gemini-2.0-flash-exp', 'models/gemini-2.0-flash-realtime-exp'];
+    const modelsToTry = [
+      'models/gemini-2.5-flash-native-audio-preview-12-2025',
+      'models/gemini-2.0-flash-exp',
+      'models/gemini-2.0-flash-realtime-exp'
+    ];
     const modelIndex = this.currentModelIndex || 0;
     const selectedModel = modelsToTry[modelIndex % modelsToTry.length];
     

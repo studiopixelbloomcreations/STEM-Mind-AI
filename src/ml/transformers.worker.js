@@ -158,6 +158,20 @@ self.onmessage = async (event) => {
         break;
       }
 
+      case 'image-to-text': {
+        const { image, model, options = {} } = payload;
+        const captioner = await getPipeline('image-to-text', model, options, id);
+
+        const result = await captioner(image, options);
+        self.postMessage({
+          id,
+          type: 'success',
+          result: result,
+          payload: result
+        });
+        break;
+      }
+
       case 'embed': {
         const { text, model, options = {} } = payload;
         const embedder = await getPipeline('feature-extraction', model || 'Xenova/all-MiniLM-L6-v2', options, id);

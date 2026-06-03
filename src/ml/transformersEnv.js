@@ -14,7 +14,6 @@ const wantsMultiThread =
   typeof self !== 'undefined' &&
   self.crossOriginIsolated;
 
-/** @param {Record<string, unknown>} wasm */
 const applySingleThreadWasm = (wasm) => {
   wasm.numThreads = 1;
   wasm.proxy = false;
@@ -22,11 +21,8 @@ const applySingleThreadWasm = (wasm) => {
   const ortVersion = env.backends?.onnx?.versions?.web;
   if (!ortVersion) return;
 
-  const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ortVersion.includes('-') ? '1.19.0' : ortVersion}/dist/`;
-  wasm.wasmPaths = {
-    mjs: `${prefix}ort-wasm.mjs`,
-    wasm: `${prefix}ort-wasm.wasm`,
-  };
+  const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ortVersion.includes('-') ? '1.20.1' : ortVersion}/dist/`;
+  wasm.wasmPaths = prefix;
   if ('simd' in wasm) wasm.simd = false;
 };
 

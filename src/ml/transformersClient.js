@@ -1,54 +1,24 @@
 /**
  * Client-side Transformers.js service layer.
- * Wraps lazy pipeline() loading with progress callbacks and structured vision/STT/TTS helpers.
+ * Delegates pipeline execution to the background Web Worker via TransformersService.
  * Harmony NLP remains separate — this module handles vision and speech only.
  */
 
-import './transformersEnv.js';
-import { pipeline } from '@huggingface/transformers';
-import { MODELS, TTS_AUDIO_GAIN } from './transformersModels';
+import { transformersService } from './TransformersService.js';
+import { MODELS, TTS_AUDIO_GAIN } from './transformersModels.js';
 
-const pipelineCache = new Map();
 const progressListeners = new Set();
 
-const notifyProgress = (detail) => {
+// Register global progress updates from the service wrapper
+transformersService.onProgress((detail) => {
   progressListeners.forEach((listener) => {
     try {
       listener(detail);
     } catch {
-      // ignore listener errors
+      // ignore
     }
   });
-};
-
-const wrapProgress = (task, modelId) => (progress) => {
-  notifyProgress({
-    task,
-    modelId,
-    status: progress?.status || 'progress',
-    file: progress?.file || '',
-    progress: progress?.progress ?? null,
-    loaded: progress?.loaded ?? null,
-    total: progress?.total ?? null,
-  });
-};
-
-const getPipeline = async (task, modelId, options = {}) => {
-  const key = `${task}:${modelId}:${JSON.stringify(options)}`;
-  if (pipelineCache.has(key)) return pipelineCache.get(key);
-
-  const loadPromise = pipeline(task, modelId, {
-    progress_callback: wrapProgress(task, modelId),
-    ...options,
-  });
-  pipelineCache.set(key, loadPromise);
-  try {
-    return await loadPromise;
-  } catch (error) {
-    pipelineCache.delete(key);
-    throw error;
-  }
-};
+});
 
 export const onModelLoadProgress = (listener) => {
   progressListeners.add(listener);
@@ -56,13 +26,15 @@ export const onModelLoadProgress = (listener) => {
 };
 
 export const preloadSpeechModels = () => {
-  getPipeline('text-to-speech', MODELS.tts, { quantized: true }).catch(() => undefined);
+  transformersService.preloadModel('text-to-speech', MODELS.tts, { useGPU: true }).catch(() => undefined);
 };
 
 /** OCR + caption only — safe for STEM Live mount (no object-detection weights). */
 export const preloadVisionModels = () => {
-  getPipeline('image-to-text', MODELS.ocr).catch(() => undefined);
-  getPipeline('image-to-text', MODELS.caption).catch(() => undefined);
+  transformersService.preloadModel('image-to-text', MODELS.ocr, { useGPU: true }).catch(() => undefined);
+  transformersService.preloadModel('image-to-text', MODELS.caption, { useGPU: true }).catch(() => undefined);
+  // Also preload object detection for STEM Live mode
+  transformersService.preloadModel('object-detection', 'Xenova/detr-resnet-50', { useGPU: true }).catch(() => undefined);
 };
 
 const toDataUrl = (input) => {
@@ -84,8 +56,7 @@ const revokeIfBlobUrl = (url, input) => {
 export const runOcr = async (imageInput) => {
   const dataUrl = toDataUrl(imageInput);
   try {
-    const ocr = await getPipeline('image-to-text', MODELS.ocr);
-    const results = await ocr(dataUrl);
+    const results = await transformersService.imageToText(dataUrl, MODELS.ocr, { useGPU: true });
     const text = Array.isArray(results)
       ? results.map((r) => r?.generated_text || '').join('\n').trim()
       : String(results?.generated_text || results?.text || '').trim();
@@ -98,8 +69,7 @@ export const runOcr = async (imageInput) => {
 export const runImageCaption = async (imageInput) => {
   const dataUrl = toDataUrl(imageInput);
   try {
-    const captioner = await getPipeline('image-to-text', MODELS.caption);
-    const results = await captioner(dataUrl);
+    const results = await transformersService.imageToText(dataUrl, MODELS.caption, { useGPU: true });
     const caption = Array.isArray(results)
       ? results.map((r) => r?.generated_text || '').join(' ').trim()
       : String(results?.generated_text || results?.text || '').trim();
@@ -179,16 +149,21 @@ export const buildClientVisionAnalysis = async ({
     summary,
     caption,
     detectedObjects: [],
-    provider: 'transformers.js-client',
+    provider: 'transformers.js-client-worker',
   };
 };
 
+/**
+ * Capture frame from live STEM webcam stream, perform image captioning + OCR + object detection.
+ */
 export const analyzeLiveFrame = async (base64Data, mimeType = 'image/jpeg') => {
   const dataUrl = `data:${mimeType};base64,${base64Data}`;
   const warnings = [];
   let caption = '';
   let ocrText = '';
+  let objects = [];
 
+  // 1. Run image captioning
   try {
     const cap = await runImageCaption(dataUrl);
     caption = cap.caption;
@@ -196,17 +171,29 @@ export const analyzeLiveFrame = async (base64Data, mimeType = 'image/jpeg') => {
     warnings.push(err?.message || 'caption failed');
   }
 
+  // 2. Run OCR (optional for live frames)
   try {
     const ocr = await runOcr(dataUrl);
     ocrText = ocr.text.slice(0, 1200);
   } catch {
-    // OCR optional for live frames
+    // ignore
+  }
+
+  // 3. Run Object Detection (to identify holding items like "ball", "pen", etc.)
+  try {
+    const detections = await transformersService.detectObjects(dataUrl, 'Xenova/detr-resnet-50', { useGPU: true });
+    // Filter detections for high-confidence labels
+    objects = (detections || [])
+      .filter((d) => d.score > 0.45)
+      .map((d) => d.label);
+  } catch (err) {
+    warnings.push(`object detection failed: ${err?.message || 'unknown error'}`);
   }
 
   return {
     caption,
     extractedText: ocrText,
-    objects: [],
+    objects, // List of strings representing detected object labels (e.g. ['ball', 'cup'])
     warnings,
     capturedAt: new Date().toISOString(),
   };
@@ -216,14 +203,12 @@ export const synthesizeSpeech = async (text) => {
   const trimmed = String(text || '').trim();
   if (!trimmed) return null;
 
-  const synthesizer = await getPipeline('text-to-speech', MODELS.tts, { quantized: true });
-  const output = await synthesizer(trimmed.slice(0, 500));
+  const result = await transformersService.synthesizeSpeech(trimmed.slice(0, 500), MODELS.tts, { useGPU: true });
 
-  let audio = output?.audio;
-  if (!audio && output instanceof Float32Array) audio = output;
+  let audio = result?.audio;
   if (!audio?.length) throw new Error('TTS produced empty audio.');
 
-  const sampling_rate = output?.sampling_rate || 16000;
+  const sampling_rate = result?.sampling_rate || 16000;
   const boosted = new Float32Array(audio.length);
   for (let i = 0; i < audio.length; i += 1) {
     boosted[i] = Math.max(-1, Math.min(1, audio[i] * TTS_AUDIO_GAIN));
@@ -232,28 +217,22 @@ export const synthesizeSpeech = async (text) => {
 };
 
 export const playSpeechSamples = async (audio, samplingRate, { onStart, onEnd } = {}) => {
-  const audioCtx = new AudioContext({ sampleRate: samplingRate });
-  if (audioCtx.state === 'suspended') await audioCtx.resume();
-  const buffer = audioCtx.createBuffer(1, audio.length, samplingRate);
-  buffer.getChannelData(0).set(audio);
-  const source = audioCtx.createBufferSource();
-  source.buffer = buffer;
-  source.connect(audioCtx.destination);
-  source.onended = () => {
-    audioCtx.close().catch(() => undefined);
-    onEnd?.();
-  };
+  const source = await transformersService.playAudioBuffer(audio, samplingRate, onEnd);
   onStart?.();
-  source.start();
-  return { source, audioCtx };
+  return { source, audioCtx: transformersService.audioContext };
 };
 
 export const transcribeAudioBlob = async (blob) => {
   if (!blob || blob.size < 800) return '';
   const url = URL.createObjectURL(blob);
   try {
-    const transcriber = await getPipeline('automatic-speech-recognition', MODELS.stt);
-    const result = await transcriber(url, { chunk_length_s: 30, stride_length_s: 5 });
+    // Read raw PCM samples from the blob
+    const audioCtx = await transformersService.getAudioContext();
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    const rawSamples = audioBuffer.getChannelData(0);
+
+    const result = await transformersService.transcribeAudio(rawSamples, MODELS.stt, { useGPU: true });
     return String(result?.text || '').trim();
   } finally {
     URL.revokeObjectURL(url);
@@ -262,7 +241,7 @@ export const transcribeAudioBlob = async (blob) => {
 
 export const isWhisperReady = async () => {
   try {
-    await getPipeline('automatic-speech-recognition', MODELS.stt);
+    await transformersService.preloadModel('automatic-speech-recognition', MODELS.stt, { useGPU: true });
     return true;
   } catch {
     return false;

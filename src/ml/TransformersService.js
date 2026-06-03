@@ -106,6 +106,13 @@ export class TransformersService {
   }
 
   /**
+   * Image Captioning & OCR (Image-to-Text)
+   */
+  async imageToText(image, model, options = {}) {
+    return this._sendRequest('image-to-text', { image, model, options });
+  }
+
+  /**
    * 4. Text Embeddings
    * Extract feature vectors for downstream semantic search or similarity.
    */

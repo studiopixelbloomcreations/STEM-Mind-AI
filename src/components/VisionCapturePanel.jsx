@@ -158,6 +158,7 @@ export default function VisionCapturePanel() {
     try {
       const steps = await runVisualTeacherAgent(question, answer, simpler);
       setTeachingSteps(steps);
+      voiceSynthesizer.prefetch(steps.map((step) => step.speech));
       if (steps?.length > 0) {
         playTeachingStep(0, steps);
       }

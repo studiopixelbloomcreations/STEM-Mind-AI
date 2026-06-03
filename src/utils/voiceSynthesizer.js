@@ -1,53 +1,44 @@
 /**
  * Voice narration.
  *
- * Browser speech synthesis is the default because it starts almost instantly.
- * Gemini native audio remains available with VITE_NARRATION_ENGINE=gemini when
- * voice quality matters more than first-audio latency.
+ * Gemini native audio only. This file optimizes creation latency with:
+ * - streaming playback when Gemini returns audio chunks
+ * - promise-based audio caching for repeats
+ * - persistent AudioContext reuse after the first user gesture
  */
 
 import { getGeminiApiKey } from '../services/geminiLiveService';
 
 const GEMINI_TTS_MODEL = import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
 const GEMINI_TTS_VOICE = import.meta.env.VITE_GEMINI_TTS_VOICE || 'Kore';
-const NARRATION_ENGINE = import.meta.env.VITE_NARRATION_ENGINE || 'browser';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_TTS_SAMPLE_RATE = 24000;
+const MAX_CACHE_ENTRIES = 40;
 
 class VoiceSynthesizer {
   constructor() {
     this.currentSource = null;
     this.currentAudioCtx = null;
-    this.currentUtterance = null;
     this._unlocked = false;
     this._requestId = 0;
-    this._voices = [];
-
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      this._voices = window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
-        this._voices = window.speechSynthesis.getVoices();
-      };
-    }
+    this._audioPromiseCache = new Map();
+    this._activeSources = new Set();
+    this._nextPlayTime = 0;
   }
 
   stop() {
     this._requestId += 1;
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
-    this.currentUtterance = null;
-    if (this.currentSource) {
+    for (const source of this._activeSources) {
       try {
-        this.currentSource.stop();
+        source.stop();
       } catch {
         // Already stopped.
       }
-      this.currentSource = null;
     }
+    this._activeSources.clear();
+    this.currentSource = null;
     if (this.currentAudioCtx) {
-      this.currentAudioCtx.close().catch(() => undefined);
-      this.currentAudioCtx = null;
+      this._nextPlayTime = this.currentAudioCtx.currentTime;
     }
   }
 
@@ -59,42 +50,56 @@ class VoiceSynthesizer {
     return this._unlocked;
   }
 
-  getBrowserVoice() {
-    const voices = this._voices.length
-      ? this._voices
-      : window.speechSynthesis?.getVoices?.() || [];
-    return (
-      voices.find((voice) => /Google US English|Microsoft Aria|Microsoft Jenny/i.test(voice.name)) ||
-      voices.find((voice) => /^en(-|_)/i.test(voice.lang)) ||
-      voices[0] ||
-      null
-    );
+  async getAudioContext() {
+    if (!this.currentAudioCtx) {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      this.currentAudioCtx = new AudioContextClass({ sampleRate: GEMINI_TTS_SAMPLE_RATE });
+      this._nextPlayTime = this.currentAudioCtx.currentTime;
+    }
+    if (this.currentAudioCtx.state === 'suspended') {
+      await this.currentAudioCtx.resume();
+    }
+    return this.currentAudioCtx;
   }
 
-  speakBrowser(text, onEndCallback = null, onStartCallback = null) {
-    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === 'undefined') {
-      return false;
+  buildGeminiBody(text) {
+    return {
+      contents: [
+        {
+          parts: [
+            {
+              text:
+                'Read this as a warm STEM teacher speaking to a grade 9-11 student. ' +
+                'Use a clear, encouraging, natural pace: ' +
+                text,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: GEMINI_TTS_VOICE,
+            },
+          },
+        },
+      },
+    };
+  }
+
+  getCacheKey(text) {
+    return `${GEMINI_TTS_MODEL}:${GEMINI_TTS_VOICE}:${String(text || '').trim()}`;
+  }
+
+  rememberAudioPromise(key, promise) {
+    this._audioPromiseCache.set(key, promise);
+    if (this._audioPromiseCache.size > MAX_CACHE_ENTRIES) {
+      const oldestKey = this._audioPromiseCache.keys().next().value;
+      this._audioPromiseCache.delete(oldestKey);
     }
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = this.getBrowserVoice();
-    utterance.lang = utterance.voice?.lang || 'en-US';
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.volume = 1;
-    utterance.onstart = () => onStartCallback?.();
-    utterance.onend = () => {
-      if (this.currentUtterance === utterance) this.currentUtterance = null;
-      onEndCallback?.();
-    };
-    utterance.onerror = () => {
-      if (this.currentUtterance === utterance) this.currentUtterance = null;
-      onEndCallback?.();
-    };
-
-    this.currentUtterance = utterance;
-    window.speechSynthesis.speak(utterance);
-    return true;
+    return promise;
   }
 
   async generateGeminiAudio(text) {
@@ -108,30 +113,7 @@ class VoiceSynthesizer {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text:
-                    'Read this as a warm STEM teacher speaking to a grade 9-11 student. ' +
-                    'Use a clear, encouraging, natural pace: ' +
-                    text,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: {
-                  voiceName: GEMINI_TTS_VOICE,
-                },
-              },
-            },
-          },
-        }),
+        body: JSON.stringify(this.buildGeminiBody(text)),
       }
     );
 
@@ -149,9 +131,31 @@ class VoiceSynthesizer {
     return base64Audio;
   }
 
-  async playPcmBase64(base64Audio, requestId, { onStart = null, onEnd = null } = {}) {
-    if (requestId !== this._requestId) return;
+  getOrCreateAudioPromise(text) {
+    const key = this.getCacheKey(text);
+    const cached = this._audioPromiseCache.get(key);
+    if (cached) return cached;
 
+    const promise = this.generateGeminiAudio(text).catch((error) => {
+      this._audioPromiseCache.delete(key);
+      throw error;
+    });
+    return this.rememberAudioPromise(key, promise);
+  }
+
+  prefetch(texts) {
+    const list = Array.isArray(texts) ? texts : [texts];
+    list
+      .map((text) => String(text || '').trim())
+      .filter(Boolean)
+      .forEach((text) => {
+        this.getOrCreateAudioPromise(text).catch((error) => {
+          console.warn('Gemini native audio prefetch failed:', error);
+        });
+      });
+  }
+
+  pcmBase64ToFloat32(base64Audio) {
     const binary = atob(base64Audio);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
@@ -163,13 +167,14 @@ class VoiceSynthesizer {
     for (let i = 0; i < int16.length; i++) {
       float32[i] = int16[i] / 32768;
     }
+    return float32;
+  }
 
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = new AudioContextClass({ sampleRate: GEMINI_TTS_SAMPLE_RATE });
-    if (audioCtx.state === 'suspended') {
-      await audioCtx.resume();
-    }
+  async playPcmBase64(base64Audio, requestId, { onStart = null, onEnd = null, append = false } = {}) {
+    if (requestId !== this._requestId) return;
 
+    const audioCtx = await this.getAudioContext();
+    const float32 = this.pcmBase64ToFloat32(base64Audio);
     const buffer = audioCtx.createBuffer(1, float32.length, GEMINI_TTS_SAMPLE_RATE);
     buffer.getChannelData(0).set(float32);
 
@@ -177,16 +182,88 @@ class VoiceSynthesizer {
     source.buffer = buffer;
     source.connect(audioCtx.destination);
     source.onended = () => {
+      this._activeSources.delete(source);
       if (this.currentSource === source) this.currentSource = null;
-      if (this.currentAudioCtx === audioCtx) this.currentAudioCtx = null;
-      audioCtx.close().catch(() => undefined);
-      onEnd?.();
+      if (this._activeSources.size === 0) onEnd?.();
     };
 
-    this.currentAudioCtx = audioCtx;
     this.currentSource = source;
-    onStart?.();
-    source.start();
+    this._activeSources.add(source);
+
+    const now = audioCtx.currentTime;
+    const playTime = append ? Math.max(now, this._nextPlayTime) : now;
+    this._nextPlayTime = playTime + buffer.duration;
+    if (this._activeSources.size === 1) onStart?.();
+    source.start(playTime);
+  }
+
+  async streamGeminiAudio(text, requestId, { onStart = null, onEnd = null } = {}) {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      throw new Error('Gemini API key is not configured for voice narration.');
+    }
+
+    const response = await fetch(
+      `${GEMINI_API_BASE}/models/${encodeURIComponent(GEMINI_TTS_MODEL)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.buildGeminiBody(text)),
+      }
+    );
+
+    if (!response.ok || !response.body) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`Gemini streaming native audio failed: ${response.status} - ${errorText}`);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let playedAnyChunk = false;
+
+    const flushEvent = async (rawEvent) => {
+      const dataLines = rawEvent
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+        .filter((line) => line && line !== '[DONE]');
+
+      for (const dataLine of dataLines) {
+        if (requestId !== this._requestId) return;
+        const data = JSON.parse(dataLine);
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        for (const part of parts) {
+          const inlineData = part.inlineData || part.inline_data;
+          const base64Audio = inlineData?.data;
+          if (base64Audio) {
+            playedAnyChunk = true;
+            await this.playPcmBase64(base64Audio, requestId, {
+              onStart,
+              onEnd,
+              append: true,
+            });
+          }
+        }
+      }
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const events = buffer.split(/\n\n+/);
+      buffer = events.pop() || '';
+      for (const event of events) {
+        await flushEvent(event);
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) await flushEvent(buffer);
+
+    if (!playedAnyChunk) {
+      throw new Error('Gemini streaming native audio returned no audio chunks.');
+    }
   }
 
   speak(text, onEndCallback = null, onStartCallback = null) {
@@ -198,20 +275,22 @@ class VoiceSynthesizer {
 
     this.unlock();
     this.stop();
-
-    if (NARRATION_ENGINE !== 'gemini' && this.speakBrowser(trimmed, onEndCallback, onStartCallback)) {
-      return;
-    }
-
     const requestId = this._requestId;
 
-    this.generateGeminiAudio(trimmed)
+    this.streamGeminiAudio(trimmed, requestId, {
+      onStart: onStartCallback,
+      onEnd: onEndCallback,
+    })
+      .catch((streamError) => {
+        console.warn('Gemini streaming narration unavailable, using cached generateContent audio:', streamError);
+        return this.getOrCreateAudioPromise(trimmed)
       .then((base64Audio) =>
         this.playPcmBase64(base64Audio, requestId, {
           onStart: onStartCallback,
           onEnd: onEndCallback,
         })
-      )
+        );
+      })
       .catch((error) => {
         console.error('Gemini native audio narration failed:', error);
         onEndCallback?.();

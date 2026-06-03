@@ -21,7 +21,7 @@ Models download lazily from Hugging Face on first use and cache in the browser. 
 |------|-------|-------|
 | OCR (worksheets) | `Xenova/trocr-base-printed` | Printed text extraction |
 | Image caption | `Xenova/vit-gpt2-image-captioning` | Scene description for STEM Live frames |
-| Text-to-speech | `Xenova/mms-tts-eng` (fallback) | Browser `speechSynthesis` primary; quantized MMS VITS if unavailable |
+| Text-to-speech | Gemini native audio | Used for quiz and visual teacher narration |
 | Speech-to-text | `Xenova/whisper-tiny.en` | STEM Live STT; falls back to Web Speech API if slow/unavailable |
 
 **First load:** expect ~50–200 MB total model downloads depending on features used. Subsequent visits use cached weights.
@@ -38,7 +38,6 @@ Architecture: `src/ml/transformersClient.js` wraps lazy `pipeline()` calls. Harm
    - `VITE_PI_MODEL_API_KEYS_JSON` (optional legacy Harmony/provider config)
    - `VITE_GEMINI_API_KEY` (required for Gemini Harmony and STEM Live Gemini)
    - `VITE_GEMINI_HARMONY_MODEL` (optional, defaults to `gemini-2.5-flash`)
-   - `VITE_NARRATION_ENGINE` (optional, defaults to `browser` for near-instant narration; set `gemini` for native Gemini audio)
    - `VITE_GEMINI_TTS_MODEL` (optional, defaults to `gemini-2.5-flash-preview-tts`)
    - `VITE_GEMINI_TTS_VOICE` (optional, defaults to `Kore`)
 3. Start frontend:

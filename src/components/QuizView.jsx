@@ -174,6 +174,7 @@ export default function QuizView() {
       const steps = await runStepByStepExplanationAgent(question, correctAnswer, studentAnswer, currentEli10);
       setWrongSteps(steps);
       setCurrentWrongStep(0);
+      voiceSynthesizer.prefetch(steps.map((step) => step.speech));
       if (steps && steps.length > 0) {
         setSpeakingStep(true);
         voiceSynthesizer.speak(steps[0].speech, () => setSpeakingStep(false));
@@ -230,6 +231,7 @@ export default function QuizView() {
       const steps = await runVisualTeacherAgent(question, correctAnswer, simpler);
       setTeachingSteps(steps);
       setCurrentTeachingStep(0);
+      voiceSynthesizer.prefetch(steps.map((step) => step.speech));
       if (steps && steps.length > 0) {
         playTeachingStep(0, steps);
       }

@@ -7,8 +7,8 @@ export const MODELS = {
   ocr: 'Xenova/trocr-base-printed',
   /** Scene / image caption for STEM Live frames */
   caption: 'Xenova/vit-gpt2-image-captioning',
-  /** English TTS (VITS / MMS — quantized ONNX, no speaker embeddings) */
-  tts: 'Xenova/mms-tts-eng',
+  /** English TTS (SpeechT5 - natural sounding teacher persona) */
+  tts: 'Xenova/speecht5_tts',
   /** Fast English STT for STEM Live */
   stt: 'Xenova/whisper-tiny.en',
 };

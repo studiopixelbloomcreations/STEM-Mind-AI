@@ -155,7 +155,7 @@ class VoiceSynthesizer {
   }
 
   /**
-   * Speak with browser speechSynthesis first; fall back to Transformers.js MMS TTS on failure.
+   * Speak with Transformers.js SpeechT5 TTS first (natural teacher voice); fall back to browser speechSynthesis on failure.
    */
   speak(text, onEndCallback = null, onStartCallback = null) {
     const trimmed = String(text || '').trim();
@@ -172,23 +172,21 @@ class VoiceSynthesizer {
     this.stop();
 
     const callbacks = { onStart: onStartCallback, onEnd: onEndCallback };
-    const runTransformersFallback = () => {
-      this.speakTransformers(trimmed, callbacks).then((ok) => {
-        if (!ok) {
-          console.warn('TTS unavailable: browser and Transformers.js both failed');
-          onEndCallback?.();
-        }
-      });
+    const runBrowserFallback = () => {
+      console.warn('Transformers TTS failed. Falling back to browser SpeechSynthesis.');
+      const browserStarted = this.speakBrowser(trimmed, callbacks);
+      if (!browserStarted) {
+        console.warn('TTS unavailable: browser and Transformers.js both failed');
+        onEndCallback?.();
+      }
     };
 
-    const browserStarted = this.speakBrowser(trimmed, {
-      ...callbacks,
-      onUnavailable: runTransformersFallback,
+    // Prioritize high-quality local Transformers.js SpeechT5 TTS
+    this.speakTransformers(trimmed, callbacks).then((ok) => {
+      if (!ok) {
+        runBrowserFallback();
+      }
     });
-
-    if (!browserStarted) {
-      runTransformersFallback();
-    }
   }
 
   pause() {

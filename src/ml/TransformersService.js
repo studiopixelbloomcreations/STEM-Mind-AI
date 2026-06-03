@@ -25,11 +25,11 @@ export class TransformersService {
       );
 
       this.worker.onmessage = (event) => {
-        const { id, type, payload, error } = event.data;
+        const { id, type, payload, result, error, percentage, file } = event.data;
 
         // Route progress updates to local listeners
         if (type === 'progress') {
-          this.progressCallbacks.forEach((cb) => cb(payload));
+          this.progressCallbacks.forEach((cb) => cb({ ...payload, file, percentage }));
           return;
         }
 
@@ -39,8 +39,8 @@ export class TransformersService {
         if (type === 'error') {
           request.reject(new Error(error));
           this.pendingRequests.delete(id);
-        } else if (type === 'result' || type === 'status') {
-          request.resolve(payload);
+        } else if (type === 'result' || type === 'success' || type === 'status') {
+          request.resolve(result || payload);
           this.pendingRequests.delete(id);
         }
       };
@@ -68,7 +68,7 @@ export class TransformersService {
    */
   _sendRequest(type, payload) {
     return new Promise((resolve, reject) => {
-      const id = this.nextRequestId++;
+      const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : this.nextRequestId++;
       this.pendingRequests.set(id, { resolve, reject });
       this.worker.postMessage({ id, type, payload });
     });
@@ -111,6 +111,87 @@ export class TransformersService {
    */
   async getEmbeddings(text, model = 'Xenova/all-MiniLM-L6-v2', options = {}) {
     return this._sendRequest('embed', { text, model, options });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BLUEPRINT API COMPATIBILITY METHODS
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Cursor Blueprint textToSpeech API
+   */
+  async textToSpeech(text, onProgress) {
+    let unsubscribe;
+    if (onProgress) {
+      unsubscribe = this.onProgress((prog) => {
+        if (prog.task === 'text-to-speech' || prog.file) {
+          onProgress({ file: prog.file, percentage: prog.percentage });
+        }
+      });
+    }
+    try {
+      return await this.synthesizeSpeech(text, 'Xenova/speecht5_tts', { useGPU: true });
+    } finally {
+      if (unsubscribe) unsubscribe();
+    }
+  }
+
+  /**
+   * Cursor Blueprint speechToText API
+   */
+  async speechToText(audioFloat32Array, onProgress) {
+    let unsubscribe;
+    if (onProgress) {
+      unsubscribe = this.onProgress((prog) => {
+        if (prog.task === 'automatic-speech-recognition' || prog.file) {
+          onProgress({ file: prog.file, percentage: prog.percentage });
+        }
+      });
+    }
+    try {
+      return await this.transcribeAudio(audioFloat32Array, 'Xenova/whisper-tiny.en', { useGPU: true });
+    } finally {
+      if (unsubscribe) unsubscribe();
+    }
+  }
+
+  /**
+   * Cursor Blueprint detectObjects API
+   */
+  async detectObjectsBlueprint(imageUrl, onProgress) {
+    let unsubscribe;
+    if (onProgress) {
+      unsubscribe = this.onProgress((prog) => {
+        if (prog.task === 'object-detection' || prog.file) {
+          onProgress({ file: prog.file, percentage: prog.percentage });
+        }
+      });
+    }
+    try {
+      return await this.detectObjects(imageUrl, 'Xenova/detr-resnet-50', { useGPU: true });
+    } finally {
+      if (unsubscribe) unsubscribe();
+    }
+  }
+
+  /**
+   * Cursor Blueprint generateEmbeddings API
+   */
+  async generateEmbeddings(text, onProgress) {
+    let unsubscribe;
+    if (onProgress) {
+      unsubscribe = this.onProgress((prog) => {
+        if (prog.task === 'feature-extraction' || prog.file) {
+          onProgress({ file: prog.file, percentage: prog.percentage });
+        }
+      });
+    }
+    try {
+      const result = await this.getEmbeddings(text, 'Xenova/all-MiniLM-L6-v2', { useGPU: true });
+      return Array.from(result.data || result);
+    } finally {
+      if (unsubscribe) unsubscribe();
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -167,6 +248,7 @@ export class TransformersService {
   }
 }
 
-// Export singleton instance
+// Export singleton instances
 export const transformersService = new TransformersService();
+export const aiService = transformersService;
 export default transformersService;

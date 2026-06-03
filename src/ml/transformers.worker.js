@@ -60,10 +60,33 @@ async function getPipeline(task, model, options = {}, messageId) {
 
 // Register Web Worker Message Handler
 self.onmessage = async (event) => {
-  const { id, type, payload } = event.data;
+  const id = event.data.id;
+  const type = event.data.type || event.data.task;
+  
+  // Normalize incoming payload structure to support both API versions
+  let payload = event.data.payload;
+  if (!payload) {
+    const rawData = event.data.data;
+    payload = {
+      text: type === 'text-to-speech' || type === 'feature-extraction' ? rawData : undefined,
+      audioData: type === 'automatic-speech-recognition' ? rawData : undefined,
+      image: type === 'object-detection' ? rawData : undefined,
+      model: event.data.model,
+      options: event.data.options
+    };
+  }
+
+  // Normalize task names
+  const taskMap = {
+    'text-to-speech': 'tts',
+    'automatic-speech-recognition': 'stt',
+    'object-detection': 'object-detection',
+    'feature-extraction': 'embed'
+  };
+  const normalizedType = taskMap[type] || type;
 
   try {
-    switch (type) {
+    switch (normalizedType) {
       case 'load': {
         const { task, model, options } = payload;
         await getPipeline(task, model, options, id);
@@ -77,11 +100,12 @@ self.onmessage = async (event) => {
 
       case 'tts': {
         const { text, model, options = {} } = payload;
-        const generator = await getPipeline('text-to-speech', model || 'Xenova/speecht5_tts', options, id);
+        const targetModel = model || 'Xenova/speecht5_tts';
+        const generator = await getPipeline('text-to-speech', targetModel, options, id);
 
         // Check if model is SpeechT5 (requires speaker embeddings)
         let speaker_embeddings = options.speaker_embeddings;
-        if ((model || '').includes('speecht5') && !speaker_embeddings) {
+        if (targetModel.includes('speecht5') && !speaker_embeddings) {
           // Provide default CMU Arctic female speaker embeddings
           speaker_embeddings = 'https://huggingface.co/datasets/Xenova/cmu-arctic-xvectors/resolve/main/cmu_us_slt_arctic-wav-artic_a0001.bin';
         }
@@ -93,7 +117,8 @@ self.onmessage = async (event) => {
         // Post result back with transferable array for 0-copy performance
         self.postMessage({
           id,
-          type: 'result',
+          type: 'success',
+          result: { audio, sampling_rate },
           payload: { audio, sampling_rate }
         }, audio instanceof Float32Array ? [audio.buffer] : []);
         break;
@@ -111,7 +136,8 @@ self.onmessage = async (event) => {
 
         self.postMessage({
           id,
-          type: 'result',
+          type: 'success',
+          result: result,
           payload: result
         });
         break;
@@ -124,7 +150,8 @@ self.onmessage = async (event) => {
         const result = await detector(image, options);
         self.postMessage({
           id,
-          type: 'result',
+          type: 'success',
+          result: result,
           payload: result
         });
         break;
@@ -139,7 +166,8 @@ self.onmessage = async (event) => {
 
         self.postMessage({
           id,
-          type: 'result',
+          type: 'success',
+          result: Array.from(data),
           payload: { data, dims: output.dims }
         }, data instanceof Float32Array ? [data.buffer] : []);
         break;

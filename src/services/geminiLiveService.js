@@ -108,17 +108,15 @@ class GeminiLiveService {
                 }
               },
               systemInstruction: {
-                content: {
-                  parts: [
-                    {
-                      text: systemInstruction || 
-                        'You are a friendly, warm, and highly visual STEM teacher. ' +
-                        'You respond concisely in natural spoken language. ' +
-                        'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
-                        'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
-                    }
-                  ]
-                }
+                parts: [
+                  {
+                    text: systemInstruction || 
+                      'You are a friendly, warm, and highly visual STEM teacher. ' +
+                      'You respond concisely in natural spoken language. ' +
+                      'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
+                      'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
+                  }
+                ]
               }
             }
           };

@@ -102,28 +102,24 @@ class GeminiLiveService {
             setup: {
               model: selectedModel,
               generationConfig: {
-                responseModalities: ['AUDIO'],
-                speechConfig: {
-                  voiceConfig: {
-                    prebuiltVoiceConfig: {
-                      voiceName: 'Aoede'
-                    }
-                  }
-                }
-              },
-              systemInstruction: {
-                parts: [
-                  {
-                    text: systemInstruction || 
-                      'You are a friendly, warm, and highly visual STEM teacher. ' +
-                      'You respond concisely in natural spoken language. ' +
-                      'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
-                      'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
-                  }
-                ]
+                responseModalities: ['AUDIO']
               }
             }
           };
+
+          if (!this.useMinimalSetup) {
+            setupMsg.setup.systemInstruction = {
+              parts: [
+                {
+                  text: systemInstruction || 
+                    'You are a friendly, warm, and highly visual STEM teacher named STEMMind. ' +
+                    'You respond concisely in natural spoken language. ' +
+                    'When the user shows you items on their webcam, identify them immediately (like a ball, book, etc.) ' +
+                    'and guide the conversation around STEM concepts relating to them. Speak concisely to keep the flow.'
+                }
+              ]
+            };
+          }
 
           this.ws.send(JSON.stringify(setupMsg));
           resolve(this);
@@ -155,11 +151,19 @@ class GeminiLiveService {
           console.warn(`[Gemini WebSocket Close] Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
           
           // Fallback logic for invalid argument (code 1007)
-          if (event.code === 1007 && modelIndex < modelsToTry.length - 1) {
-            console.log(`[Gemini WebSocket Fallback] Retrying with next model...`);
-            this.currentModelIndex = modelIndex + 1;
-            this.connect(systemInstruction).then(resolve).catch(reject);
-            return;
+          if (event.code === 1007) {
+            if (modelIndex < modelsToTry.length - 1) {
+              console.log(`[Gemini WebSocket Fallback] Retrying with next model...`);
+              this.currentModelIndex = modelIndex + 1;
+              this.connect(systemInstruction).then(resolve).catch(reject);
+              return;
+            } else if (!this.useMinimalSetup) {
+              console.log(`[Gemini WebSocket Fallback] All models failed. Retrying with minimal setup payload...`);
+              this.useMinimalSetup = true;
+              this.currentModelIndex = 0;
+              this.connect(systemInstruction).then(resolve).catch(reject);
+              return;
+            }
           }
 
           this.callbacks.onStatusChange?.('Disconnected');

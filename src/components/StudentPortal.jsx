@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { generateQuizTopic, runHarmonyCouncil } from '../live/harmonyCouncil';
+import { generateQuizTopic, runHarmonyCouncil } from '../harmony/geminiHarmonyEngine';
 import { 
   ChevronLeft, Award, Play, 
   Sparkles, ScanLine,

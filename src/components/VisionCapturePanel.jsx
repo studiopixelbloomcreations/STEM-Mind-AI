@@ -15,11 +15,11 @@ import {
   extractVisionTeachingQuestions,
   runVisualTeacherAgent,
   visionTeachingAnswerFor,
-} from '../live/harmonyCouncil';
+} from '../harmony/geminiHarmonyEngine';
 import { sanitizeVisualHtml } from '../utils/sanitizeHtml';
 import { fileToBase64, formatBytes, MAX_IMAGE_SIZE_BYTES, validateImageFile } from '../utils/visionValidation';
 import { useApp } from '../context/AppContext';
-import voiceSynthesizer from '../live/liveNarrator';
+import voiceSynthesizer from '../utils/voiceSynthesizer';
 import ModelLoadProgress from './ModelLoadProgress';
 
 const CONSENT_SESSION_KEY = 'vision-camera-consent-v1';

@@ -5,8 +5,8 @@ import {
   runExplanationAgent, 
   runVisualTeacherAgent, 
   runStepByStepExplanationAgent 
-} from '../live/harmonyCouncil';
-import voiceSynthesizer from '../live/liveNarrator';
+} from '../harmony/geminiHarmonyEngine';
+import voiceSynthesizer from '../utils/voiceSynthesizer';
 import { sanitizeVisualHtml } from '../utils/sanitizeHtml';
 import { 
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 

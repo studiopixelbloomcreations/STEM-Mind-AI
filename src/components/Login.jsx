@@ -5,7 +5,7 @@ import {
   GraduationCap, Laptop, Mic, Moon, Rocket, Sparkles, Star, Sun, Telescope, Wrench,
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
-import voiceSynthesizer from '../live/liveNarrator';
+import voiceSynthesizer from '../utils/voiceSynthesizer';
 const StemAvatar = lazy(() => import('./StemAvatar'));
 import './Login.css';
 

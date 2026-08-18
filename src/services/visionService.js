@@ -1,5 +1,5 @@
 import { auth } from '../config/firebase';
-import { runImageAnalyzerAgent } from '../live/harmonyCouncil';
+import { runImageAnalyzerAgent } from '../harmony/geminiHarmonyEngine';
 import { normalizeVisionResponse } from '../utils/visionValidation';
 
 const getSupabaseConfig = () => {

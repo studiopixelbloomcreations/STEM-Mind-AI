@@ -3,19 +3,17 @@ import { API_KEYS } from '../config/config';
 export const LIVE_API_ENDPOINT =
   'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
 
-/** Native-audio first — STEM Live + narration. */
+/**
+ * Live API (2026) native-audio models.
+ * Older TEXT-only Live IDs such as gemini-2.0-flash-live-001 are shut down.
+ */
 export const GEMINI_LIVE_AUDIO_MODELS = [
   'models/gemini-2.5-flash-native-audio-preview-12-2025',
-  'models/gemini-live-2.5-flash-preview',
-  'models/gemini-2.0-flash-live-001',
+  'models/gemini-2.5-flash-native-audio-preview-09-2025',
 ];
 
-/** Text-capable Live models — Harmony council, quizzes, vision JSON. */
-export const GEMINI_LIVE_TEXT_MODELS = [
-  'models/gemini-2.0-flash-live-001',
-  'models/gemini-live-2.5-flash-preview',
-  'models/gemini-2.5-flash-native-audio-preview-12-2025',
-];
+/** Same family — Live output is audio + transcription. */
+export const GEMINI_LIVE_TEXT_MODELS = GEMINI_LIVE_AUDIO_MODELS;
 
 export const DEFAULT_LIVE_VOICE = import.meta.env.VITE_GEMINI_TTS_VOICE || 'Kore';
 

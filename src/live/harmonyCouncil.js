@@ -45,7 +45,7 @@ async function callLiveAgent(agentName, prompt, { temperature = 0.7, json = fals
     systemInstruction,
     prompt: fullPrompt,
     images,
-    modality: 'TEXT',
+    modality: 'AUDIO',
     temperature,
     timeoutMs,
   });

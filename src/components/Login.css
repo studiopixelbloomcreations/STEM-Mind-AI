@@ -1,7 +1,7 @@
 .landing {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
   color: var(--text-primary);
   background:
     radial-gradient(1200px 600px at 10% -10%, rgba(139, 92, 246, 0.18), transparent 55%),
@@ -20,10 +20,10 @@
 
 .landing-aurora {
   position: fixed;
-  inset: auto -10% -20% -10%;
-  height: 45vh;
+  inset: auto -10% -18% -10%;
+  height: 42vh;
   background: radial-gradient(closest-side, rgba(59, 130, 246, 0.22), transparent 70%);
-  filter: blur(8px);
+  filter: blur(10px);
   pointer-events: none;
   z-index: 0;
 }
@@ -38,7 +38,7 @@
 .landing-main,
 .landing-foot,
 .landing-toast,
-.secret-constellation {
+.stem-stage {
   position: relative;
   z-index: 2;
 }
@@ -47,7 +47,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 22px 28px;
+  gap: 16px;
+  padding: 18px 28px;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--bg-primary) 72%, transparent);
 }
 
 .landing-brand {
@@ -60,11 +66,11 @@
   cursor: pointer;
   font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
 }
 
 .landing-brand img {
-  height: 38px;
+  height: 36px;
   width: auto;
   border-radius: 8px;
 }
@@ -73,6 +79,17 @@
   background: var(--accent-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.landing-links {
+  display: flex;
+  gap: 18px;
+  font-size: 0.86rem;
+}
+
+.landing-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
 }
 
 .landing-nav-right {
@@ -116,15 +133,15 @@
 .landing-main {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 12px 24px 80px;
+  padding: 12px 24px 120px;
 }
 
 .landing-hero {
   display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  grid-template-columns: 1.1fr 0.9fr;
   gap: 36px;
   align-items: center;
-  min-height: 62vh;
+  min-height: 78vh;
 }
 
 .landing-badge {
@@ -141,8 +158,9 @@
   margin-bottom: 18px;
 }
 
-.landing-copy h1 {
-  font-size: clamp(2.4rem, 5vw, 4.4rem);
+.landing-copy h1,
+.landing-section h2 {
+  font-size: clamp(2.2rem, 4.6vw, 4.3rem);
   line-height: 1.05;
   letter-spacing: -0.04em;
   margin-bottom: 16px;
@@ -155,10 +173,18 @@
   -webkit-text-fill-color: transparent;
 }
 
-.landing-copy p {
+.landing-copy p,
+.lede {
   color: var(--text-secondary);
   font-size: 1.08rem;
-  max-width: 540px;
+  max-width: 640px;
+  margin-bottom: 22px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 22px;
 }
 
@@ -166,11 +192,6 @@
   display: flex;
   gap: 18px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.landing-stats div {
-  min-width: 110px;
 }
 
 .landing-stats strong {
@@ -181,20 +202,6 @@
 .landing-stats span {
   color: var(--text-muted);
   font-size: 0.8rem;
-}
-
-.landing-hints {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.landing-hints span {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  border: 1px dashed rgba(139, 92, 246, 0.3);
-  padding: 4px 10px;
-  border-radius: 999px;
 }
 
 .landing-orbit-wrap {
@@ -216,13 +223,9 @@
   place-content: center;
   gap: 4px;
   background: radial-gradient(circle at 30% 30%, #c4b5fd, #7c3aed 46%, #0f172a 78%);
-  box-shadow: 0 0 40px rgba(139, 92, 246, 0.45), inset 0 0 20px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 40px rgba(139, 92, 246, 0.45);
   color: white;
   text-align: center;
-}
-
-.landing-core small {
-  font-size: 0.7rem;
 }
 
 .landing-core.is-complete {
@@ -242,7 +245,6 @@
   cursor: pointer;
   background: rgba(15, 23, 42, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   animation: orbit-spin 22s linear infinite;
   animation-delay: calc(var(--i) * -2.75s);
   font-size: 1.4rem;
@@ -257,12 +259,11 @@
 .landing-orbiter.is-found {
   background: rgba(16, 185, 129, 0.25);
   border-color: #34d399;
-  transform: scale(0.9);
 }
 
 @keyframes orbit-spin {
-  from { transform: rotate(calc(var(--i) * 360deg / var(--total))) translateX(var(--radius)) rotate(0deg); }
-  to { transform: rotate(calc(var(--i) * 360deg / var(--total) + 360deg)) translateX(var(--radius)) rotate(0deg); }
+  from { transform: rotate(calc(var(--i) * 360deg / var(--total))) translateX(var(--radius)); }
+  to { transform: rotate(calc(var(--i) * 360deg / var(--total) + 360deg)) translateX(var(--radius)); }
 }
 
 @keyframes orbit-unspin {
@@ -270,34 +271,86 @@
   to { transform: rotate(-360deg); }
 }
 
-.landing-play {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin: 28px 0 36px;
+.landing-section {
+  padding: 88px 0 20px;
 }
 
-.play-card {
-  padding: 18px;
-  border-radius: 18px;
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.72rem;
+  color: #67e8f9;
+  margin-bottom: 10px;
+}
+
+.pillar-grid,
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.pillar,
+.feature-card,
+.step-card,
+.split article {
+  text-align: left;
+  padding: 22px;
+  border-radius: 20px;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  backdrop-filter: blur(10px);
+  color: inherit;
+  cursor: pointer;
 }
 
-.play-card h3 {
-  margin: 10px 0 6px;
-  font-size: 1.05rem;
+.pillar-letter {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  font-weight: 800;
+  display: block;
 }
 
-.play-card p {
+.pillar p,
+.feature-card p,
+.step-card p,
+.split p {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+}
+
+.pillar.is-on {
+  border-color: rgba(139, 92, 246, 0.55);
+  box-shadow: var(--shadow-glow);
+}
+
+.meet-list {
+  color: var(--text-secondary);
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.step-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.step-card span {
+  color: #a78bfa;
+  font-family: var(--font-heading);
+  font-size: 1.4rem;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
 }
 
 .landing-portal {
   max-width: 460px;
-  margin: 0 auto;
+  margin: 64px auto 0;
   text-align: center;
   padding: 36px 28px;
 }
@@ -331,7 +384,7 @@
   gap: 12px;
   padding: 16px 28px 28px;
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .pixel-egg {
@@ -362,38 +415,69 @@
   background: rgba(15, 23, 42, 0.88);
   border: 1px solid rgba(139, 92, 246, 0.35);
   color: #f8fafc;
-  box-shadow: var(--shadow-lg);
+  z-index: 30;
 }
 
-.secret-constellation em {
+.stem-stage {
   position: fixed;
-  max-width: 200px;
-  font-size: 0.72rem;
-  color: rgba(253, 224, 71, 0.85);
+  width: min(280px, 34vw);
+  height: min(390px, 56vh);
+  z-index: 18;
   pointer-events: none;
-  animation: float-fact 8s ease-in-out infinite;
-  animation-delay: calc(var(--d) * 0.7s);
+  transition: left 0.7s cubic-bezier(0.22, 1, 0.36, 1), right 0.7s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.7s ease, transform 0.7s ease;
 }
 
-.secret-constellation em:nth-child(1) { top: 18%; left: 8%; }
-.secret-constellation em:nth-child(2) { top: 24%; right: 8%; }
-.secret-constellation em:nth-child(3) { bottom: 22%; left: 12%; }
-.secret-constellation em:nth-child(4) { bottom: 18%; right: 10%; }
+.stem-stage-hit {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+}
 
-@keyframes float-fact {
-  0%, 100% { transform: translateY(0); opacity: 0.7; }
-  50% { transform: translateY(-10px); opacity: 1; }
+.stem-bubble {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 6%;
+  padding: 10px 12px;
+  border-radius: 16px 16px 16px 4px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(167, 139, 250, 0.4);
+  color: #f8fafc;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.stem-nameplate {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #c4b5fd;
+  pointer-events: none;
 }
 
 @media (max-width: 980px) {
   .landing-hero,
-  .landing-play {
+  .pillar-grid,
+  .feature-grid,
+  .step-row,
+  .split,
+  .landing-links {
     grid-template-columns: 1fr;
+    display: grid;
   }
-  .landing-orbit-wrap {
-    height: 340px;
-  }
-  .landing-orbiter {
-    --radius: 130px;
+  .landing-links { display: none; }
+  .landing-orbit-wrap { height: 300px; }
+  .landing-orbiter { --radius: 120px; }
+  .stem-stage {
+    width: 180px;
+    height: 250px;
   }
 }

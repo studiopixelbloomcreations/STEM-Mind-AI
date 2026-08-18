@@ -193,7 +193,11 @@ export class GeminiLiveSession {
           this.isSetupComplete = false;
           console.warn(`[Gemini Live Close] Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
 
-          if (event.code === 1007 && modelIndex < this.modelList.length - 1) {
+          const canFallback =
+            (event.code === 1007 || event.code === 1008 || /not found|not supported/i.test(event.reason || '')) &&
+            modelIndex < this.modelList.length - 1;
+
+          if (canFallback) {
             this.currentModelIndex = modelIndex + 1;
             this._openSocket({ key, systemInstruction, voice, temperature, attemptId: this.connectAttemptId })
               .then(resolveOnce)
@@ -450,19 +454,28 @@ export async function liveAsk({
   systemInstruction,
   prompt,
   images = [],
-  modality = 'TEXT',
+  modality = 'AUDIO',
   temperature = 0.7,
   timeoutMs = 45000,
   voice = DEFAULT_LIVE_VOICE,
 }) {
   const session = new GeminiLiveSession();
-  try {
-    await session.connect({ systemInstruction, modality, temperature, voice });
-    const result = await session.ask(prompt, { images, timeoutMs });
-    return result.text || '';
-  } finally {
-    session.disconnect();
+  const modes = modality === 'TEXT' ? ['TEXT', 'AUDIO'] : ['AUDIO'];
+  let lastError = null;
+
+  for (const mode of modes) {
+    try {
+      await session.connect({ systemInstruction, modality: mode, temperature, voice });
+      const result = await session.ask(prompt, { images, timeoutMs });
+      session.disconnect();
+      return result.text || '';
+    } catch (error) {
+      lastError = error;
+      session.disconnect();
+    }
   }
+
+  throw lastError || new Error('Gemini Live request failed.');
 }
 
 export default GeminiLiveSession;

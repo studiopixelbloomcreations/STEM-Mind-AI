@@ -16,6 +16,15 @@ function RootNavigation() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('app-locked', Boolean(user));
+    document.body.classList.toggle('app-locked', Boolean(user));
+    return () => {
+      document.documentElement.classList.remove('app-locked');
+      document.body.classList.remove('app-locked');
+    };
+  }, [user]);
+
   if (loading) {
     return (
       <div style={styles.loadingScreen}>

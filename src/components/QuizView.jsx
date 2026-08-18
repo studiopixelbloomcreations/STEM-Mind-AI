@@ -5,8 +5,9 @@ import {
   runExplanationAgent, 
   runVisualTeacherAgent, 
   runStepByStepExplanationAgent 
-} from '../harmony/geminiHarmonyEngine';
-import voiceSynthesizer from '../utils/voiceSynthesizer';
+} from '../live/harmonyCouncil';
+import voiceSynthesizer from '../live/liveNarrator';
+import { sanitizeVisualHtml } from '../utils/sanitizeHtml';
 import { 
   Volume2, VolumeX, Sparkles, HelpCircle, Check, X, 
   ChevronRight, Brain, Lightbulb, GraduationCap, Clock,
@@ -68,6 +69,7 @@ export default function QuizView() {
   const [showHint, setShowHint] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [attemptLog, setAttemptLog] = useState([]);
 
 
   // Timer effect
@@ -100,9 +102,9 @@ export default function QuizView() {
       <div style={styles.loadingContainer}>
         <div className="shimmer card-glass" style={styles.loadingCard}>
           <Brain size={48} className="glow-pulse" style={{ color: '#8b5cf6', marginBottom: '24px' }} />
-          <h2 style={{ marginBottom: '8px' }}>Gemini Harmony AI Council is Thinking...</h2>
+          <h2 style={{ marginBottom: '8px' }}>Gemini Live Council is Thinking...</h2>
           <p style={{ color: 'var(--text-secondary)' }}>
-            Gemini Teacher AI, Difficulty AI, Explainer AI, and Exam Coach AI are collaborating to generate your next adaptive question.
+            Live Teacher, Difficulty, Explainer, and Exam Coach agents are collaborating on your next adaptive question.
           </p>
         </div>
       </div>
@@ -113,7 +115,7 @@ export default function QuizView() {
     return (
       <div style={styles.loadingContainer}>
         <div className="card-glass" style={styles.loadingCard}>
-          <h2 style={{ color: '#ef4444', marginBottom: '12px' }}>Gemini Harmony Orchestration Error</h2>
+          <h2 style={{ color: '#ef4444', marginBottom: '12px' }}>Gemini Live Orchestration Error</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
             {currentQuiz.error}
           </p>
@@ -154,13 +156,29 @@ export default function QuizView() {
     // Simple comparison
     const correct = studentAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
     setIsCorrect(correct);
-    
+    const nextScore = quizScore + (correct ? 1 : 0);
     if (correct) {
-      setQuizScore(prev => prev + 1);
+      setQuizScore(nextScore);
       setExplanationExpandedMode(false);
+    }
+
+    setAttemptLog((prev) => [
+      ...prev,
+      {
+        question,
+        questionType,
+        studentAnswer,
+        correctAnswer,
+        correct,
+        difficulty,
+        topic: activeTopic,
+        subject: activeSubject,
+      },
+    ]);
+
+    if (correct) {
       await loadExplanationContent(studentAnswer);
     } else {
-      // Wrong Answer Step-by-Step Full-screen Mode
       await startWrongAnswerExplanation(studentAnswer);
     }
   };
@@ -273,16 +291,19 @@ export default function QuizView() {
   };
 
   const handleNext = async () => {
-    // If we completed 5 questions, save results
+    const latestLog = attemptLog;
+    const correctCount = latestLog.filter((item) => item.correct).length;
+    const incorrectCount = latestLog.filter((item) => !item.correct).length;
+
     if (questionCount >= 5) {
-      const finalScorePercentage = Math.round(((quizScore + (isCorrect ? 1 : 0)) / 5) * 100);
+      const finalScorePercentage = Math.round((correctCount / 5) * 100);
       setCurrentQuiz({ loading: true });
       await recordQuizResult(
         activeStudent.id,
         activeSubject,
         activeTopic,
         difficulty,
-        [], // Empty array for standard metadata schema
+        latestLog,
         finalScorePercentage,
         seconds
       );
@@ -290,7 +311,6 @@ export default function QuizView() {
       return;
     }
 
-    // Otherwise load next adaptive question
     setSubmitted(false);
     setSelectedAnswer('');
     setTypedAnswer('');
@@ -313,18 +333,24 @@ export default function QuizView() {
         activeTopic,
         activeGrade,
         difficulty,
-        { streak: quizScore, history: [] }
+        {
+          streak: correctCount,
+          history: latestLog,
+          correctCount,
+          incorrectCount,
+          avgTime: Math.round(seconds / Math.max(1, latestLog.length)),
+        }
       );
       setCurrentQuiz({
         ...nextQuizPayload,
         loading: false,
-        questionsAttempted: [],
+        questionsAttempted: latestLog,
         currentQuestionIndex: questionCount,
-        score: quizScore,
+        score: correctCount,
         startTime: Date.now()
       });
     } catch {
-      setCurrentQuiz({ error: 'Failed to generate next question from the council.' });
+      setCurrentQuiz({ error: 'Failed to generate next question from the Gemini Live council.' });
     }
   };
 
@@ -425,7 +451,7 @@ export default function QuizView() {
                 <div className="visual-canvas">
                   {teachingSteps[currentTeachingStep] ? (
                     <div 
-                      dangerouslySetInnerHTML={{ __html: teachingSteps[currentTeachingStep].visual }} 
+                      dangerouslySetInnerHTML={{ __html: sanitizeVisualHtml(teachingSteps[currentTeachingStep].visual) }} 
                       style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     />
                   ) : (

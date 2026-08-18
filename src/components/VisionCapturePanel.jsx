@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
   Brain,
@@ -15,12 +15,12 @@ import {
   extractVisionTeachingQuestions,
   runVisualTeacherAgent,
   visionTeachingAnswerFor,
-} from '../harmony/geminiHarmonyEngine';
+} from '../live/harmonyCouncil';
+import { sanitizeVisualHtml } from '../utils/sanitizeHtml';
 import { fileToBase64, formatBytes, MAX_IMAGE_SIZE_BYTES, validateImageFile } from '../utils/visionValidation';
 import { useApp } from '../context/AppContext';
-import voiceSynthesizer from '../utils/voiceSynthesizer';
+import voiceSynthesizer from '../live/liveNarrator';
 import ModelLoadProgress from './ModelLoadProgress';
-import { preloadVisionModels } from '../ml/transformersClient';
 
 const CONSENT_SESSION_KEY = 'vision-camera-consent-v1';
 
@@ -69,10 +69,6 @@ export default function VisionCapturePanel() {
   }, [teachingMode]);
 
   useEffect(() => () => voiceSynthesizer.stop(), []);
-
-  useEffect(() => {
-    preloadVisionModels();
-  }, []);
 
   const stopCamera = () => {
     if (streamRef.current) {
@@ -322,7 +318,6 @@ export default function VisionCapturePanel() {
         fileName: selectedFile.name,
         mimeType: selectedFile.type,
         base64Image,
-        imageFile: selectedFile,
         grade: activeGrade,
       });
       const attempts = await fetchRecentVisionAttempts({ studentId, limit: 6 });
@@ -341,13 +336,13 @@ export default function VisionCapturePanel() {
 
   return (
     <section style={styles.wrapper} className="card-glass vision-panel">
-      <ModelLoadProgress label="Preparing vision models" />
+      <ModelLoadProgress label="Connecting Gemini Live vision" />
       {showConsent && (
         <div style={styles.modalBackdrop}>
           <div style={styles.modal}>
             <h3 style={{ marginBottom: '10px' }}>Camera and Privacy Notice</h3>
             <p style={styles.modalText}>
-              Images are analyzed on your device with Transformers.js (OCR and vision). A copy is stored securely on
+              Gemini Live reads the actual photo, then Visual Teacher walks through it. A copy is stored securely on
               the STEM Mind AI backend for teacher review.
             </p>
             <div style={styles.modalActions}>
@@ -468,7 +463,7 @@ export default function VisionCapturePanel() {
               <div className="visual-canvas" style={styles.visualCanvas}>
                 {teachingSteps[currentTeachingStep]?.visual ? (
                   <div
-                    dangerouslySetInnerHTML={{ __html: teachingSteps[currentTeachingStep].visual }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeVisualHtml(teachingSteps[currentTeachingStep].visual) }}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   />
                 ) : (

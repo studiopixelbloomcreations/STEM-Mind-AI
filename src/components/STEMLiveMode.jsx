@@ -58,6 +58,8 @@ export default function STEMLiveMode() {
   const [booting, setBooting] = useState(true);
   const [isEntering, setIsEntering] = useState(true);
   const [isClosing, setIsClosing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [shareNote, setShareNote] = useState('');
 
   // Refs for audio capturing/processing
   const audioContextRef = useRef(null);
@@ -281,6 +283,29 @@ export default function STEMLiveMode() {
     }
   };
 
+  const shareSession = async () => {
+    const studentName = activeStudent?.name || 'a student';
+    const subject = activeSubject || 'STEM';
+    const topic = activeTopic || 'a live lesson';
+    const summary = `I'm in a STEM Mind AI Live lesson with ${studentName} on ${topic} (${subject}).`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'STEM Mind AI Live', text: summary, url: window.location.origin });
+        setShareNote('Shared');
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(summary);
+        setShareNote('Copied lesson note');
+      } else {
+        setShareNote(summary);
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        setShareNote('Share cancelled');
+      }
+    }
+    window.setTimeout(() => setShareNote(''), 2200);
+  };
+
   const closeLive = () => {
     if (isClosing) return;
     setIsClosing(true);
@@ -418,7 +443,9 @@ export default function STEMLiveMode() {
             setStatus(STATES.idle);
             setWelcomeMessage(`Connected to STEM Live!`);
             // Trigger introductory greeting
-            geminiLiveService.sendTextMessage(`Hello! Introduce yourself to the student Maya.`);
+            geminiLiveService.sendTextMessage(
+              `Hello! Introduce yourself briefly to ${studentName}. You are their STEM teacher. Keep it under 20 words.`
+            );
           } else {
             console.log(`[Gemini Socket Status] ${statusText}`);
           }
@@ -498,7 +525,13 @@ export default function STEMLiveMode() {
       <ModelLoadProgress label="Connecting to Gemini Live Core" />
       <div className="stem-live-vignette" />
       <header className="stem-live-topbar">
-        <button type="button" className="live-icon-btn" aria-label="Open menu">
+        <button
+          type="button"
+          className={`live-icon-btn ${menuOpen ? 'is-on' : ''}`}
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((prev) => !prev)}
+        >
           <Menu size={20} />
         </button>
         <button
@@ -512,6 +545,19 @@ export default function STEMLiveMode() {
           {captionsOn ? <ClosedCaption size={20} /> : <Subtitles size={20} />}
         </button>
       </header>
+
+      {menuOpen ? (
+        <aside className="stem-live-menu" role="dialog" aria-label="Live session menu">
+          <p className="stem-live-menu-kicker">Live session</p>
+          <h3>{activeStudent?.name || 'Student'}</h3>
+          <p>{activeSubject || 'STEM'}{activeTopic ? ` · ${activeTopic}` : ''}</p>
+          <p className="stem-live-menu-status">Status: {status}{shareNote ? ` · ${shareNote}` : ''}</p>
+          <button type="button" className="btn-secondary" onClick={() => setCaptionsOn((prev) => !prev)}>
+            {captionsOn ? 'Hide captions' : 'Show captions'}
+          </button>
+          <button type="button" className="btn-secondary" onClick={closeLive}>End lesson</button>
+        </aside>
+      ) : null}
 
       <main className="stem-live-center">
         <img src={logoImg} alt="STEM Mind AI" className="live-brand-logo" />
@@ -537,7 +583,7 @@ export default function STEMLiveMode() {
         <button type="button" className={`live-control-btn ${isCameraOn ? 'is-on' : ''}`} onClick={toggleCamera} aria-label="Toggle camera">
           {isCameraOn ? <Video size={20} /> : <CameraOff size={20} />}
         </button>
-        <button type="button" className="live-control-btn" aria-label="Share">
+        <button type="button" className={`live-control-btn ${shareNote ? 'is-on' : ''}`} aria-label="Share lesson" onClick={shareSession}>
           <Share2 size={18} />
         </button>
         <div

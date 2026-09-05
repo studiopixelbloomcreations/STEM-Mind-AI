@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from '../icons';
 import { Icon } from '../ui/Icon';
+import { NexLogo } from '../mascot/NexLogo';
 
 export const Footer: React.FC = () => {
   const [showDedication, setShowDedication] = useState(false);
@@ -13,9 +14,12 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
           {/* Brand Column */}
           <div className="md:col-span-5">
-            <span className="text-3xl font-display font-extrabold text-[var(--color-text-primary)] tracking-tight block mb-3">
-              NexLearn<span className="text-[var(--color-accent)]">.</span>
-            </span>
+            <div className="flex items-center gap-2.5 mb-3">
+              <NexLogo size={30} />
+              <span className="text-3xl font-display font-extrabold text-[var(--color-text-primary)] tracking-tight">
+                NexLearn<span className="text-[var(--color-accent)]">.</span>
+              </span>
+            </div>
             <p className="text-sm max-w-sm leading-relaxed mb-6">
               The operating system for personal AI STEM education. Built with quiet confidence for Grades 9–11 students and educators.
             </p>

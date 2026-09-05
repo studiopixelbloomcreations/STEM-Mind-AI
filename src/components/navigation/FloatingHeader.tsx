@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { KeyRound, ShieldCheck, Menu, X } from '../icons';
+import { NexLogo } from '../mascot/NexLogo';
 
 interface NavItem {
   label: string;
@@ -141,8 +142,8 @@ export const FloatingHeader: React.FC = () => {
             }}
             className="cursor-pointer flex items-center gap-2.5 select-none group"
           >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center font-display font-bold text-white shadow-sm transition-transform duration-180 group-hover:scale-105">
-              N
+            <div className="transition-transform duration-180 group-hover:scale-110 shrink-0">
+              <NexLogo size={32} />
             </div>
             <span className="text-lg sm:text-xl font-display font-black tracking-tight text-[var(--color-text-primary)]">
               NexLearn<span className="text-[var(--color-accent)]">.</span>

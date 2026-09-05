@@ -1,43 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { QuestionCard } from '../../components/quiz/QuestionCard';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Button } from '../../components/ui/Button';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Icon } from '../../components/ui/Icon';
+import { NexLogo } from '../../components/mascot/NexLogo';
 import { NexPlaceholder } from '../../components/mascot/NexPlaceholder';
-import { generateQuestionFromCouncil, QuizQuestionPayload } from '../../lib/api/harmony';
-import { X, Sparkles, Flame } from '../../components/icons';
+import {
+  generateQuestionFromCouncil,
+  generateFullSessionConcurrently,
+  SessionQuestion,
+} from '../../lib/api/harmony';
+import { X, Sparkles, Flame, CheckCircle2 } from '../../components/icons';
 
 export const Quiz: React.FC = () => {
   const navigate = useNavigate();
-  const [subject, setSubject] = useState('Physics');
-  const [grade, setGrade] = useState(10);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestionPayload | null>(null);
+  const location = useLocation();
+
+  const [subject, setSubject] = useState<string>('Science');
+  const [grade, setGrade] = useState<number>(10);
+  const [topic, setTopic] = useState<string>('Core Principles');
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+
+  const [sessionQuestions, setSessionQuestions] = useState<SessionQuestion[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [score, setScore] = useState<number>(0);
+  const [streak, setStreak] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
 
   const TOTAL_QUESTIONS = 5;
 
   useEffect(() => {
-    const savedSubject = sessionStorage.getItem('current_quiz_subject') || 'Physics';
+    const savedSubject = sessionStorage.getItem('current_quiz_subject') || 'Science';
     const savedGrade = Number(sessionStorage.getItem('current_quiz_grade')) || 10;
+    const savedDifficulty = (sessionStorage.getItem('current_quiz_difficulty') as any) || 'medium';
+    const savedTopic = sessionStorage.getItem('current_quiz_topic') || 'Core Principles';
+
     setSubject(savedSubject);
     setGrade(savedGrade);
-    loadQuestion(savedSubject, savedGrade, 0);
-  }, []);
+    setDifficulty(savedDifficulty);
+    setTopic(savedTopic);
 
-  const loadQuestion = async (subj: string, grd: number, index: number) => {
-    setLoading(true);
-    try {
-      const q = await generateQuestionFromCouncil(subj, 'Core Principles', grd, 'medium');
-      setCurrentQuestion(q);
-    } finally {
-      setLoading(false);
+    // 1. Check if returning from Teaching or Correction screen
+    const navState = location.state as { resumeFromIndex?: number } | undefined;
+    const resumeIndex = navState?.resumeFromIndex ?? null;
+
+    // 2. Load pre-generated questions from session storage (Section 1.3)
+    const rawQuestions = sessionStorage.getItem('current_quiz_session_questions');
+    if (rawQuestions) {
+      try {
+        const parsed: SessionQuestion[] = JSON.parse(rawQuestions);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSessionQuestions(parsed);
+          setLoading(false);
+          if (resumeIndex !== null) {
+            if (resumeIndex >= parsed.length) {
+              finishSession(score);
+              return;
+            }
+            setCurrentIndex(resumeIndex);
+          }
+          return;
+        }
+      } catch (e) {
+        console.warn('Failed to parse cached session questions:', e);
+      }
     }
-  };
+
+    // 3. Fallback if user navigated directly without loading screen
+    generateFullSessionConcurrently(savedSubject, savedTopic, savedGrade, savedDifficulty)
+      .then((qs) => {
+        setSessionQuestions(qs);
+        sessionStorage.setItem('current_quiz_session_questions', JSON.stringify(qs));
+        if (resumeIndex !== null) {
+          setCurrentIndex(Math.min(qs.length - 1, resumeIndex));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [location.state]);
 
   const handleAnswerSubmit = (isCorrect: boolean) => {
     if (isCorrect) {
@@ -48,22 +89,65 @@ export const Quiz: React.FC = () => {
     }
   };
 
+  const finishSession = (finalScore: number) => {
+    // Record cross-session history for Section 0's adaptive difficulty engine
+    try {
+      const historyStr = localStorage.getItem('nexlearn_performance_history') || '{}';
+      const history = JSON.parse(historyStr);
+      const existing = history[subject] || { correct: 0, totalAnswered: 0, sessions: 0 };
+      existing.correct += finalScore;
+      existing.totalAnswered += TOTAL_QUESTIONS;
+      existing.sessions += 1;
+      history[subject] = existing;
+      localStorage.setItem('nexlearn_performance_history', JSON.stringify(history));
+    } catch (e) {
+      // fallback
+    }
+
+    sessionStorage.setItem('quiz_final_score', String(finalScore));
+    sessionStorage.setItem('quiz_total_count', String(TOTAL_QUESTIONS));
+    sessionStorage.setItem('quiz_subject', subject);
+    navigate('/results');
+  };
+
   const handleNextQuestion = () => {
     const nextIdx = currentIndex + 1;
     if (nextIdx >= TOTAL_QUESTIONS) {
-      // Store final score and navigate to results
-      sessionStorage.setItem('quiz_final_score', String(score));
-      sessionStorage.setItem('quiz_total_count', String(TOTAL_QUESTIONS));
-      sessionStorage.setItem('quiz_subject', subject);
-      navigate('/results');
+      finishSession(score);
     } else {
       setCurrentIndex(nextIdx);
-      loadQuestion(subject, grade, nextIdx);
     }
   };
 
+  const handleGoToTeaching = () => {
+    const currentQ = sessionQuestions[currentIndex];
+    navigate('/session/teach', {
+      state: {
+        question: currentQ,
+        questionIndex: currentIndex,
+        totalQuestions: TOTAL_QUESTIONS,
+        subject,
+      },
+    });
+  };
+
+  const handleGoToCorrection = (userAnswer: string) => {
+    const currentQ = sessionQuestions[currentIndex];
+    navigate('/session/correct', {
+      state: {
+        question: currentQ,
+        userAnswer,
+        questionIndex: currentIndex,
+        totalQuestions: TOTAL_QUESTIONS,
+        subject,
+      },
+    });
+  };
+
+  const activeQuestion = sessionQuestions[currentIndex];
+
   return (
-    <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col p-6 lg:p-12 relative">
+    <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col p-6 lg:p-12 relative font-body select-none">
       {/* Quiz Top Bar */}
       <header className="max-w-4xl w-full mx-auto flex items-center justify-between pb-6 border-b border-[var(--color-border)] mb-8">
         <div className="flex items-center gap-4">
@@ -76,13 +160,16 @@ export const Quiz: React.FC = () => {
           >
             <Icon icon={X} size={18} />
           </Button>
-          <div>
-            <span className="text-xs font-mono text-[var(--color-accent)] uppercase tracking-wider block">
-              {subject} &bull; Adaptive Set
-            </span>
-            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
-              Question {currentIndex + 1} of {TOTAL_QUESTIONS}
-            </h4>
+          <div className="flex items-center gap-3">
+            <NexLogo size={26} />
+            <div>
+              <span className="text-xs font-mono text-[var(--color-accent)] uppercase tracking-wider block font-bold">
+                {subject} &bull; {topic}
+              </span>
+              <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
+                Question {currentIndex + 1} of {TOTAL_QUESTIONS}
+              </h4>
+            </div>
           </div>
         </div>
 
@@ -103,7 +190,7 @@ export const Quiz: React.FC = () => {
 
       {/* Main Question Stage */}
       <main className="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-center">
-        {loading || !currentQuestion ? (
+        {loading || !activeQuestion ? (
           <div className="w-full max-w-3xl mx-auto p-8 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] space-y-6">
             <div className="flex justify-between items-center">
               <Skeleton width="140px" height="20px" />
@@ -123,11 +210,13 @@ export const Quiz: React.FC = () => {
           </div>
         ) : (
           <QuestionCard
-            question={currentQuestion}
+            question={activeQuestion}
             questionIndex={currentIndex}
             totalQuestions={TOTAL_QUESTIONS}
             onAnswerSubmit={handleAnswerSubmit}
             onNextQuestion={handleNextQuestion}
+            onGoToTeaching={handleGoToTeaching}
+            onGoToCorrection={handleGoToCorrection}
           />
         )}
       </main>
@@ -137,8 +226,8 @@ export const Quiz: React.FC = () => {
         <div className="relative p-2 rounded-xl bg-[var(--color-bg-surface)] backdrop-blur border border-[var(--color-border)] shadow-md flex items-center gap-3 pr-4 pointer-events-auto">
           <NexPlaceholder size={52} />
           <div className="text-left">
-            <span className="text-[10px] font-mono text-[var(--color-accent)] block font-bold">NEX LISTENING</span>
-            <span className="text-xs font-medium text-[var(--color-text-primary)]">Focus &bull; Take your time</span>
+            <span className="text-[10px] font-mono text-[var(--color-accent)] block font-bold">NEX TUTOR ONLINE</span>
+            <span className="text-xs font-medium text-[var(--color-text-primary)]">Ready to explain if stuck</span>
           </div>
         </div>
       </div>

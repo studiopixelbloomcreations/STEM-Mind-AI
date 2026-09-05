@@ -292,7 +292,22 @@ class VoiceSynthesizer {
         );
       })
       .catch((error) => {
-        console.error('Gemini native audio narration failed:', error);
+        console.warn('Gemini native audio narration fallback to Web Speech API:', error);
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(trimmed);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.05;
+            utterance.onstart = () => onStartCallback?.();
+            utterance.onend = () => onEndCallback?.();
+            utterance.onerror = () => onEndCallback?.();
+            window.speechSynthesis.speak(utterance);
+            return;
+          } catch (speechErr) {
+            console.warn('SpeechSynthesis fallback also failed:', speechErr);
+          }
+        }
         onEndCallback?.();
       });
   }

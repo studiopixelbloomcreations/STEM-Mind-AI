@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
 import { NexPlaceholder } from '../../components/mascot/NexPlaceholder';
+import { NexLogo } from '../../components/mascot/NexLogo';
 import { LiveNexLearnModal } from '../../components/live/LiveNexLearnModal';
 import {
   Atom,
@@ -20,9 +21,14 @@ import {
   Radio,
   BookOpen,
   Key,
+  Binary,
 } from '../../components/icons';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { StudentRecord } from '../../lib/api/database';
+import {
+  getDefaultGrade9Subjects,
+  getDefaultGrade10or11Subjects,
+} from '../../lib/curriculum';
 
 export const LearningHub: React.FC = () => {
   const navigate = useNavigate();
@@ -96,31 +102,38 @@ export const LearningHub: React.FC = () => {
     }
   }, []);
 
-  // Default subject representations if student has custom curriculum subjects
-  const defaultSubjects = [
-    { name: 'Science', icon: Atom, units: 'Physics, Chemistry, Biology Units', mastery: 84 },
-    { name: 'Mathematics', icon: Calculator, units: 'Algebra, Geometry, Trigonometry', mastery: 76 },
-    { name: 'English', icon: BookOpen, units: 'Comprehension, Grammar, Essay', mastery: 88 },
-    { name: 'History', icon: BookOpen, units: 'Ancient Civilizations & Kingdom Era', mastery: 70 },
-  ];
+  const getSubjectIcon = (name: string) => {
+    const lower = name.toLowerCase();
+    if (lower.includes('math')) return Calculator;
+    if (lower.includes('science') || lower.includes('physic') || lower.includes('chem')) return Atom;
+    if (lower.includes('bio') || lower.includes('health')) return Dna;
+    if (lower.includes('ict') || lower.includes('tech') || lower.includes('pts')) return Binary;
+    if (lower.includes('art') || lower.includes('music') || lower.includes('dance') || lower.includes('religion')) return Sparkles;
+    return BookOpen;
+  };
 
-  const subjectsToDisplay =
+  const rawSubjects =
     student.subjects && student.subjects.length > 0
-      ? student.subjects.slice(0, 6).map((sub, i) => {
-          const icons = [Atom, Calculator, FlaskConical, Dna, BookOpen];
-          return {
-            name: sub.name,
-            icon: icons[i % icons.length],
-            units: sub.category ? `${sub.category.toUpperCase()} MODULE` : 'Curriculum Unit',
-            mastery: 75 + (i * 4) % 20,
-          };
-        })
-      : defaultSubjects;
+      ? student.subjects
+      : (student.grade === 9 ? getDefaultGrade9Subjects() : getDefaultGrade10or11Subjects()).map((s) => ({
+          name: s.name,
+          category: s.category,
+        }));
 
-  const handleStartSession = () => {
-    sessionStorage.setItem('current_quiz_subject', selectedSubject);
+  const subjectsToDisplay = rawSubjects.map((sub, i) => {
+    return {
+      name: sub.name,
+      icon: getSubjectIcon(sub.name),
+      units: sub.category ? `${sub.category.toUpperCase()} MODULE` : 'Curriculum Standard Unit',
+      mastery: 72 + ((i * 7) % 24),
+    };
+  });
+
+  const handleStartSession = (subjectName?: string) => {
+    const target = subjectName || selectedSubject || (subjectsToDisplay[0]?.name ?? 'Science');
+    sessionStorage.setItem('current_quiz_subject', target);
     sessionStorage.setItem('current_quiz_grade', String(student.grade));
-    navigate('/quiz');
+    navigate('/session/setup', { state: { subject: target, grade: student.grade } });
   };
 
   const handleLogout = () => {
@@ -133,12 +146,15 @@ export const LearningHub: React.FC = () => {
       {/* Top Bar */}
       <header className="max-w-7xl w-full mx-auto flex items-center justify-between pb-6 border-b border-[var(--color-border)] mb-10">
         <div className="flex items-center gap-3">
-          <span
+          <div
             onClick={() => navigate('/')}
-            className="text-2xl font-display font-black text-[var(--color-text-primary)] cursor-pointer tracking-tight"
+            className="flex items-center gap-2 cursor-pointer select-none group"
           >
-            NexLearn<span className="text-[var(--color-accent)]">.</span>
-          </span>
+            <NexLogo size={28} className="transition-transform group-hover:scale-105" />
+            <span className="text-2xl font-display font-black text-[var(--color-text-primary)] tracking-tight">
+              NexLearn<span className="text-[var(--color-accent)]">.</span>
+            </span>
+          </div>
           <Badge variant="default">Grade {student.grade} Student Hub</Badge>
           {student.access_token && (
             <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[11px] font-mono text-[var(--color-text-secondary)]">
@@ -296,12 +312,12 @@ export const LearningHub: React.FC = () => {
                           variant="primary"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleStartSession();
+                            handleStartSession(sub.name);
                           }}
                           className="gap-1.5 text-xs"
                         >
                           <Icon icon={Play} size={13} />
-                          <span>Start Quiz</span>
+                          <span>Configure Session</span>
                         </Button>
                       </div>
                     )}

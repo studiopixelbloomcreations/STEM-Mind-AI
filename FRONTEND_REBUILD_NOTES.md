@@ -292,5 +292,52 @@ Expanded the landing page to 10 sequential sections adhering strictly to the des
 9. **Final CTA (`FinalCtaSection.tsx`)**
 10. **Footer (`Footer.tsx`)**
 
+---
+
+## 7. Phase 9: Full Learning Session Flow, Live Teacher Screens, Real Vision & Branding
+
+### 1. Curriculum Registration in Learning Hub
+- `LearningHub.tsx` maps and presents all of the student's registered subjects:
+  - **Grade 9:** Exactly 13 compulsory national syllabus subjects.
+  - **Grades 10 & 11:** 6 core subjects + 3 chosen basket electives (strictly 9 subjects).
+- Subject cards now launch into the dedicated setup sequence via `/session/setup?subject=...`.
+
+### 2. Upfront Session Setup & Parallel Generation
+- **Difficulty & Topic Selection (`/session/setup`):**
+  - Select from Easy, Medium, or Hard with visual indicator of historical baseline mastery.
+  - Generates 5 syllabus topics via `fetchTopicSuggestions(subject, grade)` powered by `gemini-3.6-flash`.
+  - Includes "Choose for me" automated selection and "Regenerate topics".
+- **Session Loading (`/session/loading`):**
+  - Features the looping Nex mascot animation (subtle bobbing, blinking, and ambient radar pulse).
+  - Parallel generation of all 5 session questions via `generateFullSessionConcurrently` with `Promise.all`.
+  - Generates questions, answer choices, contextual hints, general methodology approach notes, and structured teaching steps.
+  - Real percentage progress counter (0% to 100%) with 12s timeout guard. Automatically transitions to `/quiz`.
+
+### 3. Integrated Quiz & Dedicated Teacher Screens
+- **Question Card & Approach Note (`QuestionCard.tsx`):**
+  - Displays visible "How to approach this" panel outlining general strategy without giving away the answer.
+  - "I don't know how to solve" launches directly into the dedicated teaching room.
+- **Dedicated Teaching Screen (`/session/teach`):**
+  - Distraction-free, full-screen whiteboard environment.
+  - Warm, caring Nex teacher persona.
+  - Synchronized auto-advancing voice narration with step-by-step whiteboard derivations.
+  - Manual step navigation, replay speech controls, and safe return back to the active quiz.
+- **Dedicated Correction Screen (`/session/correct`):**
+  - Detailed diagnostic on why the submitted answer was wrong.
+  - Side-by-side conceptual breakdown showing where student intuition diverged from syllabus mechanics.
+  - Voice narration explaining the corrective insight before returning to the quiz.
+- **Cross-Session Adaptive Tracking:**
+  - Saves completed session accuracy, timing, and errors to `localStorage['nexlearn_performance_history']`, dynamically adjusting the student's baseline difficulty for subsequent sessions.
+
+### 4. Real Multimodal Vision Pipeline
+- **Picture-in-Picture Preview in `LiveNexLearnModal.tsx`:** Renders live video stream from student's webcam or screen share.
+- **High-Resolution Frame Capture:** Offscreen canvas generates 1280x720 snapshots at 0.75 JPEG compression.
+- **"Snap & Send" Action:** Dispatches snapshot media payload directly to the Gemini Live multimodal WebSocket session with specialized prompt context for handwritten notes and diagrams.
+
+### 5. Official Mascot Branding & Favicons
+- **`NexLogo.tsx`:** Standardized SVG mascot logo component with animated glow, replacing placeholder lettermarks across header and footer.
+- **Brand Favicons:** Vector SVG favicon (`favicon.svg`) and multi-resolution raster icons (`favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`) integrated into `index.html`.
+
+
 
 

@@ -94,3 +94,54 @@ The landing page (`src/app/routes/Landing.tsx`) was expanded to 10 structured se
 - [x] **Audio Performance:** Web AudioWorklet successfully replaces main-thread ScriptProcessor.
 - [x] **Camera Robustness:** 8-second camera acquisition guard with graceful degradation to voice mode.
 - [x] **Authentic Content:** Zero placeholder testimonials, fabricated star ratings, or invented student numbers.
+
+---
+
+## 6. Phase 9: Full Learning Session Flow, Live Teacher Screens, Real Vision & Branding Audit
+
+### 6.1 Section 0 — Difficulty Adaptivity Architecture
+- **Design Tension:** Upfront 5-question generation prevents within-session adaptive difficulty branching based on unsubmitted answers.
+- **Architectural Resolution:**
+  1. **Historical Baseline:** `SessionSetup` queries `localStorage['nexlearn_performance_history']` for the subject's mastery track record (accuracy ≥ 85% &rarr; Hard, ≥ 60% &rarr; Medium, < 60% &rarr; Easy).
+  2. **Intra-Session Progression:** Questions follow a graded curve (Q1 baseline, Q2-Q4 core application, Q5 synthesis/extension).
+  3. **Cross-Session Adaptation:** Quiz completions record accuracy, hesitations, and missed concepts into `nexlearn_performance_history`, immediately adjusting subsequent session baselines.
+
+### 6.2 Section 1 — Full 6-Stage Learning Session Lifecycle
+1. **Curriculum-Accurate Hub (`LearningHub.tsx`):**
+   - Displays student's actual registered curriculum (13 compulsory subjects for Grade 9; 6 core + 3 basket electives for Grades 10–11).
+   - Subject cards route directly into `/session/setup?subject=...`.
+2. **Setup Screen (`/session/setup` — `SessionSetup.tsx`):**
+   - 3-level difficulty selector (Easy, Medium, Hard) with historical baseline indicator.
+   - Dynamic 5 syllabus topics fetched in parallel via `fetchTopicSuggestions(subject, grade)` powered by `gemini-3.6-flash`.
+   - "Choose for me" automated selection and "Regenerate topics" controls.
+3. **Session Loading Screen (`/session/loading` — `SessionLoading.tsx`):**
+   - Animated mascot with gentle bobbing, eye blinking, and ambient radar sweep.
+   - High-throughput parallel generation via `generateFullSessionConcurrently` (`Promise.all`), generating all 5 questions + hints + how-to-approach notes + teaching steps in ~2.5s.
+   - Real-time progress bar (0% to 100%) with timeout guard (12s) and retry state. Never presents an infinite spinner.
+   - Automatic redirect to `/quiz` upon completion.
+4. **Active Assessment Screen (`/quiz` — `Quiz.tsx` & `QuestionCard.tsx`):**
+   - Visible "How to approach this" methodology guide on every question (never leaks the specific answer).
+   - "I don't know how to solve" button branches immediately to `/session/teach`.
+   - Incorrect answers branch immediately to `/session/correct`.
+5. **Dedicated Teaching Screen (`/session/teach` — `DedicatedTeachingScreen.tsx`):**
+   - Full-screen distraction-free tutoring room with caring, encouraging Nex persona.
+   - Step-by-step whiteboard derivation with auto-advancing synchronized voice narration.
+   - Audio synthesized via `synthesizeSpeech` (Gemini audio with browser SpeechSynthesis fallback).
+   - Manual next, previous, replay audio, and return-to-quiz controls.
+6. **Dedicated Answer-Correction Screen (`/session/correct` — `DedicatedCorrectionScreen.tsx`):**
+   - Diagnoses why the selected choice was incorrect, contrasting student intuition against syllabus derivation.
+   - Audio narration guides the student through the root misunderstanding before resuming the session.
+
+### 6.3 Section 2 — Real Multimodal Vision & Screen Share Pipeline
+- **Picture-in-Picture Preview Window:** Live video element rendered in `LiveNexLearnModal.tsx` displaying the student's webcam desk view or shared screen.
+- **High-Resolution Frame Capture:** Off-screen canvas captures 1280x720 frames at 0.75 compression quality (`image/jpeg`) on demand.
+- **Explicit "Snap & Send" Trigger:** Transmits base64 image data payload directly to Gemini Live multimodal WebSocket session (`realtimeInput.mediaChunks`).
+- **Vision-Optimized System Instruction:** Informs Nex of student's physical desk view, encouraging detailed feedback on handwritten working steps, graphs, and textbook exercises.
+
+### 6.4 Section 3 — Branding System Overhaul
+- **Mascot Brand Mark (`NexLogo.tsx`):** Replaced generic geometric placeholder lettermarks in `FloatingHeader.tsx` and `Footer.tsx` with the official Nex mascot SVG.
+- **High-DPI Vector & Raster Favicons:**
+  - `public/favicon.svg`: Scalable vector mascot favicon.
+  - `public/favicon-16x16.png` & `public/favicon-32x32.png`: Crisp raster icons for browser tabs.
+  - `public/apple-touch-icon.png`: 180x180 iOS touch icon.
+  - Updated `index.html` headers to reference all standardized brand icon assets.

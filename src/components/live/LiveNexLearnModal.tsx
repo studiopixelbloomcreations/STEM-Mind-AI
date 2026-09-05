@@ -74,6 +74,8 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
   const [caption, setCaption] = useState<Caption | null>(null);
   const [audioLevels, setAudioLevels] = useState<number[]>(new Array(16).fill(12));
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [snapshotCount, setSnapshotCount] = useState<number>(0);
+  const [showSnapshotFlash, setShowSnapshotFlash] = useState<boolean>(false);
 
   // Media & Web Audio references
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -278,20 +280,28 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
     }
   };
 
-  // Video Frame Grabber for Gemini Multimodal
+  // Video Frame Grabber for Gemini Multimodal (Section 2)
   const captureAndSendVideoFrame = useCallback(() => {
     if (!videoElementRef.current) return;
     try {
+      const video = videoElementRef.current;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
       const canvas = document.createElement('canvas');
-      canvas.width = 640;
-      canvas.height = 360;
+      // High-resolution capture (up to 1280x720) so handwritten math and diagrams are crisp
+      const maxDim = 1280;
+      const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+      canvas.width = Math.round(video.videoWidth * scale) || 640;
+      canvas.height = Math.round(video.videoHeight * scale) || 360;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-      ctx.drawImage(videoElementRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
       const base64 = dataUrl.split(',')[1];
       if (base64 && geminiLiveService.isReady()) {
         geminiLiveService.sendVideoFrame(base64);
+        setSnapshotCount((c) => c + 1);
       }
     } catch (e) {
       console.warn('Frame capture notice:', e);
@@ -448,9 +458,13 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
         }
       });
 
-      const systemPrompt = `You are Nex, a world-class, engaging AI STEM tutor on the NexLearn platform teaching Grade ${grade} ${subject} according to the Sri Lankan National Curriculum.
-You are in a live, spoken conversation.
-Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), and interactive. Ask guiding questions to help the student reach the solution themselves.`;
+      const systemPrompt = `You are Nex, a world-class, caring AI STEM tutor on the NexLearn platform teaching Grade ${grade} ${subject} according to the Sri Lankan National Curriculum.
+You are in a live, spoken multimodal conversation with real-time audio and vision.
+CRITICAL MULTIMODAL INSTRUCTIONS:
+1. The student may stream their webcam or screen share (e.g. pointing their camera at handwritten calculations, textbook questions, paper drawings, or sharing problems on their screen).
+2. When image or video frames arrive, actively inspect what is physically visible in the image (read handwritten equations, variables, graphs, or text) and comment on what you see in the frame.
+3. If the student asks a question about their work or what is on screen, give specific, observant feedback on the actual content shown.
+4. Keep spoken responses warm, encouraging, concise (1-3 sentences per turn), and interactive. Ask guiding questions to help the student reach the solution themselves.`;
 
       await geminiLiveService.connect(systemPrompt);
       setStatus('listening');
@@ -584,29 +598,61 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
             )}
           </AnimatePresence>
 
-          {/* Camera / Screen Share Video Feed (Full Stage Overlay) */}
-          {isVideoActive && (
-            <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
-              <video
-                ref={videoElementRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-contain"
-              />
-              <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-mono text-white/90 border border-white/10 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[var(--color-danger)]" />
-                <span>{isScreenSharing ? 'Sharing Screen with Nex' : 'Camera Streaming'}</span>
-              </div>
-            </div>
-          )}
+          {/* Real Live Self-View Picture-in-Picture Preview Window (Section 2) */}
+          <AnimatePresence>
+            {isVideoActive && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="absolute bottom-20 right-6 z-30 w-72 sm:w-80 rounded-xl overflow-hidden bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-2xl liquid-glass"
+              >
+                {/* Header bar of self-view */}
+                <div className="px-3 py-2 border-b border-[var(--color-border)] bg-[var(--color-bg-surface-alt)] flex items-center justify-between text-xs font-mono">
+                  <div className="flex items-center gap-2 text-[var(--color-text-primary)] font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-[var(--color-danger)] animate-pulse" />
+                    <span>{isScreenSharing ? 'Screen Share Feed' : 'Webcam Self-View'}</span>
+                  </div>
+                  <span className="text-[10px] text-[var(--color-text-secondary)]">Live Preview</span>
+                </div>
+
+                {/* Video feed element */}
+                <div className="relative aspect-video bg-black flex items-center justify-center overflow-hidden">
+                  <video
+                    ref={videoElementRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`w-full h-full object-cover ${isVideoOn ? '-scale-x-100' : ''}`}
+                  />
+                  {showSnapshotFlash && (
+                    <div className="absolute inset-0 bg-white/40 pointer-events-none animate-ping" />
+                  )}
+                </div>
+
+                {/* Snapshot & Stream Action Bar */}
+                <div className="p-2.5 bg-[var(--color-bg-surface)] border-t border-[var(--color-border)] flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-mono text-[var(--color-text-secondary)] truncate">
+                    {snapshotCount > 0 ? `${snapshotCount} frames sent to Nex` : 'Aim at paper or problem'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      captureAndSendVideoFrame();
+                      setShowSnapshotFlash(true);
+                      setTimeout(() => setShowSnapshotFlash(false), 350);
+                    }}
+                    className="px-2.5 py-1 rounded bg-[var(--color-accent)] text-white text-[11px] font-mono font-bold hover:brightness-110 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Snap &amp; Send</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Central AI Avatar / Visualizer Stage */}
-          <div
-            className={`relative z-10 flex flex-col items-center justify-center text-center transition-all duration-300 ${
-              isVideoActive ? 'scale-75 translate-y-[-40px] drop-shadow-xl' : ''
-            }`}
-          >
+          <div className="relative z-10 flex flex-col items-center justify-center text-center transition-all duration-300">
             {/* Avatar Orb */}
             <div className="relative w-40 h-40 flex items-center justify-center">
               {/* Inner Nexus Sphere */}

@@ -181,6 +181,54 @@ JSON Format:
 }
 
 /**
+ * Generates an all-in-one question payload for Phase 9:
+ * Question + progressive hint + "how to approach" technique note + deconstructed teaching steps.
+ */
+export async function generateSingleSessionQuestion(subject, topic, grade, difficulty, questionNumber = 1) {
+  const provider = 'teacher';
+  const prompt = `You are the Teacher AI for NexLearn, an adaptive STEM platform aligned with the Sri Lankan National Curriculum (Grade ${grade}).
+Subject: "${subject}"
+Topic: "${topic}"
+Baseline Difficulty: "${difficulty}"
+Question Index: Question ${questionNumber} of 5.
+
+Generate a distinct Question #${questionNumber} for this session, including a progressive hint, a general "How to approach this" technique note, and step-by-step whiteboard teaching derivations.
+
+MANDATORY SPECIFICATIONS:
+1. "howToApproach": Exactly 2-3 sentences explaining the general method/technique for solving this category of problem (e.g. formula derivation, balance method, diagram interpretation). MUST NOT reveal the specific answer or calculate the specific values for this question!
+2. "teachingSteps": Exactly 3-4 sequential steps for a student who clicks "I don't know how to solve".
+   Each step must have:
+   - "stepNumber": 1, 2, 3...
+   - "title": Short step heading (e.g. "Identify Given Quantities", "Select Governing Law", "Evaluate Final Result")
+   - "visual": Clean HTML snippet with inline styling for a whiteboard card (equations, formulas, highlighted cards, step badges)
+   - "speech": Sweet, patient, caring voice narration text (2-3 spoken sentences in a warm, encouraging teacher voice, explaining clearly)
+3. "choices": Exactly 4 options for MCQ with 1 clear correct answer and 3 plausible misconception distractors.
+
+Return ONLY a raw JSON object with NO markdown ticks:
+{
+  "question": "Question text here",
+  "questionType": "MCQ",
+  "choices": ["Choice A", "Choice B", "Choice C", "Choice D"],
+  "correctAnswer": "Exact matching string from choices",
+  "hint": "Gentle conceptual clue without giving away the answer",
+  "howToApproach": "General method note for this category of problem",
+  "syllabusRef": "Grade ${grade} ${subject} — ${topic}",
+  "difficulty": "${difficulty}",
+  "teachingSteps": [
+    {
+      "stepNumber": 1,
+      "title": "Step 1 Title",
+      "visual": "<div style=\\"padding:12px; border:1px solid #333; border-radius:8px; text-align:center;\\">...</div>",
+      "speech": "Let us look at what we are given in this problem..."
+    }
+  ]
+}`;
+
+  const response = await callProvider(provider, [{ role: 'user', content: prompt }], { type: 'json_object' }, 0.65);
+  return JSON.parse(cleanJsonText(response));
+}
+
+/**
  * 2. DIFFICULTY AI: Evaluates current student stats and calculates adaptive offsets.
  */
 export async function runDifficultyAgent(studentPerformance, currentDifficulty) {

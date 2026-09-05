@@ -490,6 +490,22 @@ export const Volume2 = createIcon('Volume2', () => (
   </>
 ));
 
+export const VolumeX = createIcon('VolumeX', () => (
+  <>
+    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+    <line x1="23" y1="9" x2="17" y2="15" />
+    <line x1="17" y1="9" x2="23" y2="15" />
+  </>
+));
+
+export const XCircle = createIcon('XCircle', () => (
+  <>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="15" y1="9" x2="9" y2="15" />
+    <line x1="9" y1="9" x2="15" y2="15" />
+  </>
+));
+
 export const MessageSquare = createIcon('MessageSquare', () => (
   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 ));

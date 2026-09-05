@@ -8,14 +8,16 @@ import { Lightbulb, HelpCircle, X, Sparkles } from '../icons';
 import { AnswerInput } from './AnswerInput';
 import { StuckButton } from './StuckButton';
 import { FeedbackBanner } from './FeedbackBanner';
-import { QuizQuestionPayload, TeachingStep, explainWrongAnswer } from '../../lib/api/harmony';
+import { QuizQuestionPayload, TeachingStep, SessionQuestion, explainWrongAnswer } from '../../lib/api/harmony';
 
 export interface QuestionCardProps {
-  question: QuizQuestionPayload;
+  question: QuizQuestionPayload | SessionQuestion;
   questionIndex: number;
   totalQuestions: number;
   onAnswerSubmit: (isCorrect: boolean) => void;
   onNextQuestion: () => void;
+  onGoToTeaching?: () => void;
+  onGoToCorrection?: (userAnswer: string) => void;
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -123,7 +125,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     } else {
       setSubmissionState('incorrect');
       onAnswerSubmit(false);
-      // Fetch step-by-step repair
+      if (onGoToCorrection) {
+        onGoToCorrection(userAnswer);
+        return;
+      }
+      // Fetch step-by-step repair fallback
       setIsLoadingSteps(true);
       try {
         const steps = await explainWrongAnswer(question.question, question.correctAnswer, userAnswer);
@@ -135,6 +141,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   const handleStuck = async () => {
+    if (onGoToTeaching) {
+      onGoToTeaching();
+      return;
+    }
     setSubmissionState('teaching');
     setIsLoadingSteps(true);
     try {
@@ -159,6 +169,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {question.difficulty || 'Medium'}
         </Badge>
       </div>
+
+      {/* Visible "How to approach this" Section (Section 1.4) */}
+      {(question as any).howToApproach && (
+        <div className="mb-6 p-4 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] flex items-start gap-3 text-xs">
+          <div className="p-1.5 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-[var(--color-accent)] shrink-0 mt-0.5">
+            <Icon icon={Lightbulb} size={15} />
+          </div>
+          <div className="space-y-0.5 min-w-0">
+            <span className="font-display font-bold text-[var(--color-text-primary)] block">
+              How to approach this:
+            </span>
+            <p className="text-[var(--color-text-secondary)] font-body leading-relaxed">
+              {(question as any).howToApproach}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Question Text */}
       <h3 className="text-xl lg:text-2xl font-display font-bold text-[var(--color-text-primary)] mb-8 leading-snug">

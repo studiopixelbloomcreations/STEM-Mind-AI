@@ -18,11 +18,16 @@ export const MODEL_PREFERENCES: Record<AICapability, string[]> = {
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite',
     'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-2.5-pro',
+    'gemini-pro',
+    'gemini-1.0-pro',
   ],
   liveVoice: [
     'gemini-3.1-flash-live',
     'gemini-2.5-flash-native-audio-preview-12-2025',
     'gemini-2.5-flash-native-audio-preview-09-2025',
+    'gemini-2.0-flash-exp',
   ],
   tts: [
     'gemini-3.1-flash-tts',
@@ -34,8 +39,10 @@ export const MODEL_PREFERENCES: Record<AICapability, string[]> = {
   ],
   vision: [
     'gemini-3.6-flash',
+    'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
+    'gemini-1.5-pro',
   ],
 };
 
@@ -154,16 +161,37 @@ export async function refreshModelRegistry(): Promise<void> {
 
     for (const cap of capabilities) {
       const preferred = MODEL_PREFERENCES[cap];
+      const chainSet = new Set<string>();
+
+      // 1. Preferred models in priority order
+      preferred.forEach((m) => chainSet.add(normalizeModelId(m)));
+
+      // 2. Discover any additional models from liveModels that can serve this capability
       if (liveModels.length > 0) {
-        // Filter preferred list down to live available models, preserving preference order
-        const filtered = preferred.filter((modelId) =>
-          liveModels.includes(normalizeModelId(modelId))
-        );
-        // If at least one preferred model is live, use filtered; else keep full preference list as fallback
-        newChains[cap] = filtered.length > 0 ? filtered : preferred;
-      } else {
-        newChains[cap] = preferred;
+        if (cap === 'textGeneration') {
+          liveModels
+            .filter((m) => m.includes('gemini') && !m.includes('embedding') && !m.includes('tts') && !m.includes('transcribe') && !m.includes('imagen'))
+            .forEach((m) => chainSet.add(m));
+        } else if (cap === 'liveVoice') {
+          liveModels
+            .filter((m) => m.includes('live') || m.includes('audio-preview'))
+            .forEach((m) => chainSet.add(m));
+        } else if (cap === 'tts') {
+          liveModels
+            .filter((m) => m.includes('tts'))
+            .forEach((m) => chainSet.add(m));
+        } else if (cap === 'transcription') {
+          liveModels
+            .filter((m) => m.includes('transcribe') || m.includes('audio-preview'))
+            .forEach((m) => chainSet.add(m));
+        } else if (cap === 'vision') {
+          liveModels
+            .filter((m) => m.includes('gemini') && !m.includes('embedding') && !m.includes('tts') && !m.includes('transcribe'))
+            .forEach((m) => chainSet.add(m));
+        }
       }
+
+      newChains[cap] = Array.from(chainSet);
     }
 
     saveRegistryCache(liveModels, newChains);

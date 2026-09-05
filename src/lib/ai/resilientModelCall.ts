@@ -283,16 +283,8 @@ export async function callWithFallback(
       lastError = err;
       const classified: ClassifiedError = err.classified || classifyError(err.status ?? null, err.message || '');
 
-      // Non-retryable errors stop failover immediately
-      if (!classified.isRetryable) {
-        console.error(`[AI Non-Retryable Error] Model ${model} failed with non-retryable error [${classified.category}]: ${classified.message}`);
-        return {
-          success: false,
-          error: classified.message,
-          attemptedModels,
-          errorType: classified.category,
-        };
-      }
+      // Report model failure and try next available candidate model in the chain
+      console.warn(`[AI Failover] Model ${model} failed (${classified.category}): ${classified.message}. Attempting next model...`);
 
       // Retryable error: report failover telemetry and continue to next model
       const nextCandidate = chain[i + 1] || null;

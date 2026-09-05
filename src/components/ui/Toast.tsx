@@ -43,24 +43,24 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               initial={{ opacity: 0, y: 20, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 15, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] shadow-2xl backdrop-blur-xl text-xs font-medium text-white max-w-sm"
+              transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
+              className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] shadow-[var(--shadow-overlay)] text-xs font-medium text-[var(--color-text-primary)] max-w-sm"
             >
               <Icon
                 icon={t.type === 'success' ? CheckCircle2 : t.type === 'error' ? AlertCircle : Info}
                 size={16}
                 className={
                   t.type === 'success'
-                    ? 'text-emerald-400'
+                    ? 'text-[var(--color-success)]'
                     : t.type === 'error'
-                    ? 'text-red-400'
-                    : 'text-indigo-400'
+                    ? 'text-[var(--color-danger)]'
+                    : 'text-[var(--color-accent)]'
                 }
               />
               <span className="leading-snug">{t.message}</span>
               <button
                 onClick={() => removeToast(t.id)}
-                className="ml-2 text-slate-400 hover:text-white"
+                className="ml-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] p-0.5 rounded transition-colors"
               >
                 <Icon icon={X} size={13} />
               </button>

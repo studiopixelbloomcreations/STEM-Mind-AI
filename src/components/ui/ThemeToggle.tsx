@@ -9,23 +9,23 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className = '' }
   return (
     <motion.button
       type="button"
-      whileHover={{ scale: 1.06 }}
-      whileTap={{ scale: 0.94 }}
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       onClick={toggleTheme}
       title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
       aria-label={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-      className={`p-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer flex items-center justify-center relative overflow-hidden shadow-sm ${className}`}
+      className={`p-2 rounded-full border border-[var(--color-border)] bg-[var(--color-bg-surface)] hover:bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors cursor-pointer flex items-center justify-center relative overflow-hidden ${className}`}
     >
-      <div className="relative w-5 h-5 flex items-center justify-center">
+      <div className="relative w-4 h-4 flex items-center justify-center">
         {/* Sun Icon */}
         <motion.svg
           xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.75"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           initial={false}
@@ -34,8 +34,8 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className = '' }
             rotate: isLight ? 0 : 90,
             opacity: isLight ? 1 : 0,
           }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute text-amber-500"
+          transition={{ duration: 0.22, ease: [0.65, 0, 0.35, 1] }}
+          className="absolute text-[var(--color-accent)]"
         >
           <circle cx="12" cy="12" r="5" />
           <line x1="12" y1="1" x2="12" y2="3" />
@@ -51,12 +51,12 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className = '' }
         {/* Moon Icon */}
         <motion.svg
           xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.75"
+          strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           initial={false}
@@ -65,8 +65,8 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className = '' }
             rotate: isLight ? -90 : 0,
             opacity: isLight ? 0 : 1,
           }}
-          transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute text-indigo-400"
+          transition={{ duration: 0.22, ease: [0.65, 0, 0.35, 1] }}
+          className="absolute text-[var(--color-text-secondary)]"
         >
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </motion.svg>

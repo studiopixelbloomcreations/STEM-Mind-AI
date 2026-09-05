@@ -56,13 +56,10 @@ export const StudentLogin: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col relative overflow-hidden">
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[400px] bg-gradient-to-tr from-indigo-600/15 via-purple-600/10 to-transparent blur-3xl pointer-events-none" />
-
       {/* Header */}
-      <header className="max-w-6xl w-full mx-auto px-6 py-6 flex items-center justify-between relative z-10">
+      <header className="max-w-6xl w-full mx-auto px-6 py-6 flex items-center justify-between relative z-10 border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-9 h-9 rounded-xl bg-[var(--color-accent-primary)] flex items-center justify-center font-display font-bold text-white shadow-lg shadow-orange-500/20">
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center font-display font-bold text-white shadow-sm">
             N
           </div>
           <span className="font-display font-bold text-lg text-[var(--color-text-primary)] tracking-tight">NexLearn</span>
@@ -82,13 +79,13 @@ export const StudentLogin: React.FC = () => {
       {/* Main Card */}
       <main className="max-w-md w-full mx-auto px-6 py-12 flex-1 flex flex-col justify-center relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
         >
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <Icon icon={KeyRound} size={28} />
+            <div className="w-12 h-12 rounded-xl bg-[var(--color-bg-surface-alt)] text-[var(--color-accent)] border border-[var(--color-border)] flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <Icon icon={KeyRound} size={24} />
             </div>
             <h1 className="text-3xl font-display font-bold text-[var(--color-text-primary)] tracking-tight mb-2">
               Student Access
@@ -98,10 +95,10 @@ export const StudentLogin: React.FC = () => {
             </p>
           </div>
 
-          <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-2xl backdrop-blur-xl">
+          <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
             {successStudent ? (
               <div className="py-6 text-center space-y-3">
-                <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto animate-bounce">
+                <div className="w-12 h-12 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-success)] flex items-center justify-center mx-auto">
                   <Icon icon={CheckCircle2} size={28} />
                 </div>
                 <h3 className="text-lg font-display font-bold text-[var(--color-text-primary)]">Welcome back, {successStudent}!</h3>
@@ -112,7 +109,7 @@ export const StudentLogin: React.FC = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
-                  <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-2.5">
+                  <div className="p-3.5 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-danger)] text-[var(--color-danger)] text-xs flex items-start gap-2.5">
                     <Icon icon={AlertCircle} size={16} className="shrink-0 mt-0.5" />
                     <span>{error}</span>
                   </div>
@@ -128,13 +125,13 @@ export const StudentLogin: React.FC = () => {
                       placeholder="e.g. TG100001"
                       value={token}
                       onChange={(e) => setToken(e.target.value.toUpperCase())}
-                      className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] text-center font-mono font-bold text-xl tracking-widest border border-[var(--color-border)] focus:border-indigo-500 rounded-xl py-3.5 px-4 outline-none placeholder:text-[var(--color-text-muted)] transition-colors uppercase"
+                      className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] text-center font-mono font-bold text-xl tracking-widest border border-[var(--color-border)] focus:border-[var(--color-accent)] rounded-lg py-3.5 px-4 outline-none placeholder:text-[var(--color-text-tertiary)] transition-colors uppercase"
                       required
                       autoFocus
                     />
                   </div>
                   <p className="text-[11px] text-[var(--color-text-secondary)] font-mono mt-2 text-center">
-                    Format: Initial + Grade + 4 digits (e.g. <span className="text-indigo-400">KG100001</span>)
+                    Format: Initial + Grade + 4 digits (e.g. <span className="text-[var(--color-accent)]">KG100001</span>)
                   </p>
                 </div>
 
@@ -143,7 +140,7 @@ export const StudentLogin: React.FC = () => {
                   size="lg"
                   type="submit"
                   disabled={loading || !token.trim()}
-                  className="w-full justify-center shadow-lg shadow-indigo-500/25"
+                  className="w-full justify-center"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -163,7 +160,7 @@ export const StudentLogin: React.FC = () => {
 
           <div className="text-center mt-6">
             <p className="text-xs text-[var(--color-text-secondary)]">
-              Don't have a token? Ask your school STEM teacher to enroll you in their cohort.
+              Don&apos;t have a token? Ask your school STEM teacher to enroll you in their cohort.
             </p>
           </div>
         </motion.div>

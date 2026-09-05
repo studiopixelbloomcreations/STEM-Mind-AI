@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion, useReducedMotion, HTMLMotionProps } from 'framer-motion';
 
 export interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'children'> {
@@ -21,40 +21,40 @@ export const Button: React.FC<ButtonProps> = ({
   const shouldReduceMotion = useReducedMotion();
 
   const baseStyles =
-    'relative inline-flex items-center justify-center font-body font-medium transition-colors select-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B0D12]';
+    'relative inline-flex items-center justify-center font-body font-medium transition-all duration-150 select-none focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-2 focus:ring-offset-[var(--color-bg-base)]';
 
   const sizeStyles = {
-    sm: 'px-3 py-1.5 text-xs rounded-sm gap-1.5',
-    md: 'px-5 py-2.5 text-sm rounded-md gap-2',
-    lg: 'px-7 py-3.5 text-base rounded-md gap-2.5 font-semibold',
+    sm: 'px-3 py-1.5 text-xs rounded-md gap-1.5',
+    md: 'px-4 py-2 text-sm rounded-lg gap-2',
+    lg: 'px-6 py-3 text-base rounded-lg gap-2.5 font-semibold',
   }[size];
 
   const variantStyles = {
     primary:
-      'bg-[var(--color-accent-primary)] text-white hover:bg-[var(--color-accent-primary-hover)] active:bg-[#e05435] focus:ring-[var(--color-accent-primary)] shadow-md hover:shadow-[var(--shadow-glow-accent)]',
+      'bg-[var(--color-accent)] text-white hover:bg-[var(--color-accent-hover)] active:bg-[var(--color-accent-hover)] shadow-none border border-transparent',
     secondary:
-      'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-primary)] border border-[var(--color-border)] hover:bg-[#252b3a] hover:border-[#384052] active:bg-[#181c25] focus:ring-[var(--color-accent-secondary)]',
+      'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-primary)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-bg-surface)] active:bg-[var(--color-bg-base)]',
     ghost:
-      'bg-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)] active:bg-[var(--color-bg-surface-alt)] focus:ring-[var(--color-border)]',
+      'bg-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-surface)] active:bg-[var(--color-bg-surface-alt)]',
     danger:
-      'bg-[var(--color-danger)] text-white hover:bg-[#ff4355] active:bg-[#d93b4a] focus:ring-[var(--color-danger)]',
+      'bg-[var(--color-danger)] text-white hover:opacity-90 active:opacity-100 border border-transparent',
     success:
-      'bg-[var(--color-success)] text-[#0B0D12] font-semibold hover:bg-[#32be8f] active:bg-[#289e76] focus:ring-[var(--color-success)]',
+      'bg-[var(--color-success)] text-[var(--color-text-inverse)] font-semibold hover:opacity-90 active:opacity-100 border border-transparent',
     stuck:
-      'bg-transparent text-[var(--color-warning)] border border-[#ffc15e44] hover:bg-[#ffc15e18] hover:border-[var(--color-warning)] active:bg-[#ffc15e28] focus:ring-[var(--color-warning)]',
+      'bg-transparent text-[var(--color-warning)] border border-[var(--color-warning)]/30 hover:bg-[var(--color-warning)]/10 active:bg-[var(--color-warning)]/20',
   }[variant];
 
   const disabledStyles = disabled
-    ? 'opacity-45 cursor-not-allowed pointer-events-none'
+    ? 'opacity-40 cursor-not-allowed pointer-events-none'
     : 'cursor-pointer';
 
   const widthStyle = fullWidth ? 'w-full' : '';
 
   return (
     <motion.button
-      whileHover={shouldReduceMotion || disabled ? {} : { scale: 1.02 }}
-      whileTap={shouldReduceMotion || disabled ? {} : { scale: 0.98 }}
-      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      whileHover={shouldReduceMotion || disabled ? {} : { y: -1 }}
+      whileTap={shouldReduceMotion || disabled ? {} : { y: 0, scale: 0.98 }}
+      transition={{ duration: 0.14, ease: [0.65, 0, 0.35, 1] }}
       disabled={disabled}
       className={`${baseStyles} ${sizeStyles} ${variantStyles} ${disabledStyles} ${widthStyle} ${className}`}
       {...props}
@@ -63,3 +63,4 @@ export const Button: React.FC<ButtonProps> = ({
     </motion.button>
   );
 };
+

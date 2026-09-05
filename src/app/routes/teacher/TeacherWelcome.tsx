@@ -53,18 +53,18 @@ export const TeacherWelcome: React.FC = () => {
       {/* Main Content Area */}
       <main className="max-w-5xl w-full mx-auto px-6 py-16 flex-1 flex flex-col items-center justify-center text-center relative z-10">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.22, ease: [0.65, 0, 0.35, 1] }}
           className="max-w-2xl"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-xs font-mono text-[var(--color-accent-primary)] mb-6 shadow-sm">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-xs font-mono text-[var(--color-accent)] mb-6 shadow-sm">
             <Icon icon={ShieldCheck} size={14} />
             <span>Strict Educator Gateway &bull; National Syllabus Verification</span>
           </div>
 
-          <h1 className="text-4xl sm:text-5xl font-display font-extrabold text-white tracking-tight leading-tight mb-4">
-            Command Center for <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">Adaptive STEM</span> Education
+          <h1 className="text-4xl sm:text-5xl font-display font-extrabold text-[var(--color-text-primary)] tracking-tight leading-tight mb-4">
+            Command Center for <span className="text-[var(--color-accent)]">Adaptive STEM</span> Education
           </h1>
 
           <p className="text-base sm:text-lg text-[var(--color-text-secondary)] leading-relaxed mb-8">
@@ -72,10 +72,10 @@ export const TeacherWelcome: React.FC = () => {
           </p>
 
           {/* Action Center / Sign-in */}
-          <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl mb-12 max-w-md mx-auto">
+          <div className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl p-6 sm:p-8 shadow-sm mb-12 max-w-md mx-auto">
             {loading ? (
               <div className="py-6 flex flex-col items-center justify-center gap-3">
-                <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <div className="w-8 h-8 border-2 border-[var(--color-accent)] border-t-transparent rounded-full animate-spin" />
                 <span className="text-xs font-mono text-[var(--color-text-secondary)]">Authenticating educator session...</span>
               </div>
             ) : teacher ? (
@@ -88,12 +88,12 @@ export const TeacherWelcome: React.FC = () => {
                       className="w-12 h-12 rounded-full border border-[var(--color-border)]"
                     />
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-[var(--color-accent-primary)] text-white font-bold flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-[var(--color-accent)] text-white font-bold flex items-center justify-center">
                       {(teacher.displayName || teacher.email || 'T')[0].toUpperCase()}
                     </div>
                   )}
                   <div className="overflow-hidden">
-                    <p className="text-sm font-semibold text-white truncate">{profile?.name || teacher.displayName || 'Educator'}</p>
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)] truncate">{profile?.name || teacher.displayName || 'Educator'}</p>
                     <p className="text-xs text-[var(--color-text-secondary)] font-mono truncate">{teacher.email}</p>
                   </div>
                 </div>
@@ -102,7 +102,7 @@ export const TeacherWelcome: React.FC = () => {
                   <Button
                     variant="primary"
                     size="lg"
-                    className="w-full justify-center shadow-lg shadow-indigo-500/25"
+                    className="w-full justify-center"
                     onClick={() => navigate('/teacher/dashboard')}
                   >
                     <span>Launch Control Room</span>
@@ -111,7 +111,7 @@ export const TeacherWelcome: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="w-full justify-center text-xs text-red-400 hover:text-red-300"
+                    className="w-full justify-center text-xs text-[var(--color-danger)] hover:opacity-80"
                     onClick={signOut}
                   >
                     <Icon icon={LogOut} size={14} />
@@ -127,7 +127,7 @@ export const TeacherWelcome: React.FC = () => {
                 <button
                   type="button"
                   onClick={signIn}
-                  className="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-gray-100 text-gray-900 font-medium text-sm transition-all flex items-center justify-center gap-3 shadow-md hover:shadow-lg active:scale-98 cursor-pointer"
+                  className="w-full py-3 px-4 rounded-lg bg-[var(--color-bg-surface-alt)] hover:border-[var(--color-border-hover)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-medium text-sm transition-all flex items-center justify-center gap-3 shadow-sm cursor-pointer"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path
@@ -159,31 +159,31 @@ export const TeacherWelcome: React.FC = () => {
 
         {/* Feature Highlights Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full text-left">
-          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-indigo-500/50 transition-all">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-4">
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-all">
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-accent)] flex items-center justify-center mb-4">
               <Icon icon={KeyRound} size={20} />
             </div>
-            <h3 className="text-base font-semibold text-white mb-1.5">Deterministic Access Tokens</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-1.5">Deterministic Access Tokens</h3>
             <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
-              Generate student credentials in format <code className="text-indigo-300 font-mono">TG100001</code> with one click. Eliminates password resets.
+              Generate student credentials in format <code className="text-[var(--color-accent)] font-mono">TG100001</code> with one click. Eliminates password resets.
             </p>
           </Card>
 
-          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-indigo-500/50 transition-all">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-4">
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-all">
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-accent)] flex items-center justify-center mb-4">
               <Icon icon={Layers} size={20} />
             </div>
-            <h3 className="text-base font-semibold text-white mb-1.5">Sri Lankan Curriculum Enforced</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-1.5">Sri Lankan Curriculum Enforced</h3>
             <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
               Full national syllabus conformance: 13 subjects for Grade 9, 6 core + 3 basket electives for O/L Grade 10 &amp; 11.
             </p>
           </Card>
 
-          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-indigo-500/50 transition-all">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-4">
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] transition-all">
+            <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-success)] flex items-center justify-center mb-4">
               <Icon icon={BarChart3} size={20} />
             </div>
-            <h3 className="text-base font-semibold text-white mb-1.5">Hesitation Telemetry</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-1.5">Hesitation Telemetry</h3>
             <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed">
               Detect students struggling with specific formulas before exam day. View topic mastery, streaks, and quiz records.
             </p>

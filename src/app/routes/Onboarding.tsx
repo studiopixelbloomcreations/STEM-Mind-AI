@@ -52,8 +52,8 @@ export const Onboarding: React.FC = () => {
       {/* Top Header & Progress */}
       <div className="max-w-xl w-full mx-auto">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xl font-display font-black text-white">
-            NexLearn<span className="text-[var(--color-accent-primary)]">.</span>
+          <span className="text-xl font-display font-black text-[var(--color-text-primary)]">
+            NexLearn<span className="text-[var(--color-accent)]">.</span>
           </span>
           <span className="text-xs font-mono text-[var(--color-text-secondary)]">
             STEP {step + 1} OF 3
@@ -68,17 +68,17 @@ export const Onboarding: React.FC = () => {
           {step === 0 && (
             <motion.div
               key="step-0"
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 20 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
+              transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
             >
-              <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-xl">
-                <div className="flex items-center gap-3 mb-4 text-[var(--color-accent-primary)]">
+              <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
+                <div className="flex items-center gap-3 mb-4 text-[var(--color-accent)]">
                   <Icon icon={Sparkles} size={20} />
                   <span className="text-xs font-mono font-bold uppercase tracking-wider">Welcome to NexLearn</span>
                 </div>
-                <h2 className="text-2xl lg:text-3xl font-display font-bold text-white mb-2">
+                <h2 className="text-2xl lg:text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
                   What should Nex call you?
                 </h2>
                 <p className="text-sm text-[var(--color-text-secondary)] mb-6">
@@ -112,16 +112,16 @@ export const Onboarding: React.FC = () => {
           {step === 1 && (
             <motion.div
               key="step-1"
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 20 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
+              transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
             >
-              <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-xl">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--color-accent-secondary)] mb-2 block">
+              <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--color-accent)] mb-2 block">
                   Curriculum Alignment
                 </span>
-                <h2 className="text-2xl lg:text-3xl font-display font-bold text-white mb-2">
+                <h2 className="text-2xl lg:text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
                   Which grade are you preparing for?
                 </h2>
                 <p className="text-sm text-[var(--color-text-secondary)] mb-6">
@@ -133,10 +133,10 @@ export const Onboarding: React.FC = () => {
                     <button
                       key={g}
                       onClick={() => setGrade(g)}
-                      className={`p-5 rounded-lg border text-center font-display font-bold text-lg transition-all ${
+                      className={`p-5 rounded-lg border text-center font-display font-bold text-lg transition-colors cursor-pointer ${
                         grade === g
-                          ? 'bg-[var(--color-accent-primary)] border-[var(--color-accent-primary)] text-white shadow-md'
-                          : 'bg-[var(--color-bg-surface-alt)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-white hover:border-[#3E465B]'
+                          ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-accent)] text-[var(--color-accent)] shadow-sm'
+                          : 'bg-[var(--color-bg-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-border-hover)]'
                       }`}
                     >
                       Grade {g}
@@ -160,16 +160,16 @@ export const Onboarding: React.FC = () => {
           {step === 2 && (
             <motion.div
               key="step-2"
-              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 20 }}
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -16 }}
+              transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
             >
-              <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-xl">
+              <Card className="p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--color-success)] mb-2 block">
                   Subject Focus
                 </span>
-                <h2 className="text-2xl lg:text-3xl font-display font-bold text-white mb-2">
+                <h2 className="text-2xl lg:text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
                   Choose your STEM focus
                 </h2>
                 <p className="text-sm text-[var(--color-text-secondary)] mb-6">
@@ -180,15 +180,13 @@ export const Onboarding: React.FC = () => {
                   {subjectsList.map((s) => {
                     const isSelected = selectedSubjects.includes(s);
                     return (
-                      <motion.button
+                      <button
                         key={s}
-                        whileTap={{ scale: 0.95 }}
-                        whileHover={{ scale: 1.02 }}
                         onClick={() => toggleSubject(s)}
-                        className={`p-4 rounded-xl border text-left font-body text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
+                        className={`p-4 rounded-lg border text-left font-body text-sm font-semibold transition-colors flex items-center justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-[#1C202B] border-[var(--color-accent-primary)] text-white shadow-md ring-1 ring-indigo-500/20'
-                            : 'bg-[var(--color-bg-surface-alt)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#3E465B]'
+                            ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-accent)] text-[var(--color-text-primary)] shadow-sm'
+                            : 'bg-[var(--color-bg-surface)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-hover)]'
                         }`}
                       >
                         <span>{s}</span>
@@ -202,17 +200,17 @@ export const Onboarding: React.FC = () => {
                             strokeWidth="3"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className="text-[var(--color-accent-primary)]"
+                            className="text-[var(--color-accent)]"
                           >
                             <motion.path
                               d="M20 6L9 17L4 12"
                               initial={{ pathLength: 0 }}
                               animate={{ pathLength: 1 }}
-                              transition={{ duration: 0.25, ease: 'easeOut' }}
+                              transition={{ duration: 0.16, ease: 'easeOut' }}
                             />
                           </motion.svg>
                         )}
-                      </motion.button>
+                      </button>
                     );
                   })}
                 </div>
@@ -233,7 +231,7 @@ export const Onboarding: React.FC = () => {
       </div>
 
       {/* Footer hint */}
-      <div className="text-center text-xs font-mono text-[#5B6376]">
+      <div className="text-center text-xs font-mono text-[var(--color-text-tertiary)]">
         NexLearn &bull; Quiet confidence in STEM education
       </div>
     </div>

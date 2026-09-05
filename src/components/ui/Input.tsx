@@ -1,4 +1,4 @@
-﻿import React, { forwardRef } from 'react';
+import React, { forwardRef } from 'react';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -32,10 +32,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             ref={ref}
             className={`w-full bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border ${
-              error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)]'
-            } rounded-md py-2.5 ${leftIcon ? 'pl-10' : 'pl-3.5'} pr-3.5 text-sm font-body
-            placeholder:text-[#5B6376] focus:outline-none focus:border-[var(--color-accent-primary)] focus:ring-1 focus:ring-[var(--color-accent-primary)]
-            transition-colors duration-150 ${className}`}
+              error ? 'border-[var(--color-danger)]' : 'border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+            } rounded-lg py-2.5 ${leftIcon ? 'pl-10' : 'pl-3.5'} pr-3.5 text-sm font-body
+            placeholder:text-[var(--color-text-tertiary)] focus:outline-none focus:border-[var(--color-accent)] focus:ring-1 focus:ring-[var(--color-accent)]
+            transition-colors duration-100 ${className}`}
             {...props}
           />
         </div>

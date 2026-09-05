@@ -25,7 +25,7 @@ export const Results: React.FC = () => {
           particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#FF6B4A', '#5B7CFA', '#3DD9A4'],
+          colors: ['#FF6B4A', '#FAFAFA', '#22C55E'],
         });
       } catch (err) {
         // canvas-confetti fallback
@@ -35,33 +35,35 @@ export const Results: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col items-center justify-center p-6 lg:p-12">
-      <Card className="w-full max-w-xl p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-2xl text-center">
+      <Card className="w-full max-w-xl p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm text-center">
         <div className="flex justify-center mb-6">
           <div
-            className={`w-20 h-20 rounded-full flex items-center justify-center ${
-              isStrongResult ? 'bg-[#3dd9a41c] text-[var(--color-success)]' : 'bg-[#5b7cfa1c] text-[var(--color-accent-secondary)]'
+            className={`w-20 h-20 rounded-full border flex items-center justify-center ${
+              isStrongResult
+                ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-success)] text-[var(--color-success)]'
+                : 'bg-[var(--color-bg-surface-alt)] border-[var(--color-border)] text-[var(--color-accent)]'
             }`}
           >
             <Icon icon={isStrongResult ? Trophy : Award} size={36} />
           </div>
         </div>
 
-        <Badge variant={isStrongResult ? 'success' : 'indigo'} className="mb-4">
+        <Badge variant={isStrongResult ? 'success' : 'default'} className="mb-4">
           {isStrongResult ? 'Exceptional Mastery' : 'Session Complete'}
         </Badge>
 
-        <h2 className="text-3xl font-display font-bold text-white mb-2">
+        <h2 className="text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
           {isStrongResult ? 'Outstanding Work!' : 'Solid Session Completed!'}
         </h2>
 
         <p className="text-sm text-[var(--color-text-secondary)] max-w-md mx-auto mb-8 font-body">
-          You answered <span className="text-white font-bold">{score} out of {total}</span> questions correctly in {subject}. Your diagnostic profile has been updated.
+          You answered <span className="text-[var(--color-text-primary)] font-bold">{score} out of {total}</span> questions correctly in {subject}. Your diagnostic profile has been updated.
         </p>
 
         {/* Score Metric Card */}
-        <div className="p-6 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[#262B38] mb-8 flex items-center justify-around">
+        <div className="p-6 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] mb-8 flex items-center justify-around">
           <div>
-            <span className="text-3xl font-display font-bold text-white block">
+            <span className="text-3xl font-display font-bold text-[var(--color-text-primary)] block">
               {percentage}%
             </span>
             <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">
@@ -70,7 +72,7 @@ export const Results: React.FC = () => {
           </div>
           <div className="h-10 w-px bg-[var(--color-border)]" />
           <div>
-            <span className="text-3xl font-display font-bold text-[var(--color-accent-primary)] block">
+            <span className="text-3xl font-display font-bold text-[var(--color-accent)] block">
               +{score * 12}
             </span>
             <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">
@@ -89,7 +91,7 @@ export const Results: React.FC = () => {
         </div>
 
         {/* Summary points */}
-        <div className="space-y-2 text-xs font-mono text-left mb-8 bg-[#0B0D12] p-4 rounded-md border border-[var(--color-border)]">
+        <div className="space-y-2 text-xs font-mono text-left mb-8 bg-[var(--color-bg-surface-alt)] p-4 rounded-lg border border-[var(--color-border)]">
           <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
             <Icon icon={CheckCircle2} size={14} className="text-[var(--color-success)]" />
             <span>Formulas: Equations of motion under gravity retained</span>

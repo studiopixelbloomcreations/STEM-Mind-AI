@@ -60,57 +60,30 @@ export const HeroSection: React.FC = () => {
       onMouseMove={handleMouseMove}
       className="relative min-h-[92vh] w-full flex items-center justify-center overflow-hidden px-6 lg:px-16 pt-12 pb-20 bg-[var(--color-bg-base)]"
     >
-      {/* Subtle background noise texture */}
-      <div className="absolute inset-0 bg-noise pointer-events-none z-0" />
-
-      {/* Interactive cursor-reactive glow strictly using brand colors (Indigo & Coral) */}
+      {/* Subtle radial glow strictly behind the mascot area */}
       <div
-        className="absolute w-[520px] h-[520px] rounded-full pointer-events-none transition-all duration-300 ease-out blur-[120px] opacity-15 z-0"
+        className="absolute top-1/3 right-1/4 w-[480px] h-[480px] rounded-full pointer-events-none blur-[100px] opacity-10 z-0"
         style={{
-          background: 'radial-gradient(circle, var(--color-accent-secondary) 0%, var(--color-accent-primary) 60%, transparent 70%)',
-          left: mousePos.x ? `${mousePos.x - 260}px` : '40%',
-          top: mousePos.y ? `${mousePos.y - 260}px` : '30%',
+          background: 'radial-gradient(circle, var(--color-accent) 0%, transparent 70%)',
         }}
-      />
-
-      {/* Ambient drifting gradient meshes — Coral and Indigo brand tokens */}
-      <motion.div
-        animate={{
-          x: [0, 35, -25, 0],
-          y: [0, -35, 25, 0],
-          scale: [1, 1.1, 0.95, 1],
-        }}
-        transition={{ repeat: Infinity, duration: 32, ease: 'easeInOut' }}
-        className="absolute top-1/4 left-1/4 w-[28rem] h-[28rem] rounded-full blur-[110px] pointer-events-none opacity-20 z-0"
-        style={{ backgroundColor: 'var(--color-accent-primary)' }}
-      />
-      <motion.div
-        animate={{
-          x: [0, -45, 30, 0],
-          y: [0, 40, -30, 0],
-          scale: [1, 0.95, 1.1, 1],
-        }}
-        transition={{ repeat: Infinity, duration: 38, ease: 'easeInOut' }}
-        className="absolute bottom-1/4 right-1/4 w-[32rem] h-[32rem] rounded-full blur-[130px] pointer-events-none opacity-20 z-0"
-        style={{ backgroundColor: 'var(--color-accent-secondary)' }}
       />
 
       <div className="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
         {/* Left 60% Column: Kinetic Typography */}
         <motion.div
           className="lg:col-span-7 flex flex-col items-start text-left"
-          initial={shouldReduceMotion ? {} : { opacity: 0, y: 24 }}
+          initial={shouldReduceMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.24, ease: [0.65, 0, 0.35, 1] }}
         >
           {/* Subtle micro tag */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-xs font-mono tracking-wider uppercase text-[var(--color-accent-primary)] mb-6 shadow-sm">
-            <Icon icon={Sparkles} size={14} className="animate-spin" style={{ animationDuration: '8s' }} />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-xs font-mono tracking-wider uppercase text-[var(--color-accent)] mb-6 shadow-sm">
+            <Icon icon={Sparkles} size={13} />
             <span>Sri Lankan National Curriculum &bull; Grades 9–11</span>
           </div>
 
           <h1 className="text-[clamp(2.75rem,5.5vw,5.5rem)] font-display font-black text-[var(--color-text-primary)] leading-[1.02] mb-6 tracking-tight">
-            The tutor that <span className="gradient-brand-text">diagnoses</span> why you missed, then teaches until you understand.
+            The tutor that <span className="text-[var(--color-accent)]">diagnoses</span> why you missed, then teaches until you understand.
           </h1>
 
           <p className="text-[var(--font-size-body-lg)] text-[var(--color-text-secondary)] max-w-lg mb-8 leading-relaxed font-body">
@@ -122,7 +95,7 @@ export const HeroSection: React.FC = () => {
               size="lg"
               variant="primary"
               onClick={() => navigate('/login')}
-              className="group shadow-lg hover:shadow-[var(--shadow-glow-accent)] transition-all"
+              className="group shadow-sm hover:border-[var(--color-border-hover)]"
             >
               <Icon icon={KeyRound} size={18} />
               <span>Student Token Login</span>
@@ -138,7 +111,7 @@ export const HeroSection: React.FC = () => {
               onClick={() => navigate('/teacher')}
               className="gap-2"
             >
-              <Icon icon={ShieldCheck} size={18} className="text-[var(--color-accent-secondary)]" />
+              <Icon icon={ShieldCheck} size={18} className="text-[var(--color-text-secondary)]" />
               <span>Teacher Portal</span>
             </Button>
           </div>
@@ -160,7 +133,7 @@ export const HeroSection: React.FC = () => {
             </div>
             <div className="h-8 w-px bg-[var(--color-border)]" />
             <div>
-              <span className="block text-2xl font-display font-black text-[var(--color-accent-secondary)]">
+              <span className="block text-2xl font-display font-black text-[var(--color-text-primary)]">
                 <AnimatedCounter value={100} suffix="%" />
               </span>
               <span>Deterministic Tokens</span>
@@ -171,17 +144,22 @@ export const HeroSection: React.FC = () => {
         {/* Right 40% Column: Companion Stage */}
         <motion.div
           className="lg:col-span-5 flex items-center justify-center relative"
-          initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.9 }}
+          initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.26, delay: 0.08, ease: [0.65, 0, 0.35, 1] }}
         >
-          {/* Card container for mascot with glass blur */}
-          <div className="relative w-full max-w-md aspect-square rounded-2xl bg-[var(--color-bg-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] flex flex-col items-center justify-center p-8 overflow-hidden shadow-2xl">
-            {/* Ambient background bloom inside card */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[var(--color-accent-primary)]/5 via-transparent to-[var(--color-accent-secondary)]/5 pointer-events-none" />
+          {/* Card container for mascot with 12px radius and 1px border */}
+          <div className="relative w-full max-w-md aspect-square rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] flex flex-col items-center justify-center p-8 overflow-hidden shadow-sm">
+            {/* Subtle radial glow strictly behind Nex */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-20"
+              style={{
+                background: 'radial-gradient(circle at center, var(--color-accent) 0%, transparent 65%)',
+              }}
+            />
 
             <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
-              <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)] animate-pulse" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)]" />
               <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase tracking-wider">Nex AI Online</span>
             </div>
 

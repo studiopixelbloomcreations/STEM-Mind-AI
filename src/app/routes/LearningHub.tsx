@@ -115,21 +115,21 @@ export const LearningHub: React.FC = () => {
         <div className="flex items-center gap-3">
           <span
             onClick={() => navigate('/')}
-            className="text-2xl font-display font-black text-white cursor-pointer"
+            className="text-2xl font-display font-black text-[var(--color-text-primary)] cursor-pointer tracking-tight"
           >
-            NexLearn<span className="text-[var(--color-accent-primary)]">.</span>
+            NexLearn<span className="text-[var(--color-accent)]">.</span>
           </span>
-          <Badge variant="indigo">Grade {student.grade} Student Hub</Badge>
+          <Badge variant="default">Grade {student.grade} Student Hub</Badge>
           {student.access_token && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/40 border border-indigo-500/30 text-[11px] font-mono text-indigo-300">
-              <Icon icon={Key} size={11} />
-              <span>{student.access_token}</span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[11px] font-mono text-[var(--color-text-secondary)]">
+              <Icon icon={Key} size={11} className="text-[var(--color-accent)]" />
+              <span className="font-bold text-[var(--color-text-primary)]">{student.access_token}</span>
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-warning)] bg-[#1C202B] px-3 py-1.5 rounded-full border border-[var(--color-border)]">
+          <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-warning)] bg-[var(--color-bg-surface-alt)] px-3 py-1.5 rounded-full border border-[var(--color-border)]">
             <Icon icon={Flame} size={16} />
             <span>5 DAY STREAK</span>
           </div>
@@ -138,9 +138,9 @@ export const LearningHub: React.FC = () => {
             variant="primary"
             size="sm"
             onClick={() => setIsLiveOpen(true)}
-            className="shadow-sm shadow-indigo-500/30 gap-1.5"
+            className="gap-1.5"
           >
-            <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             <Icon icon={Radio} size={14} />
             <span className="hidden sm:inline">Live NexLearn</span>
           </Button>
@@ -161,10 +161,10 @@ export const LearningHub: React.FC = () => {
         {/* Left Column: Subject Selection & Launchers */}
         <div className="lg:col-span-8 space-y-6">
           <div>
-            <span className="text-xs font-mono text-[var(--color-accent-primary)] uppercase tracking-wider block mb-1">
+            <span className="text-xs font-mono text-[var(--color-accent)] uppercase tracking-wider block mb-1 font-semibold">
               Sri Lankan National Curriculum &bull; Grade {student.grade}
             </span>
-            <h2 className="text-3xl font-display font-bold text-white">
+            <h2 className="text-3xl font-display font-black text-[var(--color-text-primary)] tracking-tight">
               Welcome back, {student.name}.
             </h2>
             <p className="text-sm text-[var(--color-text-secondary)] mt-1">
@@ -172,80 +172,122 @@ export const LearningHub: React.FC = () => {
             </p>
           </div>
 
-          {/* Live NexLearn Highlight Banner */}
-          <Card className="p-6 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-slate-900/40 border border-indigo-500/30 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
-            <div className="relative z-10">
+          {/* High-Tech Live NexLearn Highlight Tile */}
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-[var(--color-border-hover)] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-6 relative overflow-hidden">
+            <div>
               <div className="flex items-center gap-2 mb-2">
-                <span className="flex h-2.5 w-2.5 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-indigo-500"></span>
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--color-accent)] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--color-accent)]"></span>
                 </span>
-                <span className="text-xs font-mono text-indigo-300 font-bold tracking-wider uppercase">
+                <span className="text-xs font-mono text-[var(--color-accent)] font-bold tracking-wider uppercase">
                   Real-time Audio &amp; Vision
                 </span>
               </div>
-              <h3 className="text-xl font-display font-bold text-white">
+              <h3 className="text-xl font-display font-bold text-[var(--color-text-primary)]">
                 Live NexLearn Multimodal Room
               </h3>
-              <p className="text-xs text-slate-300 mt-1 max-w-lg leading-relaxed">
-                Need instant spoken help? Speak directly with Nex, share your camera or screen, and solve complex step-by-step problems in real time.
+              <p className="text-xs text-[var(--color-text-secondary)] mt-1 max-w-lg leading-relaxed">
+                Spoken conversation with Nex: share your webcam or screen for instant step-by-step problem diagnosis.
               </p>
             </div>
             <Button
               size="md"
               variant="primary"
               onClick={() => setIsLiveOpen(true)}
-              className="relative z-10 shrink-0 shadow-lg shadow-indigo-500/30 gap-2"
+              className="shrink-0 gap-2"
             >
               <Icon icon={Radio} size={16} />
               <span>Launch Live Session</span>
             </Button>
           </Card>
 
-          {/* Subject Grid */}
+          {/* Asymmetric Bento Subject Grid (Section 2) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {subjectsToDisplay.map((sub) => {
               const isSelected = selectedSubject === sub.name;
               return (
-                <Card
+                <div
                   key={sub.name}
-                  interactive
                   onClick={() => setSelectedSubject(sub.name)}
-                  className={`p-6 border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-accent-primary)] shadow-md ring-1 ring-indigo-500/20'
-                      : 'bg-[var(--color-bg-surface)] border-[var(--color-border)] hover:border-indigo-500/30'
-                  }`}
+                  className={`${isSelected ? 'sm:col-span-2' : 'sm:col-span-1'} cursor-pointer`}
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 rounded-xl bg-[#0B0D12] text-indigo-400 border border-[var(--color-border)]">
-                      <Icon icon={sub.icon} size={22} />
-                    </div>
-                    <span className="text-xs font-mono font-bold text-[var(--color-success)]">
-                      {sub.mastery}%
-                    </span>
-                  </div>
-                  <h4 className="text-lg font-display font-bold text-white mb-1">{sub.name}</h4>
-                  <p className="text-xs text-[var(--color-text-secondary)] mb-4">{sub.units}</p>
+                  <Card
+                    interactive
+                    className={`p-6 border transition-all rounded-xl ${
+                      isSelected
+                        ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20'
+                        : 'bg-[var(--color-bg-surface)] border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-lg border ${
+                          isSelected
+                            ? 'bg-[var(--color-accent-muted)] text-[var(--color-accent)] border-[var(--color-accent)]/30'
+                            : 'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] border-[var(--color-border)]'
+                        }`}>
+                          <Icon icon={sub.icon} size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-display font-bold text-[var(--color-text-primary)]">{sub.name}</h4>
+                          <span className="text-[11px] font-mono text-[var(--color-text-secondary)]">{sub.units}</span>
+                        </div>
+                      </div>
 
-                  <div className="w-full bg-[#0B0D12] h-1.5 rounded-full overflow-hidden">
-                    <div
-                      className="bg-[var(--color-success)] h-full rounded-full"
-                      style={{ width: `${sub.mastery}%` }}
-                    />
-                  </div>
-                </Card>
+                      <div className="text-right">
+                        <span className="text-xs font-mono font-bold text-[var(--color-success)] block">
+                          {sub.mastery}%
+                        </span>
+                        {isSelected && (
+                          <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--color-accent)] font-semibold">
+                            Focused
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-[var(--color-bg-base)] h-1.5 rounded-full overflow-hidden mt-3">
+                      <div
+                        className="bg-[var(--color-success)] h-full rounded-full transition-all duration-300"
+                        style={{ width: `${sub.mastery}%` }}
+                      />
+                    </div>
+
+                    {/* Expanded Content on Featured / Selected Subject */}
+                    {isSelected && (
+                      <div className="mt-4 pt-4 border-t border-[var(--color-border)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+                        <span className="text-[var(--color-text-secondary)]">
+                          Active National Target: Grade {student.grade} Curriculum Calibrated
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartSession();
+                          }}
+                          className="gap-1.5 text-xs"
+                        >
+                          <Icon icon={Play} size={13} />
+                          <span>Start Quiz</span>
+                        </Button>
+                      </div>
+                    )}
+                  </Card>
+                </div>
               );
             })}
           </div>
 
           {/* Launch Quiz Action Card */}
-          <Card className="p-8 bg-[#14171F] border border-[#2B3245] flex flex-col sm:flex-row items-center justify-between gap-6">
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] flex flex-col sm:flex-row items-center justify-between gap-6 rounded-xl">
             <div>
-              <span className="text-xs font-mono text-[var(--color-accent-secondary)] uppercase">
+              <span className="text-xs font-mono text-[var(--color-accent)] uppercase tracking-wider font-semibold">
                 Active Selection
               </span>
-              <h3 className="text-2xl font-display font-bold text-white mt-1">
+              <h3 className="text-xl font-display font-bold text-[var(--color-text-primary)] mt-1">
                 {selectedSubject} Adaptive Set
               </h3>
               <p className="text-xs text-[var(--color-text-secondary)] mt-1">
@@ -256,9 +298,9 @@ export const LearningHub: React.FC = () => {
               size="lg"
               variant="primary"
               onClick={handleStartSession}
-              className="w-full sm:w-auto px-8 gap-2 shadow-lg shadow-indigo-500/25"
+              className="w-full sm:w-auto px-6 gap-2"
             >
-              <Icon icon={Play} size={18} />
+              <Icon icon={Play} size={16} />
               <span>Launch Session</span>
             </Button>
           </Card>
@@ -266,14 +308,14 @@ export const LearningHub: React.FC = () => {
 
         {/* Right Column: Companion Desk & Metrics */}
         <div className="lg:col-span-4 space-y-6">
-          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-center">
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-center rounded-xl">
             <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase block mb-3">
               Stationed AI Tutor
             </span>
             <div className="flex justify-center my-2">
               <NexPlaceholder size={140} />
             </div>
-            <h4 className="text-base font-display font-bold text-white mt-2">Nex is Online</h4>
+            <h4 className="text-base font-display font-bold text-[var(--color-text-primary)] mt-2">Nex is Online</h4>
             <p className="text-xs text-[var(--color-text-secondary)] mt-1 leading-relaxed mb-4">
               Calibrated for Grade {student.grade} {selectedSubject}. Ready for quiz practice or live spoken tutoring.
             </p>
@@ -283,12 +325,12 @@ export const LearningHub: React.FC = () => {
               onClick={() => setIsLiveOpen(true)}
               className="w-full justify-center gap-2"
             >
-              <Icon icon={Sparkles} size={14} className="text-indigo-400" />
+              <Icon icon={Sparkles} size={14} className="text-[var(--color-accent)]" />
               <span>Start Live Voice Conversation</span>
             </Button>
           </Card>
 
-          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+          <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl">
             <h5 className="text-xs font-mono uppercase text-[var(--color-text-secondary)] mb-4">
               Diagnostic Insights
             </h5>
@@ -305,7 +347,6 @@ export const LearningHub: React.FC = () => {
                 </div>
               ))}
             </div>
-
           </Card>
         </div>
       </main>
@@ -314,15 +355,15 @@ export const LearningHub: React.FC = () => {
       <div className="fixed bottom-6 right-6 z-30 hidden sm:block">
         <div
           onClick={() => setIsLiveOpen(true)}
-          className="cursor-pointer group relative p-2 rounded-2xl bg-[#14171F]/95 backdrop-blur border border-indigo-500/30 shadow-2xl flex items-center gap-3 pr-4 hover:border-indigo-400 transition-all active:scale-95"
+          className="cursor-pointer group relative p-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] hover:border-[var(--color-accent)] flex items-center gap-3 pr-4 transition-all active:scale-95"
         >
-          <NexPlaceholder size={58} />
+          <NexPlaceholder size={54} />
           <div className="text-left">
-            <span className="text-[10px] font-mono text-indigo-400 block font-bold flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[10px] font-mono text-[var(--color-accent)] block font-bold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
               LIVE NEXLEARN
             </span>
-            <span className="text-xs font-medium text-white group-hover:text-indigo-300 transition-colors">
+            <span className="text-xs font-medium text-[var(--color-text-primary)] group-hover:text-[var(--color-accent)] transition-colors">
               Click to speak with Nex
             </span>
           </div>

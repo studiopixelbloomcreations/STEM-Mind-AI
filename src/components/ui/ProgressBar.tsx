@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 export interface ProgressBarProps {
@@ -28,9 +28,9 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   }[size];
 
   const fillColors = {
-    accent: 'bg-[var(--color-accent-primary)]',
+    accent: 'bg-[var(--color-accent)]',
     success: 'bg-[var(--color-success)]',
-    indigo: 'bg-[var(--color-accent-secondary)]',
+    indigo: 'bg-[var(--color-accent)]',
     warning: 'bg-[var(--color-warning)]',
   }[variant];
 
@@ -42,7 +42,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           <span>{Math.round(percentage)}%</span>
         </div>
       )}
-      <div className={`w-full bg-[var(--color-bg-surface-alt)] rounded-full overflow-hidden border border-[#262B38] ${heightStyles}`}>
+      <div className={`w-full bg-[var(--color-bg-surface-alt)] rounded-full overflow-hidden border border-[var(--color-border)] ${heightStyles}`}>
         <motion.div
           className={`h-full rounded-full ${fillColors}`}
           initial={{ width: 0 }}
@@ -50,7 +50,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           transition={
             shouldReduceMotion
               ? { duration: 0 }
-              : { duration: 0.4, ease: [0.16, 1, 0.3, 1] }
+              : { duration: 0.24, ease: [0.65, 0, 0.35, 1] }
           }
         />
       </div>

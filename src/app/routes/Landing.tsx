@@ -35,17 +35,17 @@ export const Landing: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col">
       {/* Top Navigation */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[#0B0D12]/85 border-b border-[var(--color-border)] px-6 lg:px-16 py-4">
+      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[var(--color-bg-base)]/90 border-b border-[var(--color-border)] px-6 lg:px-16 py-3.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div
             onClick={() => navigate('/')}
             className="cursor-pointer flex items-center gap-2.5"
           >
-            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent-primary)] flex items-center justify-center font-display font-bold text-white shadow-md shadow-indigo-500/20">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-accent)] flex items-center justify-center font-display font-bold text-white shadow-sm">
               N
             </div>
-            <span className="text-2xl font-display font-black tracking-tight text-white">
-              NexLearn<span className="text-[var(--color-accent-primary)]">.</span>
+            <span className="text-2xl font-display font-black tracking-tight text-[var(--color-text-primary)]">
+              NexLearn<span className="text-[var(--color-accent)]">.</span>
             </span>
           </div>
 
@@ -59,14 +59,14 @@ export const Landing: React.FC = () => {
                 onMouseLeave={() => setHoveredNav(null)}
                 onClick={item.action}
               >
-                <span className={`transition-colors ${hoveredNav === item.label ? 'text-white' : ''}`}>
+                <span className={`transition-colors ${hoveredNav === item.label ? 'text-[var(--color-text-primary)]' : ''}`}>
                   {item.label}
                 </span>
                 {hoveredNav === item.label && (
                   <motion.div
                     layoutId="nav-underline"
-                    className="absolute left-0 right-0 -bottom-1 h-0.5 bg-[var(--color-accent-primary)] rounded-full"
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    className="absolute left-0 right-0 -bottom-1 h-0.5 bg-[var(--color-accent)] rounded-full"
+                    transition={{ duration: 0.16, ease: [0.65, 0, 0.35, 1] }}
                   />
                 )}
               </div>
@@ -82,7 +82,7 @@ export const Landing: React.FC = () => {
               onClick={() => navigate('/login')}
               className="gap-1.5"
             >
-              <Icon icon={KeyRound} size={14} className="text-indigo-400" />
+              <Icon icon={KeyRound} size={14} className="text-[var(--color-accent)]" />
               <span>Student Token</span>
             </Button>
 
@@ -92,17 +92,16 @@ export const Landing: React.FC = () => {
               onClick={() => navigate('/teacher')}
               className="hidden sm:inline-flex gap-1.5"
             >
-              <Icon icon={ShieldCheck} size={14} className="text-indigo-400" />
+              <Icon icon={ShieldCheck} size={14} className="text-[var(--color-text-secondary)]" />
               <span>Teacher Portal</span>
             </Button>
 
             <Button
               variant="primary"
               size="sm"
-              onClick={() => navigate('/onboarding')}
-              className="shadow-sm shadow-indigo-500/20"
+              onClick={() => navigate('/login')}
             >
-              Start Free
+              Get Started
             </Button>
           </div>
         </div>

@@ -123,21 +123,22 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 15 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl my-8 relative"
+        exit={{ opacity: 0, scale: 0.98 }}
+        transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
+        className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl w-full max-w-2xl overflow-hidden shadow-xl my-8 relative"
       >
         {/* Modal Header */}
         <div className="px-6 py-5 border-b border-[var(--color-border)] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+            <div className="w-9 h-9 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-accent)] flex items-center justify-center">
               <Icon icon={UserCheck} size={20} />
             </div>
             <div>
-              <h3 className="text-base font-display font-bold text-white">
+              <h3 className="text-base font-display font-bold text-[var(--color-text-primary)]">
                 {createdStudent ? 'Student Enrolled Successfully' : 'Register New Student'}
               </h3>
               <p className="text-xs text-[var(--color-text-secondary)] font-mono">
@@ -147,7 +148,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
           </div>
           <button
             onClick={handleResetAndClose}
-            className="text-[var(--color-text-secondary)] hover:text-white p-1 rounded-lg hover:bg-[var(--color-bg-surface-alt)] transition-colors"
+            className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] p-1 rounded-lg hover:bg-[var(--color-bg-surface-alt)] transition-colors"
           >
             <Icon icon={X} size={18} />
           </button>
@@ -162,36 +163,37 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
               // ----------------------------------------------------
               <motion.div
                 key="success"
-                initial={{ opacity: 0, scale: 0.96 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.16, ease: [0.65, 0, 0.35, 1] }}
                 className="text-center py-4 space-y-6"
               >
-                <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 rounded-full bg-[var(--color-bg-surface-alt)] text-[var(--color-success)] border border-[var(--color-border)] flex items-center justify-center mx-auto">
                   <Icon icon={Sparkles} size={32} />
                 </div>
 
                 <div>
-                  <h4 className="text-xl font-display font-bold text-white mb-1">
+                  <h4 className="text-xl font-display font-bold text-[var(--color-text-primary)] mb-1">
                     {createdStudent.name} is Enrolled!
                   </h4>
                   <p className="text-xs text-[var(--color-text-secondary)]">
-                    Enrolled in <span className="text-indigo-400 font-semibold">Grade {createdStudent.grade}</span> with {createdStudent.subjects.length} Sri Lankan curriculum subjects.
+                    Enrolled in <span className="text-[var(--color-accent)] font-semibold">Grade {createdStudent.grade}</span> with {createdStudent.subjects.length} Sri Lankan curriculum subjects.
                   </p>
                 </div>
 
                 {/* Token Display Card */}
-                <div className="bg-[var(--color-bg-base)] border-2 border-indigo-500/50 rounded-2xl p-6 max-w-md mx-auto shadow-inner text-center">
+                <div className="bg-[var(--color-bg-base)] border border-[var(--color-border)] rounded-xl p-6 max-w-md mx-auto shadow-sm text-center">
                   <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--color-text-secondary)]">
                     Official Student Access Token
                   </span>
-                  <div className="my-3 font-mono font-extrabold text-3xl sm:text-4xl text-indigo-400 tracking-wider select-all">
+                  <div className="my-3 font-mono font-extrabold text-3xl sm:text-4xl text-[var(--color-accent)] tracking-wider select-all">
                     {createdStudent.access_token}
                   </div>
-                  <p className="text-xs text-slate-400 mb-4 font-sans">
-                    Hand this code to your student. They enter this token at <span className="text-white font-mono">/login</span> to immediately enter their personalized learning hub.
+                  <p className="text-xs text-[var(--color-text-secondary)] mb-4 font-sans">
+                    Hand this code to your student. They enter this token at <span className="text-[var(--color-text-primary)] font-mono">/login</span> to immediately enter their personalized learning hub.
                   </p>
                   <Button
-                    variant={copied ? 'success' : 'primary'}
+                    variant={copied ? 'secondary' : 'primary'}
                     size="md"
                     className="w-full justify-center gap-2"
                     onClick={handleCopyToken}
@@ -208,7 +210,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                   </span>
                   <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
                     {createdStudent.subjects.map((sub, idx) => (
-                      <Badge key={idx} variant={sub.category === 'compulsory' ? 'indigo' : 'accent'} size="sm">
+                      <Badge key={idx} variant={sub.category === 'compulsory' ? 'default' : 'accent'} size="sm">
                         {sub.name}
                       </Badge>
                     ))}
@@ -233,7 +235,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                 className="space-y-5"
               >
                 {error && (
-                  <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono">
+                  <div className="p-3.5 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-danger)] text-[var(--color-danger)] text-xs font-mono">
                     {error}
                   </div>
                 )}
@@ -257,7 +259,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                     <select
                       value={grade}
                       onChange={(e) => setGrade(Number(e.target.value) as 9 | 10 | 11)}
-                      className="w-full bg-[var(--color-bg-base)] text-white border border-[var(--color-border)] rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:border-[var(--color-border-hover)]"
                     >
                       <option value={9}>Grade 9 (13 Subjects)</option>
                       <option value={10}>Grade 10 (O/L 6+3)</option>
@@ -275,7 +277,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                       max={20}
                       value={age}
                       onChange={(e) => setAge(Number(e.target.value))}
-                      className="w-full bg-[var(--color-bg-base)] text-white border border-[var(--color-border)] rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2.5 px-3 text-sm focus:outline-none focus:border-[var(--color-border-hover)]"
                     />
                   </div>
                 </div>
@@ -283,7 +285,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                 {/* National Curriculum Selectors */}
                 <div className="border-t border-[var(--color-border)] pt-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-mono uppercase tracking-wider text-indigo-400 font-bold flex items-center gap-1.5">
+                    <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-accent)] font-bold flex items-center gap-1.5">
                       <Icon icon={BookOpen} size={14} />
                       <span>Curriculum Subjects ({grade === 9 ? 'Grade 9 Standard' : 'G.C.E. O/L Baskets'})</span>
                     </h4>
@@ -301,7 +303,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                       <select
                         value={religion}
                         onChange={(e) => setReligion(e.target.value)}
-                        className="w-full bg-[var(--color-bg-base)] text-white border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-[var(--color-border-hover)]"
                       >
                         {RELIGION_OPTIONS.map((r) => (
                           <option key={r} value={r}>{r}</option>
@@ -316,7 +318,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                       <select
                         value={firstLang}
                         onChange={(e) => setFirstLang(e.target.value as 'Sinhala' | 'Tamil')}
-                        className="w-full bg-[var(--color-bg-base)] text-white border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-[var(--color-border-hover)]"
                       >
                         <option value="Sinhala">Sinhala Language &amp; Literature</option>
                         <option value="Tamil">Tamil Language &amp; Literature</option>
@@ -333,7 +335,7 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                       <select
                         value={aestheticG9}
                         onChange={(e) => setAestheticG9(e.target.value)}
-                        className="w-full bg-[var(--color-bg-base)] text-white border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-indigo-500"
+                        className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-[var(--color-border-hover)]"
                       >
                         {GRADE_9_AESTHETIC_OPTIONS.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
@@ -347,15 +349,15 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                     <div className="space-y-3 pt-2 bg-[var(--color-bg-base)] p-4 rounded-xl border border-[var(--color-border)]">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-white">
+                          <label className="text-xs font-semibold text-[var(--color-text-primary)]">
                             Basket 1: Social Sciences &amp; Languages
                           </label>
-                          <Badge variant="indigo" size="sm">Elective 1</Badge>
+                          <Badge variant="default" size="sm">Elective 1</Badge>
                         </div>
                         <select
                           value={basket1}
                           onChange={(e) => setBasket1(e.target.value)}
-                          className="w-full bg-[var(--color-bg-surface)] text-white border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-[var(--color-border-hover)]"
                         >
                           {BASKET_1_OPTIONS.map((opt) => (
                             <option key={opt} value={opt}>{opt}</option>
@@ -365,15 +367,15 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-white">
+                          <label className="text-xs font-semibold text-[var(--color-text-primary)]">
                             Basket 2: Aesthetic Studies &amp; Literature
                           </label>
-                          <Badge variant="indigo" size="sm">Elective 2</Badge>
+                          <Badge variant="default" size="sm">Elective 2</Badge>
                         </div>
                         <select
                           value={basket2}
                           onChange={(e) => setBasket2(e.target.value)}
-                          className="w-full bg-[var(--color-bg-surface)] text-white border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-[var(--color-border-hover)]"
                         >
                           {BASKET_2_OPTIONS.map((opt) => (
                             <option key={opt} value={opt}>{opt}</option>
@@ -383,15 +385,15 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
 
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <label className="text-xs font-semibold text-white">
+                          <label className="text-xs font-semibold text-[var(--color-text-primary)]">
                             Basket 3: Technical &amp; Practical Studies
                           </label>
-                          <Badge variant="indigo" size="sm">Elective 3</Badge>
+                          <Badge variant="default" size="sm">Elective 3</Badge>
                         </div>
                         <select
                           value={basket3}
                           onChange={(e) => setBasket3(e.target.value)}
-                          className="w-full bg-[var(--color-bg-surface)] text-white border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-indigo-500"
+                          className="w-full bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)] rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-[var(--color-border-hover)]"
                         >
                           {BASKET_3_OPTIONS.map((opt) => (
                             <option key={opt} value={opt}>{opt}</option>
@@ -412,11 +414,10 @@ export const StudentRegistrationModal: React.FC<StudentRegistrationModalProps> =
                     size="md"
                     type="submit"
                     disabled={isSubmitting || !name.trim()}
-                    className="shadow-lg shadow-indigo-500/20"
                   >
                     {isSubmitting ? (
                       <span className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-[var(--color-bg-base)] border-t-transparent rounded-full animate-spin" />
                         <span>Generating Token...</span>
                       </span>
                     ) : (

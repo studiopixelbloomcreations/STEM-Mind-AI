@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 export interface BadgeProps {
   children: React.ReactNode;
@@ -20,10 +20,10 @@ export const Badge: React.FC<BadgeProps> = ({
 
   const variantStyles = {
     default: 'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] border border-[var(--color-border)]',
-    accent: 'bg-[#ff6b4a1f] text-[var(--color-accent-primary)] border border-[#ff6b4a44]',
-    success: 'bg-[#3dd9a41f] text-[var(--color-success)] border border-[#3dd9a444]',
-    warning: 'bg-[#ffc15e1f] text-[var(--color-warning)] border border-[#ffc15e44]',
-    indigo: 'bg-[#5b7cfa1f] text-[var(--color-accent-secondary)] border border-[#5b7cfa44]',
+    accent: 'bg-[var(--color-accent-muted)] text-[var(--color-accent)] border border-[var(--color-accent)]/20',
+    success: 'bg-[var(--color-success)]/10 text-[var(--color-success)] border border-[var(--color-success)]/25',
+    warning: 'bg-[var(--color-warning)]/10 text-[var(--color-warning)] border border-[var(--color-warning)]/25',
+    indigo: 'bg-[var(--color-accent-muted)] text-[var(--color-accent)] border border-[var(--color-accent)]/20',
   }[variant];
 
   return (

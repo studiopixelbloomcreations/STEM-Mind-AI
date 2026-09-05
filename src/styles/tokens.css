@@ -2,78 +2,94 @@
 @import "tailwindcss";
 
 :root {
-  /* Color tokens — dark mode is primary */
-  --color-bg-base: #0B0D12;
-  --color-bg-surface: #14171F;
-  --color-bg-surface-alt: #1C202B;
-  --color-bg-light: #FAFAF7;
-  --color-text-primary: #F5F6F8;
-  --color-text-secondary: #A0A6B4;
-  --color-text-inverse: #0B0D12;
-  --color-accent-primary: #FF6B4A;
-  --color-accent-primary-hover: #FF8161;
-  --color-accent-secondary: #5B7CFA;
-  --color-success: #3DD9A4;
-  --color-warning: #FFC15E;
-  --color-danger: #FF5C6C;
-  --color-border: #262B38;
+  /* Color tokens — Dark mode is true default (near-black, zinc-950 territory) */
+  --color-bg-base:        #09090B;   /* near-black, zinc-950 territory */
+  --color-bg-surface:     #131316;   /* cards, panels — one step up from base */
+  --color-bg-surface-alt: #1C1C21;   /* hover/nested surface — two steps up */
+  --color-text-primary:   #FAFAFA;
+  --color-text-secondary: #8B8B93;   /* muted zinc-gray, not a tinted color */
+  --color-text-tertiary:  #5C5C64;   /* de-emphasized labels, timestamps */
+  --color-text-muted:     #5C5C64;   /* backward-compatible alias */
+  --color-text-inverse:   #09090B;
+
+  /* The ONE accent color in the entire product (warm coral) */
+  --color-accent:               #FF6B4A;
+  --color-accent-primary:       #FF6B4A;   /* backward-compatible alias */
+  --color-accent-hover:         #FF8161;
+  --color-accent-primary-hover: #FF8161;   /* backward-compatible alias */
+  --color-accent-muted:         rgba(255, 107, 74, 0.12);
+  --color-accent-secondary:     #FF6B4A;   /* BANNED secondary blue/indigo: mapped to single coral accent */
+
+  /* Functional/semantic colors strictly for correct/incorrect/warning */
+  --color-success:        #3DD9A4;
+  --color-warning:        #FFC15E;
+  --color-danger:         #FF5C6C;
+
+  /* 1px borders replace most shadow usage */
+  --color-border:         #232328;
+  --color-border-hover:   #35353C;
 
   /* Typography */
   --font-display: "Cabinet Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body: "General Sans", -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --font-size-display: clamp(2.75rem, 6vw, 5.5rem);
-  --font-size-h1: clamp(2rem, 4vw, 3.25rem);
-  --font-size-h2: clamp(1.5rem, 2.5vw, 2.25rem);
-  --font-size-h3: clamp(1.25rem, 1.8vw, 1.5rem);
+  --font-size-display: clamp(3rem, 7vw, 6rem);
+  --font-size-h1: clamp(2.25rem, 4.5vw, 3.75rem);
+  --font-size-h2: clamp(1.75rem, 3vw, 2.5rem);
+  --font-size-h3: clamp(1.25rem, 2vw, 1.75rem);
   --font-size-body-lg: 1.125rem;
   --font-size-body: 1rem;
   --font-size-small: 0.875rem;
   --font-size-caption: 0.75rem;
 
-  /* Radius scale */
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
-  --radius-xl: 32px;
-  --radius-full: 999px;
+  /* Geometry — sharper, more technical (Section 1.6) */
+  --radius-xs: 6px;
+  --radius-sm: 8px;     /* inputs, buttons: 8-10px */
+  --radius-md: 10px;
+  --radius-lg: 12px;    /* cards and panels: 12px */
+  --radius-xl: 14px;
+  --radius-full: 9999px; /* reserved strictly for badges, avatars, and toggle switches */
 
-  /* Shadow/elevation */
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.24);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.32);
-  --shadow-lg: 0 16px 48px rgba(0,0,0,0.4);
-  --shadow-glow-accent: 0 0 32px rgba(255,107,74,0.35);
+  /* Shadows — minimal, only for floating overlays */
+  --shadow-subtle: 0 4px 16px rgba(0, 0, 0, 0.24);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.36);
 
-  /* Motion tokens */
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.44, 1);
-  --duration-fast: 150ms;
-  --duration-base: 250ms;
-  --duration-slow: 400ms;
-  --duration-story: 800ms;
+  /* Motion tokens (Section 3.1) */
+  --ease-precise: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.44, 1); /* reserved strictly for celebration moments */
+  --duration-micro: 140ms;
+  --duration-fast: 180ms;
+  --duration-normal: 260ms;
+  --duration-transition: 320ms;
 }
 
-/* Light mode token set */
+/* Light mode token set (Section 1.2) */
 [data-theme="light"], .light {
-  --color-bg-base:        #FAFAF7;
-  --color-bg-surface:     #FFFFFF;
-  --color-bg-surface-alt: #F1F2F4;
-  --color-text-primary:   #14171F;
-  --color-text-secondary: #5B6172;
-  --color-text-inverse:   #FAFAF7;
-  --color-accent-primary: #F0522F;   /* slightly deepened coral for AA contrast on light bg */
-  --color-accent-primary-hover: #D6431F;
-  --color-accent-secondary: #4A63D6; /* slightly deepened indigo for AA contrast on light bg */
+  --color-bg-base:        #FFFFFF;
+  --color-bg-surface:     #FAFAFA;
+  --color-bg-surface-alt: #F0F0F2;
+  --color-text-primary:   #0E0E10;
+  --color-text-secondary: #6B6B74;
+  --color-text-tertiary:  #9B9BA3;
+  --color-text-muted:     #9B9BA3;
+  --color-text-inverse:   #FFFFFF;
+
+  --color-accent:               #E8502F;
+  --color-accent-primary:       #E8502F;
+  --color-accent-hover:         #CF4123;
+  --color-accent-primary-hover: #CF4123;
+  --color-accent-muted:         rgba(232, 80, 47, 0.08);
+  --color-accent-secondary:     #E8502F;
+
   --color-success:        #1FA97F;
   --color-warning:        #C98A1E;
   --color-danger:         #D6394A;
-  --color-border:         #E4E6EB;
 
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
-  --shadow-md: 0 8px 24px rgba(0,0,0,0.08);
-  --shadow-lg: 0 16px 48px rgba(0,0,0,0.12);
-  --shadow-glow-accent: 0 0 32px rgba(240,82,47,0.2);
+  --color-border:         #E5E5E8;
+  --color-border-hover:   #D2D2D7;
+
+  --shadow-subtle: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-overlay: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -81,17 +97,12 @@
 }
 
 html, body {
-  transition: background-color 200ms ease, color 200ms ease;
+  transition: background-color 180ms cubic-bezier(0.65, 0, 0.35, 1), color 180ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 
-/* Noise overlay utility */
-.bg-noise {
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
-}
-
-/* Brand coral -> indigo gradient text */
+/* Restrained accent gradient text (subtle coral highlight) */
 .gradient-brand-text {
-  background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -109,7 +120,7 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   margin: 0;
 }
 

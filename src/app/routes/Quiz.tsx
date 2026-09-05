@@ -77,10 +77,10 @@ export const Quiz: React.FC = () => {
             <Icon icon={X} size={18} />
           </Button>
           <div>
-            <span className="text-xs font-mono text-[var(--color-accent-primary)] uppercase tracking-wider block">
+            <span className="text-xs font-mono text-[var(--color-accent)] uppercase tracking-wider block">
               {subject} &bull; Adaptive Set
             </span>
-            <h4 className="text-sm font-semibold text-white">
+            <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">
               Question {currentIndex + 1} of {TOTAL_QUESTIONS}
             </h4>
           </div>
@@ -104,7 +104,7 @@ export const Quiz: React.FC = () => {
       {/* Main Question Stage */}
       <main className="max-w-4xl w-full mx-auto flex-1 flex flex-col justify-center">
         {loading || !currentQuestion ? (
-          <div className="w-full max-w-3xl mx-auto p-8 rounded-lg bg-[var(--color-bg-surface)] border border-[var(--color-border)] space-y-6">
+          <div className="w-full max-w-3xl mx-auto p-8 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] space-y-6">
             <div className="flex justify-between items-center">
               <Skeleton width="140px" height="20px" />
               <Skeleton width="80px" height="20px" />
@@ -134,11 +134,11 @@ export const Quiz: React.FC = () => {
 
       {/* Mascot docked bottom-right in quiz mode */}
       <div className="fixed bottom-6 right-6 z-30 hidden sm:block pointer-events-none">
-        <div className="relative p-2 rounded-2xl bg-[#14171F]/90 backdrop-blur border border-[var(--color-border)] shadow-2xl flex items-center gap-3 pr-4 pointer-events-auto">
-          <NexPlaceholder size={56} />
+        <div className="relative p-2 rounded-xl bg-[var(--color-bg-surface)] backdrop-blur border border-[var(--color-border)] shadow-md flex items-center gap-3 pr-4 pointer-events-auto">
+          <NexPlaceholder size={52} />
           <div className="text-left">
-            <span className="text-[10px] font-mono text-[var(--color-accent-primary)] block font-bold">NEX LISTENING</span>
-            <span className="text-xs font-medium text-white">Focus &bull; Take your time</span>
+            <span className="text-[10px] font-mono text-[var(--color-accent)] block font-bold">NEX LISTENING</span>
+            <span className="text-xs font-medium text-[var(--color-text-primary)]">Focus &bull; Take your time</span>
           </div>
         </div>
       </div>

@@ -12,14 +12,11 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const saved = localStorage.getItem('nexlearn_theme');
+    const saved = localStorage.getItem('nexlearn-theme') || localStorage.getItem('nexlearn_theme');
     if (saved === 'light' || saved === 'dark') {
       return saved;
     }
-    if (typeof window !== 'undefined' && window.matchMedia) {
-      return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-    }
-    return 'dark';
+    return 'dark'; // Dark mode is the true default
   });
 
   useEffect(() => {

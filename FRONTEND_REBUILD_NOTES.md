@@ -157,3 +157,60 @@
    - When Gemini responds, the audio will play back smoothly through the browser's audio output at 24kHz and the avatar orb will pulse.
 4. Toggle the Camera or Screen Share buttons to stream 1 FPS visual frames to the multimodal tutor.
 5. Click **"End Session"** to cleanly disconnect the WebSocket and release all hardware media tracks.
+
+---
+
+## 4. Phase 5: Major High-Tech Redesign (Complete Build)
+
+### 1. Root Cause Theme Inconsistency Audit & System-Wide Fix (Section 2)
+- **Root Causes Identified:**
+  - `ForTeachersSection.tsx` had a full-bleed hardcoded background `bg-[#FAFAF7] text-[#0B0D12]` with hardcoded card hexes (`bg-[#FFFFFF]`, `border-[#E2E2D8]`, `divide-[#F2F2EC]`). When viewed in dark mode, this created a blinding white block in the middle of the landing page.
+  - `FinalCtaSection.tsx` and `Footer.tsx` had hardcoded `bg-[#0B0D12]` and `bg-[#080A0E]`.
+  - Across multiple files (`HeroSection`, `HowItWorksSection`, `StudentLogin`, `TeacherWelcome`, `Quiz`, `Results`, `Onboarding`), hardcoded color literals and `text-white` were used directly instead of semantic CSS custom properties.
+- **Root Cause Resolution:**
+  - Every single hardcoded color literal (`bg-white`, `bg-[#...]`, `text-[#...]`) was audited and replaced with semantic CSS custom properties:
+    - Root canvas: `var(--color-bg-base)`
+    - Cards/Panels: `var(--color-bg-surface)`
+    - Nested/Elevated surfaces: `var(--color-bg-surface-alt)`
+    - Text hierarchy: `var(--color-text-primary)`, `var(--color-text-secondary)`, `var(--color-text-tertiary)`
+    - Borders: `var(--color-border)` and `var(--color-border-hover)`
+  - Both Dark Mode and Light Mode now render with 100% visual coherence across all routes (`/`, `/login`, `/onboarding`, `/hub`, `/quiz`, `/results`, `/teacher`, `/teacher/dashboard`, `/settings`).
+
+### 2. High-Tech Visual System & Single-Accent Rule (Section 1)
+- **Dark Mode as True Default:** `ThemeContext.tsx` defaults to `'dark'`.
+- **Palette Architecture:**
+  - Dark Mode: Base zinc-950 (`#09090B`), Surface zinc-900 (`#131316`), Surface-Alt (`#1C1C21`), Border 1px (`#232328`), Text (`#FAFAFA` / `#8B8B93` / `#52525B`).
+  - Light Mode: Base pure white (`#FFFFFF`), Surface zinc-50 (`#F4F4F5`), Surface-Alt (`#E4E4E7`), Border 1px (`#E4E4E7`), Text (`#09090B` / `#52525B` / `#71717A`).
+- **Single-Accent Rule:**
+  - Primary Brand Accent: Coral (`#FF6B4A` dark, `#E8502F` light).
+  - Strictly banned all secondary saturated indigo/purple accents. No multi-color gradient text.
+  - Semantic functional colors (`success` emerald, `warning` amber, `danger` red) remain strictly semantic.
+- **Elevation via 1px Solid Borders:**
+  - Large-scale radial meshes, aurora gradients, and decorative blur blobs were eliminated.
+  - Depth is achieved with 1px solid borders (`--color-border`) and crisp hover transitions (`--color-border-hover`).
+- **Refined Geometric Scale:**
+  - Buttons and Inputs: 8–10px radius (`rounded-lg`).
+  - Cards, Panels, and Modals: 12px radius (`rounded-xl`).
+  - Full round (`rounded-full`): Strictly reserved for status pills, badge chips, avatars, and switches.
+
+### 3. Asymmetric Bento-Grid Layouts (Section 3.1)
+Bento-grid layouts have been implemented across three core locations:
+1. **Landing Page Capabilities (`SubjectsSection.tsx`):**
+   - 8-column Hero Physics Laboratory tile featuring an interactive diagnostic telemetry preview with hesitation trap detection.
+   - 4-column Mathematics tile highlighting algebraic proofs.
+   - Three 4-column supporting tiles for Chemistry, Biology, and Senior ICT.
+2. **Teacher Dashboard Overview (`TeacherDashboard.tsx`):**
+   - 6-column Single-Metric Focus tile displaying the Cohort Syllabus Readiness percentage (84.2%) with animated count-up and status indicator.
+   - 6-column grid containing 3 complementary tiles: Total Enrolled Students, Hesitation Hotspots (with intervention tags), and Syllabus Coverage.
+3. **Student Learning Hub Overview (`LearningHub.tsx`):**
+   - Active/focused subject dynamically expands into an asymmetric hero bento tile with direct quiz launcher, live diagnostic frontier, and mastery bars.
+   - Supporting subjects flank the hero tile with instant selection interactions.
+
+### 4. Precise Motion & Physics Specifications (Section 3.2)
+- **Transition Curve:** High-tech precision easing `cubic-bezier(0.65, 0, 0.35, 1)` with rapid 140–260ms duration across all interactive elements.
+- **Button Micro-Interactions:** Subtle elevation (`translateY(-1px)`) and instantaneous border brighten on hover; active press down (`scale(0.99)`).
+- **Celebration Exception:** Bouncy/spring animation (`type: "spring", stiffness: 400, damping: 15`) is reserved exclusively for the correct quiz answer moment. Incorrect answers and "I'm stuck" transitions use a calm, immediate slide-down (`160ms, [0.65, 0, 0.35, 1]`) without dramatic failure shakes.
+- **Animated Number Count-Ups:** Animated statistical count-ups implemented on hero metrics, teacher readiness cards, and quiz metrics.
+- **Layout Animations:** Student roster updates and list filtering use Framer Motion's `layout` prop so sibling elements glide smoothly into their new positions.
+- **Reduced Motion:** Full `useReducedMotion()` fallback compliance across all animated surfaces.
+

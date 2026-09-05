@@ -14,7 +14,6 @@ import {
   BookOpen,
   Calendar,
   User,
-  Sparkles,
 } from '../icons';
 
 interface StudentAnalyticsPanelProps {
@@ -27,7 +26,7 @@ export const StudentAnalyticsPanel: React.FC<StudentAnalyticsPanelProps> = ({ st
   if (!student) {
     return (
       <Card className="h-full flex flex-col items-center justify-center p-12 text-center bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
-        <div className="w-12 h-12 rounded-full bg-[var(--color-accent-secondary)]/10 text-[var(--color-accent-secondary)] flex items-center justify-center mb-3">
+        <div className="w-12 h-12 rounded-full bg-[var(--color-bg-surface-alt)] text-[var(--color-accent)] border border-[var(--color-border)] flex items-center justify-center mb-3">
           <Icon icon={User} size={24} />
         </div>
         <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">No Student Selected</h4>
@@ -77,7 +76,7 @@ export const StudentAnalyticsPanel: React.FC<StudentAnalyticsPanelProps> = ({ st
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h3 className="text-xl font-display font-bold text-[var(--color-text-primary)]">{student.name}</h3>
-              <Badge variant="indigo">Grade {student.grade}</Badge>
+              <Badge variant="default">Grade {student.grade}</Badge>
               {student.age && (
                 <span className="text-xs text-[var(--color-text-secondary)] font-mono">
                   {student.age} yrs
@@ -97,10 +96,10 @@ export const StudentAnalyticsPanel: React.FC<StudentAnalyticsPanelProps> = ({ st
             {student.access_token && (
               <div
                 onClick={handleCopy}
-                className="cursor-pointer group flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-accent-secondary)]/40 hover:border-[var(--color-accent-secondary)] transition-all shadow-sm"
+                className="cursor-pointer group flex items-center gap-2 px-3.5 py-2 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors shadow-sm"
                 title="Click to copy student login token"
               >
-                <Icon icon={Key} size={15} className="text-[var(--color-accent-secondary)] group-hover:scale-110 transition-transform" />
+                <Icon icon={Key} size={15} className="text-[var(--color-accent)]" />
                 <div>
                   <span className="block text-[9px] uppercase font-mono tracking-wider text-[var(--color-text-secondary)]">
                     Access Token
@@ -133,7 +132,7 @@ export const StudentAnalyticsPanel: React.FC<StudentAnalyticsPanelProps> = ({ st
         {student.subjects && student.subjects.length > 0 && (
           <div className="mt-5 pt-4 border-t border-[var(--color-border)]">
             <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--color-text-secondary)] mb-2 font-semibold">
-              <Icon icon={BookOpen} size={13} className="text-[var(--color-accent-secondary)]" />
+              <Icon icon={BookOpen} size={13} className="text-[var(--color-accent)]" />
               <span>National Syllabus Subjects ({student.subjects.length}):</span>
             </div>
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">

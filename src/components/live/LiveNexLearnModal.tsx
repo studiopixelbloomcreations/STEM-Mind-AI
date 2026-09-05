@@ -412,12 +412,12 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-3xl w-full max-w-4xl h-[88vh] flex flex-col overflow-hidden shadow-2xl relative bg-noise"
+        className="bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl w-full max-w-4xl h-[88vh] flex flex-col overflow-hidden shadow-xl relative"
       >
         {/* Top Header Bar */}
-        <header className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-bg-base)]/80 backdrop-blur-md z-20">
+        <header className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-bg-base)]/90 backdrop-blur-sm z-20">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[var(--color-accent-primary)] to-[var(--color-accent-secondary)] flex items-center justify-center text-white font-bold shadow-md">
+            <div className="w-9 h-9 rounded-lg bg-[var(--color-accent)] flex items-center justify-center text-white font-bold shadow-sm">
               <Icon icon={Sparkles} size={18} />
             </div>
             <div>
@@ -425,8 +425,8 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
                 <h2 className="text-base font-display font-bold text-[var(--color-text-primary)] tracking-tight">
                   Live NexLearn
                 </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--color-bg-surface-alt)] text-[var(--color-success)] border border-[var(--color-border)] font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />
                   {status === 'speaking'
                     ? 'Nex Speaking'
                     : status === 'listening'
@@ -446,7 +446,7 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
           <button
             type="button"
             onClick={endSession}
-            className="px-4 py-2 rounded-xl text-xs font-semibold font-mono uppercase tracking-wider bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/25 transition-all flex items-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+            className="px-4 py-2 rounded-lg text-xs font-semibold font-mono uppercase tracking-wider bg-[var(--color-bg-surface-alt)] hover:border-[var(--color-danger)] text-[var(--color-danger)] border border-[var(--color-border)] transition-colors flex items-center gap-2 cursor-pointer"
           >
             <Icon icon={X} size={14} />
             <span>End Session</span>
@@ -455,8 +455,11 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
 
         {/* Main Immersive Stage */}
         <main className="flex-1 relative flex flex-col items-center justify-center overflow-hidden bg-[var(--color-bg-base)]">
-          {/* Subtle Ambient Radial Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] bg-gradient-to-tr from-[var(--color-accent-primary)]/10 via-[var(--color-accent-secondary)]/10 to-transparent blur-3xl pointer-events-none rounded-full" />
+          {/* Subtle Accent Glow */}
+          <div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[480px] h-[480px] rounded-full pointer-events-none blur-[100px] opacity-10"
+            style={{ background: 'radial-gradient(circle, var(--color-accent) 0%, transparent 70%)' }}
+          />
 
           {/* Camera / Screen Share Video Feed (Full Stage Overlay) */}
           {isVideoActive && (
@@ -469,7 +472,7 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
                 className="w-full h-full object-contain"
               />
               <div className="absolute top-4 left-4 z-10 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[11px] font-mono text-white/90 border border-white/10 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[var(--color-danger)]" />
                 <span>{isScreenSharing ? 'Sharing Screen with Nex' : 'Camera Streaming'}</span>
               </div>
             </div>
@@ -478,32 +481,18 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
           {/* Central AI Avatar / Visualizer Stage */}
           <div
             className={`relative z-10 flex flex-col items-center justify-center text-center transition-all duration-300 ${
-              isVideoActive ? 'scale-75 translate-y-[-40px] drop-shadow-2xl' : ''
+              isVideoActive ? 'scale-75 translate-y-[-40px] drop-shadow-xl' : ''
             }`}
           >
-            {/* Glowing Avatar Orb */}
-            <div className="relative w-44 h-44 flex items-center justify-center">
-              {/* Outer Pulsing Halo */}
-              <motion.div
-                animate={{
-                  scale: status === 'speaking' ? [1, 1.3, 1] : isMicOn ? [1, 1.12, 1] : [1, 1.04, 1],
-                  opacity: status === 'speaking' ? [0.45, 0.8, 0.45] : isMicOn ? [0.25, 0.5, 0.25] : [0.15, 0.25, 0.15],
-                }}
-                transition={{
-                  repeat: Infinity,
-                  duration: status === 'speaking' ? 1.4 : 2.6,
-                  ease: 'easeInOut',
-                }}
-                className="absolute inset-0 rounded-full bg-gradient-to-tr from-[var(--color-accent-primary)] via-[var(--color-accent-secondary)] to-[var(--color-accent-primary)] blur-2xl pointer-events-none"
-              />
-
+            {/* Avatar Orb */}
+            <div className="relative w-40 h-40 flex items-center justify-center">
               {/* Inner Nexus Sphere */}
-              <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-[var(--color-accent-primary)] to-[var(--color-accent-secondary)] p-1 shadow-2xl flex items-center justify-center border border-white/20">
-                <div className="w-full h-full rounded-full bg-[var(--color-bg-surface)]/90 backdrop-blur-md flex flex-col items-center justify-center">
+              <div className="w-28 h-28 rounded-full bg-[var(--color-accent)] p-1 shadow-sm flex items-center justify-center border border-[var(--color-border)]">
+                <div className="w-full h-full rounded-full bg-[var(--color-bg-surface)] flex flex-col items-center justify-center">
                   <span className="font-display font-black text-2xl tracking-wider text-[var(--color-text-primary)]">
                     NEX
                   </span>
-                  <span className="text-[9px] font-mono text-[var(--color-accent-primary)] uppercase tracking-widest font-bold mt-0.5">
+                  <span className="text-[9px] font-mono text-[var(--color-accent)] uppercase tracking-widest font-bold mt-0.5">
                     TUTOR
                   </span>
                 </div>
@@ -511,7 +500,7 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
             </div>
 
             {/* Real AnalyserNode-Driven Audio Amplitude Waveform */}
-            <div className="flex items-center justify-center gap-1.5 mt-8 h-12 px-6 py-2 rounded-2xl bg-[var(--color-bg-surface)]/80 backdrop-blur-md border border-[var(--color-border)] shadow-sm">
+            <div className="flex items-center justify-center gap-1.5 mt-8 h-12 px-6 py-2 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
               {audioLevels.map((level, i) => (
                 <div
                   key={i}
@@ -520,11 +509,9 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
                     transition: 'height 80ms ease-out',
                   }}
                   className={`w-1.5 rounded-full transition-all ${
-                    status === 'speaking'
-                      ? 'bg-[var(--color-accent-secondary)]'
-                      : isMicOn
-                      ? 'bg-[var(--color-accent-primary)]'
-                      : 'bg-[var(--color-text-muted)] opacity-30'
+                    status === 'speaking' || isMicOn
+                      ? 'bg-[var(--color-accent)]'
+                      : 'bg-[var(--color-border)]'
                   }`}
                 />
               ))}
@@ -544,18 +531,18 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
           <AnimatePresence>
             {caption && (
               <motion.div
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.16, ease: [0.65, 0, 0.35, 1] }}
                 className="absolute bottom-28 left-6 right-6 max-w-2xl mx-auto z-30 pointer-events-none"
               >
-                <div className="p-4 rounded-2xl bg-black/80 backdrop-blur-xl border border-white/10 shadow-2xl text-center">
-                  <div className="inline-flex items-center gap-1.5 mb-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-white font-mono text-[10px] uppercase font-bold tracking-wider">
+                <div className="p-4 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-xl text-center">
+                  <div className="inline-flex items-center gap-1.5 mb-1.5 px-2.5 py-0.5 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-mono text-[10px] uppercase font-bold tracking-wider">
                     <span>{caption.speaker === 'student' ? 'You' : 'Nex'}</span>
                   </div>
-                  <p className="text-sm sm:text-base text-white font-medium leading-relaxed">
-                    "{caption.text}"
+                  <p className="text-sm sm:text-base text-[var(--color-text-primary)] font-medium leading-relaxed">
+                    &ldquo;{caption.text}&rdquo;
                   </p>
                 </div>
               </motion.div>
@@ -563,19 +550,19 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
           </AnimatePresence>
 
           {/* Bottom Control Bar: EXACTLY THREE CONTROLS */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-4 px-5 py-3 rounded-2xl bg-[var(--color-bg-surface)]/90 backdrop-blur-xl border border-[var(--color-border)] shadow-2xl">
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-md">
             {/* Control 1: Microphone Toggle */}
             <button
               type="button"
               onClick={toggleMic}
               title={isMicOn ? 'Mute Microphone' : 'Unmute Microphone'}
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                 isMicOn
-                  ? 'bg-[var(--color-accent-primary)] text-white shadow-lg shadow-orange-500/25 hover:scale-105 active:scale-95'
-                  : 'bg-[var(--color-bg-base)] text-red-400 border border-red-500/30 hover:bg-red-500/10'
+                  ? 'bg-[var(--color-accent)] text-white shadow-sm'
+                  : 'bg-[var(--color-bg-surface-alt)] text-[var(--color-danger)] border border-[var(--color-border)]'
               }`}
             >
-              <Icon icon={isMicOn ? Mic : MicOff} size={22} />
+              <Icon icon={isMicOn ? Mic : MicOff} size={20} />
             </button>
 
             {/* Control 2: Camera Toggle */}
@@ -583,13 +570,13 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
               type="button"
               onClick={toggleCamera}
               title={isVideoOn ? 'Turn Off Camera' : 'Turn On Camera'}
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                 isVideoOn
-                  ? 'bg-[var(--color-accent-primary)] text-white shadow-lg shadow-orange-500/25 hover:scale-105 active:scale-95'
-                  : 'bg-[var(--color-bg-base)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)]'
+                  ? 'bg-[var(--color-accent)] text-white shadow-sm'
+                  : 'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:text-[var(--color-text-primary)]'
               }`}
             >
-              <Icon icon={isVideoOn ? Video : VideoOff} size={22} />
+              <Icon icon={isVideoOn ? Video : VideoOff} size={20} />
             </button>
 
             {/* Control 3: Screen Share Toggle */}
@@ -597,13 +584,13 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
               type="button"
               onClick={toggleScreenShare}
               title={isScreenSharing ? 'Stop Sharing Screen' : 'Share Screen / Problem'}
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+              className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                 isScreenSharing
-                  ? 'bg-[var(--color-accent-primary)] text-white shadow-lg shadow-orange-500/25 hover:scale-105 active:scale-95'
-                  : 'bg-[var(--color-bg-base)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:text-[var(--color-text-primary)] hover:border-[var(--color-text-muted)]'
+                  ? 'bg-[var(--color-accent)] text-white shadow-sm'
+                  : 'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:text-[var(--color-text-primary)]'
               }`}
             >
-              <Icon icon={ScreenShare} size={22} />
+              <Icon icon={ScreenShare} size={20} />
             </button>
           </div>
         </main>

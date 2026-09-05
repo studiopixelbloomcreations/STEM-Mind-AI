@@ -26,7 +26,7 @@ export const Settings: React.FC = () => {
             <Icon icon={ArrowLeft} size={18} />
           </Button>
           <div>
-            <h2 className="text-2xl font-display font-bold text-white">Settings</h2>
+            <h2 className="text-2xl font-display font-bold text-[var(--color-text-primary)]">Settings</h2>
             <p className="text-xs text-[var(--color-text-secondary)] font-mono">
               Local environment preferences and API key configuration
             </p>
@@ -35,10 +35,10 @@ export const Settings: React.FC = () => {
       </header>
 
       <main className="max-w-2xl w-full mx-auto flex-1">
-        <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
+        <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
           <form onSubmit={handleSave} className="space-y-6">
             <div>
-              <h4 className="text-sm font-semibold text-white mb-1">Gemini API Key (Optional)</h4>
+              <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">Gemini API Key (Optional)</h4>
               <p className="text-xs text-[var(--color-text-secondary)] mb-4 leading-relaxed">
                 By default, the platform routes through pre-configured school endpoints. You may provide your own Gemini API key for local development.
               </p>

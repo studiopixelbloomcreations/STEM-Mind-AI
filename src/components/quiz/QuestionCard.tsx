@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -77,14 +77,14 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   return (
-    <Card className="w-full max-w-3xl mx-auto p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-xl">
+    <Card className="w-full max-w-3xl mx-auto p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm">
       {/* Header telemetry */}
       <div className="flex items-center justify-between pb-4 border-b border-[var(--color-border)] mb-6">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-mono text-[var(--color-accent-primary)] font-bold">
+          <span className="text-xs font-mono text-[var(--color-accent)] font-bold">
             QUESTION {questionIndex + 1} / {totalQuestions}
           </span>
-          <Badge variant="indigo">{question.syllabusRef || 'Syllabus Standard'}</Badge>
+          <Badge variant="default">{question.syllabusRef || 'Syllabus Standard'}</Badge>
         </div>
         <Badge variant={question.difficulty === 'hard' ? 'warning' : 'default'}>
           {question.difficulty || 'Medium'}
@@ -92,7 +92,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       </div>
 
       {/* Main Question Text */}
-      <h3 className="text-xl lg:text-2xl font-display font-bold text-white mb-8 leading-snug">
+      <h3 className="text-xl lg:text-2xl font-display font-bold text-[var(--color-text-primary)] mb-8 leading-snug">
         {question.question}
       </h3>
 

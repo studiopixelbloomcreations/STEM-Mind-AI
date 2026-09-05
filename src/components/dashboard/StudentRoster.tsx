@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -70,10 +71,10 @@ export const StudentRoster: React.FC<StudentRosterProps> = ({
       {/* Empty State */}
       {filtered.length === 0 && (
         <Card className="p-8 text-center bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
-          <div className="w-12 h-12 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto mb-3">
+          <div className="w-12 h-12 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[var(--color-accent)] flex items-center justify-center mx-auto mb-3">
             <Icon icon={User} size={24} />
           </div>
-          <h4 className="text-sm font-semibold text-white mb-1">No Students Found</h4>
+          <h4 className="text-sm font-semibold text-[var(--color-text-primary)] mb-1">No Students Found</h4>
           <p className="text-xs text-[var(--color-text-secondary)] font-mono mb-4">
             {searchTerm ? 'No students match your search criteria.' : 'No students enrolled in this cohort yet.'}
           </p>
@@ -86,69 +87,76 @@ export const StudentRoster: React.FC<StudentRosterProps> = ({
         </Card>
       )}
 
-      {/* Roster List Cards */}
+      {/* Roster List Cards with layout animation */}
       <div className="space-y-2.5">
-        {filtered.map((student) => {
-          const isSelected = student.id === selectedStudentId;
+        <AnimatePresence>
+          {filtered.map((student) => {
+            const isSelected = student.id === selectedStudentId;
 
-          return (
-            <div
-              key={student.id}
-              onClick={() => onSelectStudent(student)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                isSelected
-                  ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-accent-primary)] shadow-md ring-1 ring-indigo-500/20'
-                  : 'bg-[var(--color-bg-surface)] border-[var(--color-border)] hover:border-indigo-500/40'
-              }`}
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-sm shrink-0">
-                  {student.name.charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-white">{student.name}</h4>
-                    <Badge variant="indigo" size="sm">Grade {student.grade}</Badge>
+            return (
+              <motion.div
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.16, ease: [0.65, 0, 0.35, 1] }}
+                key={student.id}
+                onClick={() => onSelectStudent(student)}
+                className={`p-4 rounded-xl border transition-colors cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  isSelected
+                    ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-accent)] shadow-sm'
+                    : 'bg-[var(--color-bg-surface)] border-[var(--color-border)] hover:border-[var(--color-border-hover)]'
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] flex items-center justify-center text-[var(--color-accent)] font-bold text-sm shrink-0">
+                    {student.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    {student.access_token && (
-                      <div
-                        onClick={(e) => handleCopy(e, student.access_token)}
-                        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-black/40 border border-indigo-500/30 text-[11px] font-mono text-indigo-300 hover:text-white hover:border-indigo-400 transition-colors"
-                        title="Click to copy student token"
-                      >
-                        <Icon icon={Key} size={10} />
-                        <span>{student.access_token}</span>
-                        <Icon icon={copiedToken === student.access_token ? Check : Copy} size={11} className={copiedToken === student.access_token ? 'text-emerald-400' : 'text-slate-400'} />
-                      </div>
-                    )}
-                    <span className="text-[11px] text-[var(--color-text-secondary)] font-mono truncate max-w-[150px]">
-                      {student.subjects?.length || 0} subjects
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-semibold text-[var(--color-text-primary)]">{student.name}</h4>
+                      <Badge variant="default" size="sm">Grade {student.grade}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      {student.access_token && (
+                        <div
+                          onClick={(e) => handleCopy(e, student.access_token)}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-[11px] font-mono text-[var(--color-text-primary)] hover:border-[var(--color-accent)] transition-colors"
+                          title="Click to copy student token"
+                        >
+                          <Icon icon={Key} size={10} className="text-[var(--color-accent)]" />
+                          <span>{student.access_token}</span>
+                          <Icon icon={copiedToken === student.access_token ? Check : Copy} size={11} className={copiedToken === student.access_token ? 'text-[var(--color-success)]' : 'text-[var(--color-text-secondary)]'} />
+                        </div>
+                      )}
+                      <span className="text-[11px] text-[var(--color-text-secondary)] font-mono truncate max-w-[150px]">
+                        {student.subjects?.length || 0} subjects
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-5 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border)]">
+                  <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--color-warning)]">
+                    <Icon icon={Flame} size={14} />
+                    <span>{student.streak || 0} streak</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="block text-sm font-bold font-mono text-[var(--color-success)]">
+                      {student.mastery_rate || 50}%
                     </span>
+                    <span className="text-[10px] text-[var(--color-text-secondary)] font-mono uppercase">Mastery</span>
                   </div>
+                  <Icon
+                    icon={ArrowRight}
+                    size={16}
+                    className={`transition-colors hidden sm:block ${isSelected ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-secondary)]'}`}
+                  />
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between sm:justify-end gap-5 pt-2 sm:pt-0 border-t sm:border-t-0 border-[var(--color-border)]">
-                <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--color-warning)]">
-                  <Icon icon={Flame} size={14} />
-                  <span>{student.streak || 0} streak</span>
-                </div>
-                <div className="text-right">
-                  <span className="block text-sm font-bold font-mono text-[var(--color-success)]">
-                    {student.mastery_rate || 50}%
-                  </span>
-                  <span className="text-[10px] text-[var(--color-text-secondary)] font-mono uppercase">Mastery</span>
-                </div>
-                <Icon
-                  icon={ArrowRight}
-                  size={16}
-                  className={`transition-colors hidden sm:block ${isSelected ? 'text-[var(--color-accent-primary)]' : 'text-gray-600'}`}
-                />
-              </div>
-            </div>
-          );
-        })}
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
     </div>
   );

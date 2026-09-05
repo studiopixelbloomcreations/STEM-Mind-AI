@@ -1,0 +1,84 @@
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900&f[]=general-sans@400,500,600&display=swap');
+
+:root {
+  /* Color tokens — dark mode is primary */
+  --color-bg-base: #0B0D12;
+  --color-bg-surface: #14171F;
+  --color-bg-surface-alt: #1C202B;
+  --color-bg-light: #FAFAF7;
+  --color-text-primary: #F5F6F8;
+  --color-text-secondary: #A0A6B4;
+  --color-text-inverse: #0B0D12;
+  --color-accent-primary: #FF6B4A;
+  --color-accent-primary-hover: #FF8161;
+  --color-accent-secondary: #5B7CFA;
+  --color-success: #3DD9A4;
+  --color-warning: #FFC15E;
+  --color-danger: #FF5C6C;
+  --color-border: #262B38;
+
+  /* Typography */
+  --font-display: "Cabinet Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: "General Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --font-size-display: clamp(2.75rem, 6vw, 5.5rem);
+  --font-size-h1: clamp(2rem, 4vw, 3.25rem);
+  --font-size-h2: clamp(1.5rem, 2.5vw, 2.25rem);
+  --font-size-h3: clamp(1.25rem, 1.8vw, 1.5rem);
+  --font-size-body-lg: 1.125rem;
+  --font-size-body: 1rem;
+  --font-size-small: 0.875rem;
+  --font-size-caption: 0.75rem;
+
+  /* Radius scale */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 999px;
+
+  /* Shadow/elevation */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.24);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.32);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.4);
+  --shadow-glow-accent: 0 0 32px rgba(255,107,74,0.35);
+
+  /* Motion tokens */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasis: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.44, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 400ms;
+  --duration-story: 800ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

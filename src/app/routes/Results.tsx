@@ -49,15 +49,19 @@ export const Results: React.FC = () => {
         </div>
 
         <Badge variant={isStrongResult ? 'success' : 'default'} className="mb-4">
-          {isStrongResult ? 'Exceptional Mastery' : 'Session Complete'}
+          {percentage >= 95 ? 'Top Decile Frontier' : isStrongResult ? 'Target Mastery' : 'Evaluation Complete'}
         </Badge>
 
         <h2 className="text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
-          {isStrongResult ? 'Outstanding Work!' : 'Solid Session Completed!'}
+          {percentage >= 95
+            ? 'Top Decile Diagnostic Mastery'
+            : isStrongResult
+            ? 'Frontier Standard Retained'
+            : 'Evaluation Set Concluded'}
         </h2>
 
         <p className="text-sm text-[var(--color-text-secondary)] max-w-md mx-auto mb-8 font-body">
-          You answered <span className="text-[var(--color-text-primary)] font-bold">{score} out of {total}</span> questions correctly in {subject}. Your diagnostic profile has been updated.
+          You evaluated <span className="text-[var(--color-text-primary)] font-bold">{score} of {total}</span> problems within target parameters in {subject}. Real-time student profile metrics have been updated.
         </p>
 
         {/* Score Metric Card */}

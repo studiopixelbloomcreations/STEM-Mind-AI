@@ -14,6 +14,7 @@ import { Settings } from './routes/Settings';
 
 import { ToastProvider } from '../components/ui/Toast';
 import { ThemeProvider } from '../lib/context/ThemeContext';
+import { EasterEggsManager } from '../components/easter/EasterEggsManager';
 
 export const AppRouter: React.FC = () => {
   return (
@@ -21,6 +22,7 @@ export const AppRouter: React.FC = () => {
       <TeacherAuthProvider>
         <ToastProvider>
         <BrowserRouter>
+          <EasterEggsManager />
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<StudentLogin />} />

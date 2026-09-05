@@ -3,13 +3,14 @@ import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { ArrowRight, Sparkles } from '../icons';
 import { useNavigate } from 'react-router-dom';
+import { RevealOnScroll } from '../ui/RevealOnScroll';
 
 export const FinalCtaSection: React.FC = () => {
   const navigate = useNavigate();
 
   return (
     <section className="w-full py-28 px-6 lg:px-16 bg-[var(--color-bg-base)] relative overflow-hidden border-t border-[var(--color-border)]">
-      <div className="max-w-4xl mx-auto text-center relative z-10">
+      <RevealOnScroll className="max-w-4xl mx-auto text-center relative z-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-xs font-mono text-[var(--color-accent)] mb-6">
           <Icon icon={Sparkles} size={14} />
           <span>Zero installation &bull; Web native</span>
@@ -42,7 +43,7 @@ export const FinalCtaSection: React.FC = () => {
             <span>Teacher Portal</span>
           </Button>
         </div>
-      </div>
+      </RevealOnScroll>
     </section>
   );
 };

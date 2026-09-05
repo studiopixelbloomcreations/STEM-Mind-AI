@@ -4,11 +4,12 @@ import { Badge } from '../ui/Badge';
 import { NexPlaceholder } from '../mascot/NexPlaceholder';
 import { Sparkles, Brain, Clock, ShieldCheck } from '../icons';
 import { Icon } from '../ui/Icon';
+import { RevealOnScroll } from '../ui/RevealOnScroll';
 
 export const TutorTeaserSection: React.FC = () => {
   return (
     <section className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] border-t border-[var(--color-border)]">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <RevealOnScroll className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         {/* Left Column: Mascot Placeholder Display */}
         <div className="lg:col-span-5 flex justify-center order-2 lg:order-1">
           <div className="relative p-10 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm flex flex-col items-center">
@@ -96,7 +97,7 @@ export const TutorTeaserSection: React.FC = () => {
             </Card>
           </div>
         </div>
-      </div>
+      </RevealOnScroll>
     </section>
   );
 };

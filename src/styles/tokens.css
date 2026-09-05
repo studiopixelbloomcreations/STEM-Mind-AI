@@ -124,6 +124,44 @@ h1, h2, h3, h4, h5, h6 {
   margin: 0;
 }
 
+/* Liquid Glass Material (Apple iOS 26 approximation for Chrome/Navigation/Modals) */
+.liquid-glass {
+  background: rgba(18, 18, 22, 0.72);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.38), inset 0 1px 0 0 rgba(255, 255, 255, 0.16);
+  position: relative;
+}
+
+[data-theme="light"] .liquid-glass, .light .liquid-glass {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+/* Specular Highlight Bar (real light refraction along the top edge) */
+.specular-highlight {
+  position: relative;
+}
+
+.specular-highlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25) 25%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0.25) 75%, transparent);
+  pointer-events: none;
+  border-radius: 9999px;
+  z-index: 10;
+}
+
+[data-theme="light"] .specular-highlight::before, .light .specular-highlight::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6) 25%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0.6) 75%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
@@ -132,3 +170,4 @@ h1, h2, h3, h4, h5, h6 {
     scroll-behavior: auto !important;
   }
 }
+

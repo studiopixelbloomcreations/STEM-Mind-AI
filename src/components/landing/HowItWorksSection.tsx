@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { CheckCircle2, HelpCircle, ArrowRight, Lightbulb, TrendingUp } from '../icons';
+import { RevealOnScroll } from '../ui/RevealOnScroll';
 
 interface Beat {
   step: string;
@@ -126,7 +127,7 @@ export const HowItWorksSection: React.FC = () => {
 
   return (
     <section id="how-it-works" className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] border-y border-[var(--color-border)]">
-      <div className="max-w-7xl mx-auto">
+      <RevealOnScroll className="max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <Badge variant="accent" className="mb-4">The Guided Loop</Badge>
           <h2 className="text-[var(--font-size-h1)] font-display font-bold text-[var(--color-text-primary)] mb-4">
@@ -242,7 +243,7 @@ export const HowItWorksSection: React.FC = () => {
             </AnimatePresence>
           </div>
         </div>
-      </div>
+      </RevealOnScroll>
     </section>
   );
 };

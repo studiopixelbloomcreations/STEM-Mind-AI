@@ -549,8 +549,8 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
             )}
           </AnimatePresence>
 
-          {/* Bottom Control Bar: EXACTLY THREE CONTROLS */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-md">
+          {/* Floating Control Dock (Liquid Glass) */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-5 py-2.5 rounded-full liquid-glass specular-highlight shadow-2xl">
             {/* Control 1: Microphone Toggle */}
             <button
               type="button"

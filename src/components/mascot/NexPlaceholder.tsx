@@ -1,11 +1,11 @@
-﻿// TEMPORARY PLACEHOLDER — the full 3D Nex avatar is a separate,
+// TEMPORARY PLACEHOLDER — the full 3D Nex avatar is a separate,
 // currently-paused workstream. This 2D placeholder exists only so
 // the product doesn't feel empty. Replace this entire component
 // when the 3D avatar project resumes. Do not extend this placeholder
 // with additional features — swap, don't build on top of it.
 
-import React, { useEffect, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import React, { useEffect, useState, useRef } from 'react';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 
 interface NexPlaceholderProps {
   size?: number;
@@ -18,9 +18,51 @@ export const NexPlaceholder: React.FC<NexPlaceholderProps> = ({
 }) => {
   const shouldReduceMotion = useReducedMotion();
   const [isBlinking, setIsBlinking] = useState(false);
+  const [isDizzy, setIsDizzy] = useState(false);
+  const [isWaving, setIsWaving] = useState(false);
+  const [isCelebrating, setIsCelebrating] = useState(false);
+  const clickTimestamps = useRef<number[]>([]);
 
   useEffect(() => {
-    if (shouldReduceMotion) return;
+    // Listen for custom easter egg broadcast events
+    const handleCustomEasterEgg = (e: Event) => {
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/quiz')) {
+        return; // Strict rule: NEVER trigger during active quiz
+      }
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail === 'wave') {
+        setIsWaving(true);
+        setTimeout(() => setIsWaving(false), 2200);
+      } else if (customEvent.detail === 'celebrate') {
+        setIsCelebrating(true);
+        setTimeout(() => setIsCelebrating(false), 3000);
+      }
+    };
+
+    window.addEventListener('nex-easter-egg', handleCustomEasterEgg);
+    return () => window.removeEventListener('nex-easter-egg', handleCustomEasterEgg);
+  }, []);
+
+  const handleMascotClick = () => {
+    // Strict isolation: Never fire mid-quiz
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/quiz')) {
+      return;
+    }
+
+    const now = Date.now();
+    // Keep clicks from the last 1.5 seconds
+    clickTimestamps.current = clickTimestamps.current.filter((t) => now - t < 1500);
+    clickTimestamps.current.push(now);
+
+    if (clickTimestamps.current.length >= 5) {
+      clickTimestamps.current = [];
+      setIsDizzy(true);
+      setTimeout(() => setIsDizzy(false), 2400);
+    }
+  };
+
+  useEffect(() => {
+    if (shouldReduceMotion || isDizzy) return;
 
     let timeoutId: NodeJS.Timeout;
     const triggerBlink = () => {
@@ -36,14 +78,33 @@ export const NexPlaceholder: React.FC<NexPlaceholderProps> = ({
     timeoutId = setTimeout(triggerBlink, initialInterval);
 
     return () => clearTimeout(timeoutId);
-  }, [shouldReduceMotion]);
+  }, [shouldReduceMotion, isDizzy]);
 
   return (
     <div
-      className={`relative flex items-center justify-center select-none ${className}`}
+      onClick={handleMascotClick}
+      className={`relative flex items-center justify-center select-none cursor-pointer group ${className}`}
       style={{ width: size, height: size }}
       aria-label="Nex AI Tutor Mascot Placeholder"
+      title="Nex AI Companion"
     >
+      {/* Easter egg reaction label */}
+      <AnimatePresence>
+        {(isDizzy || isWaving || isCelebrating) && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.9 }}
+            transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
+            className="absolute -top-3 z-30 px-3 py-1 rounded-full liquid-glass text-xs font-mono font-bold text-[var(--color-text-primary)] border border-[var(--color-border)] shadow-lg flex items-center gap-1.5 pointer-events-none"
+          >
+            {isDizzy && <span>🌀 Re-calibrating equilibrium...</span>}
+            {isWaving && <span>👋 Diagnostic core online</span>}
+            {isCelebrating && <span>⚡ Protocol 1986 Activated</span>}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Soft outer glow backdrop */}
       <div
         className="absolute inset-0 rounded-full blur-2xl opacity-25 pointer-events-none"
@@ -61,16 +122,39 @@ export const NexPlaceholder: React.FC<NexPlaceholderProps> = ({
         animate={
           shouldReduceMotion
             ? {}
+            : isDizzy
+            ? {
+                rotate: [-14, 14, -10, 10, -5, 5, 0],
+                scale: [1, 0.94, 1.05, 0.96, 1],
+              }
+            : isWaving
+            ? {
+                rotate: [0, -9, 9, -6, 6, 0],
+                y: [0, -4, 0, -2, 0],
+              }
+            : isCelebrating
+            ? {
+                y: [0, -18, 0, -10, 0],
+                scale: [1, 1.08, 1, 1.04, 1],
+              }
             : {
                 scale: [1, 1.03, 1],
               }
         }
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-        className="relative z-10 drop-shadow-xl"
+        transition={
+          isDizzy
+            ? { duration: 1.8, ease: 'easeInOut' }
+            : isWaving
+            ? { duration: 1.6, ease: 'easeInOut' }
+            : isCelebrating
+            ? { duration: 1.5, ease: 'easeInOut' }
+            : {
+                duration: 3,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }
+        }
+        className="relative z-10 drop-shadow-xl transition-transform"
       >
         <defs>
           <radialGradient

@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles } from '../icons';
+import { Icon } from '../ui/Icon';
 
 export const Footer: React.FC = () => {
+  const [showDedication, setShowDedication] = useState(false);
+
   return (
     <footer className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-secondary)] border-t border-[var(--color-border)] py-16 px-6 lg:px-16 font-body">
       <div className="max-w-7xl mx-auto">
@@ -14,8 +19,39 @@ export const Footer: React.FC = () => {
             <p className="text-sm max-w-sm leading-relaxed mb-6">
               The operating system for personal AI STEM education. Built with quiet confidence for Grades 9–11 students and educators.
             </p>
-            <div className="text-xs font-mono text-[var(--color-text-tertiary)]">
-              &copy; {new Date().getFullYear()} NexLearn Technologies. All rights reserved.
+            <div className="relative inline-block text-xs font-mono text-[var(--color-text-tertiary)]">
+              &copy;{' '}
+              <span
+                onMouseEnter={() => setShowDedication(true)}
+                onMouseLeave={() => setShowDedication(false)}
+                onClick={() => setShowDedication((prev) => !prev)}
+                className="cursor-pointer underline decoration-dotted decoration-[var(--color-border-hover)] hover:text-[var(--color-accent)] transition-colors"
+                title="System Dedication"
+              >
+                {new Date().getFullYear()}
+              </span>{' '}
+              NexLearn Technologies. All rights reserved.
+
+              {/* Discreet Dedication Bubble */}
+              <AnimatePresence>
+                {showDedication && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: -4, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                    transition={{ duration: 0.18, ease: [0.65, 0, 0.35, 1] }}
+                    className="absolute left-0 bottom-full mb-2 p-3 w-72 rounded-xl liquid-glass specular-highlight border border-[var(--color-border)] shadow-xl z-20 pointer-events-none text-left"
+                  >
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--color-accent)] uppercase font-bold mb-1">
+                      <Icon icon={Sparkles} size={11} />
+                      <span>Dedicated to Excellence</span>
+                    </div>
+                    <p className="text-xs text-[var(--color-text-primary)] font-normal leading-relaxed">
+                      Crafted with precision &amp; care for Sri Lankan STEM scholars and educators. In quiet pursuit of mastery.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 

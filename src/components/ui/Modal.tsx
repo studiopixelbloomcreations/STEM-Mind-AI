@@ -61,7 +61,7 @@ export const Modal: React.FC<ModalProps> = ({
             animate={shouldReduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, y: 0 }}
             exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 6 }}
             transition={{ duration: 0.22, ease: [0.65, 0, 0.35, 1] }}
-            className={`relative w-full ${maxWidthStyles} bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-xl shadow-[var(--shadow-overlay)] p-6 z-10`}
+            className={`relative w-full ${maxWidthStyles} liquid-glass specular-highlight rounded-2xl shadow-[var(--shadow-overlay)] p-6 z-10`}
           >
             {title && (
               <div className="flex items-center justify-between pb-4 border-b border-[var(--color-border)] mb-5">

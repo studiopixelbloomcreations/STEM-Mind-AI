@@ -61,10 +61,10 @@ export const FeedbackBanner: React.FC<FeedbackBannerProps> = ({
             <div>
               <h4 className="text-base font-display font-bold text-[var(--color-text-primary)]">
                 {isSuccess
-                  ? 'Excellent reasoning! That is correct.'
+                  ? 'Response verified. Calculation aligns with syllabus derivation.'
                   : status === 'teaching'
-                  ? 'Tutor Mode: Let\u2019s break down the solution'
-                  : 'Not quite, but you are very close!'}
+                  ? 'Diagnostic Mode: Methodological breakdown'
+                  : 'Variance detected. Review step derivation below.'}
               </h4>
               <p className="text-xs text-[var(--color-text-secondary)] font-mono mt-0.5">
                 Target value: <span className="text-[var(--color-text-primary)] font-bold">{correctAnswer}</span>

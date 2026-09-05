@@ -214,3 +214,45 @@ Bento-grid layouts have been implemented across three core locations:
 - **Layout Animations:** Student roster updates and list filtering use Framer Motion's `layout` prop so sibling elements glide smoothly into their new positions.
 - **Reduced Motion:** Full `useReducedMotion()` fallback compliance across all animated surfaces.
 
+---
+
+## 5. Phase 6: Liquid Glass Upgrade
+
+### 1. Liquid Glass Material Architecture (CSS Approximation)
+- **Material Placement:** Liquid Glass is strictly applied to floating navigation, control bars, and modal overlays (`FloatingHeader`, `Modal`, `LiveNexLearnModal` control dock, and system toasts). Solid content cards and bento tiles strictly maintain the Phase 5 solid surface and 1px border architecture.
+- **Optics & Refraction:**
+  - Dark Mode: `background: rgba(18, 18, 22, 0.72); border: 1px solid rgba(255, 255, 255, 0.09);`
+  - Light Mode: `background: rgba(255, 255, 255, 0.82); border: 1px solid rgba(0, 0, 0, 0.08);`
+  - Filter: `backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);`
+  - Top Specular Highlight (`.specular-highlight`): A 1px subtle top refraction highlight gradient (`linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25) 25%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0.25) 75%, transparent)`) simulating real physical light catching on glass edges.
+  - Ambient Shadow: `0 12px 36px 0 rgba(0, 0, 0, 0.38)` with continuous curvature corners.
+
+### 2. Floating Auto-Hiding Liquid Glass Header (`FloatingHeader.tsx`)
+- **Geometry:** Horizontally centered, continuous-corner pill floating with top and side margins (`max-w-5xl`, `rounded-full`).
+- **Scroll Dynamics:**
+  - Relaxed state at top of page (`py-2.5 sm:py-3 px-5 sm:px-8`).
+  - Condenses slightly once past 50px downward scroll (`py-2 px-4 sm:px-6`).
+  - On sustained downward scroll (>80px), translates up `-80px` and fades to `opacity: 0`.
+  - On **any** upward scroll, immediately snaps back into view with smooth precision easing (`cubic-bezier(0.65, 0, 0.35, 1)`, 240ms duration).
+  - Responsive mobile overlay with liquid-glass backdrop.
+
+### 3. Reveal-Based Content Animation (`RevealOnScroll.tsx`)
+- Below-the-fold content sections start in a pre-revealed state (`opacity: 0.45`, `scale: 0.97`, `filter: blur(3px)`) and sharpen to 100% scale and 0px blur upon entering viewport bounds.
+- Storytelling clarity transition implemented across `HowItWorksSection.tsx`, `SubjectsSection.tsx`, `TutorTeaserSection.tsx`, `ForTeachersSection.tsx`, and `FinalCtaSection.tsx`.
+- Secondary dashboard telemetry in `StudentAnalyticsPanel.tsx` morphs fluidly between students using Framer Motion `AnimatePresence` and blur transitions.
+
+### 4. De-Childifying Pass & Tone Elevation
+- Eliminated exclamation-heavy and patronizing phrases from quiz feedback and evaluation summaries.
+- Replaced with confident, technical language: *"Response verified. Calculation aligns with syllabus derivation"*, *"Top Decile Diagnostic Mastery"*, *"Variance detected. Review step derivation below"*.
+- Strict radius rule enforcement: 8–10px inputs/buttons (`rounded-lg`), 12px cards/panels (`rounded-xl`), full-pill reserved for badges, avatars, and floating navigation chrome.
+
+### 5. Five Easter Eggs & Quiz Safety Isolation
+- **Strict Quiz Isolation:** All easter egg handlers explicitly verify `!window.location.pathname.startsWith('/quiz')`. During active tests, no shortcuts, confetti, or mascot state changes can ever trigger.
+- **Input Guard:** All keyboard listeners verify the active element is not an `INPUT`, `TEXTAREA`, or `contentEditable` surface.
+- **Egg 1 — Konami Code (`↑ ↑ ↓ ↓ ← → ← → B A`):** Unlocks `Protocol 1986: Diagnostic frontier expanded`, launches subtle confetti, and triggers Nex celebratory animation.
+- **Egg 2 — Mascot Rapid-Click (5+ clicks in 1.5s):** Nex enters a dizzy state (`rotate: [-14, 14, -10, 10, -5, 5, 0]`) with a discreet *"🌀 Re-calibrating equilibrium..."* status indicator.
+- **Egg 3 — Footer Copyright Dedication:** Hovering or tapping the copyright year in `Footer.tsx` reveals a discreet dedication: *"Crafted with precision & care for Sri Lankan STEM scholars and educators"*.
+- **Egg 4 — Rare Milestone Animation:** Clicking the streak pill in `LearningHub.tsx` triggers the 30-Day Milestone celebration with confetti and mascot reaction; scoring ≥95% in `Results.tsx` unlocks the *"Top Decile Frontier"* celebration.
+- **Egg 5 — Typing "nex":** Typing `n-e-x` while outside text inputs triggers a friendly acknowledgment wave from Nex with a telemetry toast.
+
+

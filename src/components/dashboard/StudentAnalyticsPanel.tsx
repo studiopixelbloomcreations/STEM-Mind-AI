@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -69,8 +70,16 @@ export const StudentAnalyticsPanel: React.FC<StudentAnalyticsPanelProps> = ({ st
   const weakestTopic = sortedTopics[sortedTopics.length - 1];
 
   return (
-    <div className="space-y-6">
-      {/* Student Overview Bar */}
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={student.id || student.access_token || student.name}
+        initial={{ opacity: 0.6, scale: 0.98, filter: 'blur(3px)' }}
+        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+        exit={{ opacity: 0.6, scale: 0.98, filter: 'blur(2px)' }}
+        transition={{ duration: 0.24, ease: [0.65, 0, 0.35, 1] }}
+        className="space-y-6"
+      >
+        {/* Student Overview Bar */}
       <Card className="p-6 bg-[var(--color-bg-surface)] border border-[var(--color-border)]">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -193,6 +202,7 @@ export const StudentAnalyticsPanel: React.FC<StudentAnalyticsPanelProps> = ({ st
           <ProgressBar value={strongestTopic ? strongestTopic.mastery : 90} variant="success" size="sm" showLabel />
         </Card>
       </div>
-    </div>
+    </motion.div>
+  </AnimatePresence>
   );
 };

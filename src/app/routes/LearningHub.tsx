@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import confetti from 'canvas-confetti';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -38,6 +39,25 @@ export const LearningHub: React.FC = () => {
 
   const [selectedSubject, setSelectedSubject] = useState('Science');
   const [isLiveOpen, setIsLiveOpen] = useState(false);
+  const [streakDays, setStreakDays] = useState(5);
+
+  const handleStreakMilestone = () => {
+    const nextStreak = streakDays === 5 ? 30 : 5;
+    setStreakDays(nextStreak);
+    if (nextStreak >= 30) {
+      try {
+        confetti({
+          particleCount: 70,
+          spread: 80,
+          origin: { y: 0.6 },
+          colors: ['#FF6B4A', '#FAFAFA', '#3DD9A4'],
+        });
+      } catch (e) {
+        // fallback
+      }
+      window.dispatchEvent(new CustomEvent('nex-easter-egg', { detail: 'celebrate' }));
+    }
+  };
 
   useEffect(() => {
     // 1. Check student session from token login
@@ -129,10 +149,20 @@ export const LearningHub: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-xs font-mono text-[var(--color-warning)] bg-[var(--color-bg-surface-alt)] px-3 py-1.5 rounded-full border border-[var(--color-border)]">
-            <Icon icon={Flame} size={16} />
-            <span>5 DAY STREAK</span>
-          </div>
+          <button
+            type="button"
+            onClick={handleStreakMilestone}
+            title={streakDays >= 30 ? "Milestone Unlocked! Click to reset" : "Click to inspect 30-Day Milestone Benchmark"}
+            className={`flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
+              streakDays >= 30
+                ? 'text-[var(--color-success)] bg-[var(--color-bg-surface-alt)] border-[var(--color-success)] shadow-md ring-1 ring-[var(--color-success)]/30'
+                : 'text-[var(--color-warning)] bg-[var(--color-bg-surface-alt)] border-[var(--color-border)] hover:border-[var(--color-warning)]'
+            }`}
+          >
+            <Icon icon={Flame} size={16} className={streakDays >= 30 ? 'text-[var(--color-success)] animate-bounce' : ''} />
+            <span>{streakDays} DAY STREAK</span>
+            {streakDays >= 30 && <span className="text-[10px] uppercase font-bold text-[var(--color-accent)]">Milestone!</span>}
+          </button>
 
           <Button
             variant="primary"

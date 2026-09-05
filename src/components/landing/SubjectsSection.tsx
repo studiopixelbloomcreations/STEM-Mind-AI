@@ -4,13 +4,14 @@ import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';
 import { Calculator, Atom, FlaskConical, Dna, Compass, Binary, ArrowRight, Sparkles } from '../icons';
 import { useNavigate } from 'react-router-dom';
+import { RevealOnScroll } from '../ui/RevealOnScroll';
 
 export const SubjectsSection: React.FC = () => {
   const navigate = useNavigate();
 
   return (
     <section id="subjects" className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] border-t border-[var(--color-border)] relative">
-      <div className="max-w-7xl mx-auto relative z-10">
+      <RevealOnScroll className="max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] text-xs font-mono uppercase tracking-wider text-[var(--color-text-secondary)] mb-4">
@@ -206,7 +207,7 @@ export const SubjectsSection: React.FC = () => {
             </Card>
           </div>
         </div>
-      </div>
+      </RevealOnScroll>
     </section>
   );
 };

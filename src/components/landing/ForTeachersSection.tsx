@@ -3,13 +3,14 @@ import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
 import { ArrowRight, CheckCircle2 } from '../icons';
 import { useNavigate } from 'react-router-dom';
+import { RevealOnScroll } from '../ui/RevealOnScroll';
 
 export const ForTeachersSection: React.FC = () => {
   const navigate = useNavigate();
 
   return (
     <section className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border-t border-[var(--color-border)]">
-      <div className="max-w-7xl mx-auto">
+      <RevealOnScroll className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Control-Room Value Proposition */}
           <div className="lg:col-span-5 text-left">
@@ -120,7 +121,7 @@ export const ForTeachersSection: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </RevealOnScroll>
     </section>
   );
 };

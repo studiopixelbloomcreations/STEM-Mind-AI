@@ -15,6 +15,8 @@ export const GEMINI_LIVE_AUDIO_MODELS = [
 /** Same family — Live output is audio + transcription. */
 export const GEMINI_LIVE_TEXT_MODELS = GEMINI_LIVE_AUDIO_MODELS;
 
+export const GEMINI_LIVE_TRANSCRIBE_MODEL = 'models/gemini-3.5-transcribe-live-preview';
+
 export const DEFAULT_LIVE_VOICE = import.meta.env.VITE_GEMINI_TTS_VOICE || 'Kore';
 
 export const getGeminiApiKey = () => {

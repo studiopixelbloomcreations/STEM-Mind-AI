@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QuestionCard } from '../../components/quiz/QuestionCard';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -7,7 +7,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Icon } from '../../components/ui/Icon';
 import { NexPlaceholder } from '../../components/mascot/NexPlaceholder';
 import { generateQuestionFromCouncil, QuizQuestionPayload } from '../../lib/api/harmony';
-import { X, Sparkles, Flame } from 'lucide-react';
+import { X, Sparkles, Flame } from '../../components/icons';
 
 export const Quiz: React.FC = () => {
   const navigate = useNavigate();

@@ -13,7 +13,7 @@ import {
   BookOpen,
   ArrowRight,
   ShieldCheck,
-} from 'lucide-react';
+} from '../../../components/icons';
 import {
   CurriculumSubject,
   RELIGION_OPTIONS,

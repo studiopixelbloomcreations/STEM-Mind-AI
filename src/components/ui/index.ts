@@ -8,3 +8,4 @@ export * from './Icon';
 export * from './Skeleton';
 export * from './Tooltip';
 export * from './Toast';
+export * from './ThemeToggle';

@@ -15,7 +15,8 @@ import {
   LogOut,
   Sparkles,
   Layers,
-} from 'lucide-react';
+} from '../../../components/icons';
+import { ThemeToggle } from '../../../components/ui/ThemeToggle';
 
 export const TeacherWelcome: React.FC = () => {
   const navigate = useNavigate();
@@ -23,22 +24,23 @@ export const TeacherWelcome: React.FC = () => {
 
   return (
     <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col relative overflow-hidden">
-      {/* Ambient background glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-indigo-500/10 via-purple-500/5 to-transparent blur-3xl pointer-events-none" />
+      {/* Subtle noise texture */}
+      <div className="absolute inset-0 bg-noise pointer-events-none" />
 
       {/* Top Navigation */}
       <header className="max-w-7xl w-full mx-auto px-6 py-6 flex items-center justify-between border-b border-[var(--color-border)] relative z-10">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-9 h-9 rounded-xl bg-[var(--color-accent-primary)] flex items-center justify-center font-display font-bold text-white shadow-lg shadow-indigo-500/20">
+          <div className="w-9 h-9 rounded-xl bg-[var(--color-accent-primary)] flex items-center justify-center font-display font-bold text-white shadow-lg">
             N
           </div>
           <div>
-            <span className="font-display font-bold text-lg text-white tracking-tight">NexLearn</span>
+            <span className="font-display font-bold text-lg text-[var(--color-text-primary)] tracking-tight">NexLearn</span>
             <span className="text-xs text-[var(--color-text-secondary)] font-mono ml-2">Teacher Control Room</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             Back to Home
           </Button>

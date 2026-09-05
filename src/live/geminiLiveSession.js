@@ -340,10 +340,12 @@ export class GeminiLiveSession {
     this.ws.send(
       JSON.stringify({
         realtimeInput: {
-          video: {
-            mimeType: 'image/jpeg',
-            data: base64Jpeg,
-          },
+          mediaChunks: [
+            {
+              mimeType: 'image/jpeg',
+              data: base64Jpeg,
+            },
+          ],
         },
       })
     );
@@ -351,7 +353,9 @@ export class GeminiLiveSession {
 
   sendAudioChunk(int16PcmData) {
     if (!this.isReady() || !int16PcmData) return;
-    const uint8View = new Uint8Array(int16PcmData.buffer);
+    const uint8View = int16PcmData instanceof Uint8Array 
+      ? int16PcmData 
+      : new Uint8Array(int16PcmData.buffer, int16PcmData.byteOffset, int16PcmData.byteLength);
     let binary = '';
     for (let i = 0; i < uint8View.byteLength; i += 1) {
       binary += String.fromCharCode(uint8View[i]);
@@ -360,10 +364,12 @@ export class GeminiLiveSession {
     this.ws.send(
       JSON.stringify({
         realtimeInput: {
-          audio: {
-            mimeType: 'audio/pcm;rate=16000',
-            data: btoa(binary),
-          },
+          mediaChunks: [
+            {
+              mimeType: 'audio/pcm;rate=16000',
+              data: btoa(binary),
+            },
+          ],
         },
       })
     );

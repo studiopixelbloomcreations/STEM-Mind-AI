@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { Icon } from '../../components/ui/Icon';
-import { ArrowRight, Check, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, Sparkles } from '../../components/icons';
 import { NexPlaceholder } from '../../components/mascot/NexPlaceholder';
 
 export const Onboarding: React.FC = () => {

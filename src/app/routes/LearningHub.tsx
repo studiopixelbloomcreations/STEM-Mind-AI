@@ -19,7 +19,8 @@ import {
   Radio,
   BookOpen,
   Key,
-} from 'lucide-react';
+} from '../../components/icons';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { StudentRecord } from '../../lib/api/database';
 
 export const LearningHub: React.FC = () => {
@@ -143,6 +144,8 @@ export const LearningHub: React.FC = () => {
             <Icon icon={Radio} size={14} />
             <span className="hidden sm:inline">Live NexLearn</span>
           </Button>
+
+          <ThemeToggle />
 
           <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
             <Icon icon={SettingsIcon} size={16} />
@@ -290,19 +293,19 @@ export const LearningHub: React.FC = () => {
               Diagnostic Insights
             </h5>
             <div className="space-y-3 text-xs font-mono">
-              <div className="flex justify-between pb-2 border-b border-[var(--color-border)]">
-                <span className="text-[var(--color-text-secondary)]">Velocity &amp; Acceleration</span>
-                <span className="text-[var(--color-success)] font-bold">Strong (92%)</span>
-              </div>
-              <div className="flex justify-between pb-2 border-b border-[var(--color-border)]">
-                <span className="text-[var(--color-text-secondary)]">Ohm&apos;s Law Series</span>
-                <span className="text-[var(--color-warning)] font-bold">Needs Focus (64%)</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--color-text-secondary)]">Logarithms &amp; Indices</span>
-                <span className="text-[var(--color-success)] font-bold">Strong (88%)</span>
-              </div>
+              {subjectsToDisplay.slice(0, 3).map((sub, i) => (
+                <div
+                  key={sub.name}
+                  className={`flex justify-between ${i < 2 ? 'pb-2 border-b border-[var(--color-border)]' : ''}`}
+                >
+                  <span className="text-[var(--color-text-secondary)]">{sub.name} Units</span>
+                  <span className={sub.mastery >= 75 ? 'text-[var(--color-success)] font-bold' : 'text-[var(--color-warning)] font-bold'}>
+                    {sub.mastery >= 75 ? `Strong (${sub.mastery}%)` : `Calibrating (${sub.mastery}%)`}
+                  </span>
+                </div>
+              ))}
             </div>
+
           </Card>
         </div>
       </main>

@@ -13,11 +13,13 @@ import { StudentLogin } from './routes/StudentLogin';
 import { Settings } from './routes/Settings';
 
 import { ToastProvider } from '../components/ui/Toast';
+import { ThemeProvider } from '../lib/context/ThemeContext';
 
 export const AppRouter: React.FC = () => {
   return (
-    <TeacherAuthProvider>
-      <ToastProvider>
+    <ThemeProvider>
+      <TeacherAuthProvider>
+        <ToastProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
@@ -39,6 +41,8 @@ export const AppRouter: React.FC = () => {
         </BrowserRouter>
       </ToastProvider>
     </TeacherAuthProvider>
+  </ThemeProvider>
   );
 };
+
 

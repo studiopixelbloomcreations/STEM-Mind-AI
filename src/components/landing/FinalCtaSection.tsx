@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from '../icons';
 import { useNavigate } from 'react-router-dom';
 
 export const FinalCtaSection: React.FC = () => {

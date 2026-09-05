@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { HelpCircle } from 'lucide-react';
+import { HelpCircle } from '../icons';
 
 interface StuckButtonProps {
   onClick: () => void;

@@ -16,7 +16,8 @@ import {
   RefreshCw,
   Sparkles,
   ExternalLink,
-} from 'lucide-react';
+} from '../../components/icons';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 
 export const TeacherDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -98,10 +99,12 @@ export const TeacherDashboard: React.FC = () => {
                 {(profile?.name || teacher?.email || 'T')[0].toUpperCase()}
               </div>
             )}
-            <span className="font-semibold text-white truncate max-w-[130px]">
+            <span className="font-semibold text-[var(--color-text-primary)] truncate max-w-[130px]">
               {profile?.name || teacher?.displayName || 'Educator'}
             </span>
           </div>
+
+          <ThemeToggle />
 
           <Button
             variant="secondary"

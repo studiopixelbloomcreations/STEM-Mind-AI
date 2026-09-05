@@ -1,11 +1,11 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import confetti from 'canvas-confetti';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
-import { Trophy, ArrowRight, RotateCcw, Award, CheckCircle2 } from 'lucide-react';
+import { Trophy, ArrowRight, RotateCcw, Award, CheckCircle2 } from '../../components/icons';
 
 export const Results: React.FC = () => {
   const navigate = useNavigate();

@@ -1,10 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { Lightbulb, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Lightbulb, ArrowRight, CheckCircle2, AlertCircle } from '../icons';
 import { TeachingStep } from '../../lib/api/harmony';
 
 export interface FeedbackBannerProps {

@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
 import { Icon } from '../ui/Icon';
-import { UserPlus, Search, User, Flame, ArrowRight, Copy, Check, Key } from 'lucide-react';
+import { UserPlus, Search, User, Flame, ArrowRight, Copy, Check, Key } from '../icons';
 import { StudentProfile } from '../../lib/api/database';
 
 interface StudentRosterProps {

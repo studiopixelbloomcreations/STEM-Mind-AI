@@ -1,13 +1,13 @@
-﻿import React from 'react';
+import React from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { NexPlaceholder } from '../mascot/NexPlaceholder';
-import { Sparkles, Brain, Clock, ShieldCheck } from 'lucide-react';
+import { Sparkles, Brain, Clock, ShieldCheck } from '../icons';
 import { Icon } from '../ui/Icon';
 
 export const TutorTeaserSection: React.FC = () => {
   return (
-    <section className="w-full py-24 px-6 lg:px-16 bg-[#0E1117] border-t border-[var(--color-border)]">
+    <section className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] border-t border-[var(--color-border)]">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
         {/* Left Column: Mascot Placeholder Display */}
         <div className="lg:col-span-5 flex justify-center order-2 lg:order-1">

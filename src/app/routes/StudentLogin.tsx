@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Icon } from '../../components/ui/Icon';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { authenticateStudentByToken } from '../../lib/api/database';
 import { normalizeToken } from '../../lib/token';
 import {
@@ -14,7 +15,7 @@ import {
   GraduationCap,
   CheckCircle2,
   Layers,
-} from 'lucide-react';
+} from '../../components/icons';
 
 export const StudentLogin: React.FC = () => {
   const navigate = useNavigate();
@@ -61,13 +62,14 @@ export const StudentLogin: React.FC = () => {
       {/* Header */}
       <header className="max-w-6xl w-full mx-auto px-6 py-6 flex items-center justify-between relative z-10">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-          <div className="w-9 h-9 rounded-xl bg-[var(--color-accent-primary)] flex items-center justify-center font-display font-bold text-white shadow-lg shadow-indigo-500/25">
+          <div className="w-9 h-9 rounded-xl bg-[var(--color-accent-primary)] flex items-center justify-center font-display font-bold text-white shadow-lg shadow-orange-500/20">
             N
           </div>
-          <span className="font-display font-bold text-lg text-white tracking-tight">NexLearn</span>
+          <span className="font-display font-bold text-lg text-[var(--color-text-primary)] tracking-tight">NexLearn</span>
         </div>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
             Back
           </Button>
@@ -88,7 +90,7 @@ export const StudentLogin: React.FC = () => {
             <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mx-auto mb-4 shadow-sm">
               <Icon icon={KeyRound} size={28} />
             </div>
-            <h1 className="text-3xl font-display font-bold text-white tracking-tight mb-2">
+            <h1 className="text-3xl font-display font-bold text-[var(--color-text-primary)] tracking-tight mb-2">
               Student Access
             </h1>
             <p className="text-sm text-[var(--color-text-secondary)]">
@@ -102,7 +104,7 @@ export const StudentLogin: React.FC = () => {
                 <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto animate-bounce">
                   <Icon icon={CheckCircle2} size={28} />
                 </div>
-                <h3 className="text-lg font-display font-bold text-white">Welcome back, {successStudent}!</h3>
+                <h3 className="text-lg font-display font-bold text-[var(--color-text-primary)]">Welcome back, {successStudent}!</h3>
                 <p className="text-xs font-mono text-[var(--color-text-secondary)]">
                   Loading your personalized Sri Lankan curriculum syllabus...
                 </p>
@@ -126,7 +128,7 @@ export const StudentLogin: React.FC = () => {
                       placeholder="e.g. TG100001"
                       value={token}
                       onChange={(e) => setToken(e.target.value.toUpperCase())}
-                      className="w-full bg-[var(--color-bg-base)] text-white text-center font-mono font-bold text-xl tracking-widest border border-[var(--color-border)] focus:border-indigo-500 rounded-xl py-3.5 px-4 outline-none placeholder:text-slate-600 transition-colors uppercase"
+                      className="w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] text-center font-mono font-bold text-xl tracking-widest border border-[var(--color-border)] focus:border-indigo-500 rounded-xl py-3.5 px-4 outline-none placeholder:text-[var(--color-text-muted)] transition-colors uppercase"
                       required
                       autoFocus
                     />

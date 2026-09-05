@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   ResponsiveContainer,
   BarChart,
@@ -21,33 +21,41 @@ export const MasteryChart: React.FC<MasteryChartProps> = ({ data }) => {
     <div className="w-full h-64 font-mono text-xs">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#262B38" />
+          <defs>
+            <linearGradient id="masteryBarGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-accent-primary)" stopOpacity={1} />
+              <stop offset="60%" stopColor="var(--color-accent-secondary)" stopOpacity={0.7} />
+              <stop offset="100%" stopColor="var(--color-accent-secondary)" stopOpacity={0.15} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="topic"
-            stroke="#A0A6B4"
-            tick={{ fill: '#A0A6B4', fontSize: 11 }}
+            stroke="var(--color-text-secondary)"
+            tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }}
             interval={0}
-            angle={-20}
+            angle={-18}
             textAnchor="end"
           />
           <YAxis
-            stroke="#A0A6B4"
+            stroke="var(--color-text-secondary)"
             domain={[0, 100]}
-            tick={{ fill: '#A0A6B4', fontSize: 11 }}
+            tick={{ fill: 'var(--color-text-secondary)', fontSize: 11 }}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#14171F',
-              borderColor: '#262B38',
-              borderRadius: '8px',
-              color: '#F5F6F8',
+              backgroundColor: 'var(--color-bg-surface)',
+              borderColor: 'var(--color-border)',
+              borderRadius: '12px',
+              color: 'var(--color-text-primary)',
+              boxShadow: 'var(--shadow-md)',
             }}
             formatter={(value: any) => [`${value}%`, 'Mastery']}
           />
           <Bar
             dataKey="mastery"
-            fill="#3DD9A4"
-            radius={[4, 4, 0, 0]}
+            fill="url(#masteryBarGradient)"
+            radius={[6, 6, 0, 0]}
           />
         </BarChart>
       </ResponsiveContainer>

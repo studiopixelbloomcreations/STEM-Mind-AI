@@ -1,10 +1,10 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { CheckCircle2, HelpCircle, ArrowRight, Lightbulb, TrendingUp } from 'lucide-react';
+import { CheckCircle2, HelpCircle, ArrowRight, Lightbulb, TrendingUp } from '../icons';
 
 interface Beat {
   step: string;
@@ -172,9 +172,51 @@ export const HowItWorksSection: React.FC = () => {
             <h3 className="text-2xl lg:text-3xl font-display font-bold text-white mb-4">
               {beats[activeBeat].title}
             </h3>
-            <p className="text-base text-[var(--color-text-secondary)] leading-relaxed mb-8">
+            <p className="text-base text-[var(--color-text-secondary)] leading-relaxed mb-6">
               {beats[activeBeat].subtitle}
             </p>
+
+            {/* Bespoke Animated SVG Adaptive Branching Visual */}
+            <div className="p-4 rounded-xl bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] mb-6 overflow-hidden relative">
+              <span className="text-[10px] font-mono text-[var(--color-accent-secondary)] uppercase tracking-wider block mb-2 font-bold">
+                Adaptive Council Graph Pathing
+              </span>
+              <svg viewBox="0 0 320 70" className="w-full h-16 text-[var(--color-text-primary)]">
+                {/* Connecting paths with animated dash/length */}
+                <motion.path
+                  d="M 30 35 L 100 35 Q 120 35 135 20 L 175 20 Q 190 20 205 35 L 290 35"
+                  fill="none"
+                  stroke="var(--color-accent-secondary)"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                  animate={{ strokeDashoffset: [0, -16] }}
+                  transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+                />
+                <motion.path
+                  d="M 100 35 Q 120 35 135 50 L 175 50 Q 190 50 205 35"
+                  fill="none"
+                  stroke="var(--color-accent-primary)"
+                  strokeWidth="2"
+                  initial={{ pathLength: 0.2 }}
+                  animate={{ pathLength: activeBeat >= 1 ? 1 : 0.2 }}
+                  transition={{ duration: 0.6 }}
+                />
+
+                {/* Nodes */}
+                <circle cx="30" cy="35" r="7" fill={activeBeat >= 0 ? "var(--color-accent-secondary)" : "var(--color-border)"} />
+                <text x="30" y="55" fontSize="8" fill="var(--color-text-secondary)" textAnchor="middle" fontFamily="monospace">Start</text>
+
+                <circle cx="100" cy="35" r="7" fill={activeBeat >= 1 ? "var(--color-warning)" : "var(--color-border)"} />
+                <text x="100" y="55" fontSize="8" fill="var(--color-text-secondary)" textAnchor="middle" fontFamily="monospace">Trap Caught</text>
+
+                <circle cx="175" cy={activeBeat === 2 ? 50 : 20} r="7" fill={activeBeat >= 2 ? "var(--color-accent-primary)" : "var(--color-border)"} />
+                <text x="175" y="65" fontSize="8" fill="var(--color-text-secondary)" textAnchor="middle" fontFamily="monospace">Proof Fix</text>
+
+                <circle cx="290" cy="35" r="8" fill={activeBeat >= 3 ? "var(--color-success)" : "var(--color-border)"} />
+                <text x="290" y="55" fontSize="8" fill="var(--color-text-secondary)" textAnchor="middle" fontFamily="monospace">Mastery</text>
+              </svg>
+            </div>
+
             <Button
               variant="secondary"
               size="sm"

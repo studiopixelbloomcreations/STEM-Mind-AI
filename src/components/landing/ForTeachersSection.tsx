@@ -1,8 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';
-import { Users, BarChart3, ShieldCheck, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Users, BarChart3, ShieldCheck, ArrowRight, CheckCircle2 } from '../icons';
 import { useNavigate } from 'react-router-dom';
 
 export const ForTeachersSection: React.FC = () => {

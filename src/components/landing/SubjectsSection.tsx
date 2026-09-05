@@ -1,8 +1,8 @@
-﻿import React, { useRef } from 'react';
+import React from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Icon } from '../ui/Icon';
-import { Calculator, Atom, FlaskConical, Dna, Compass, Binary, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calculator, Atom, FlaskConical, Dna, Compass, Binary, ArrowRight } from '../icons';
 import { useNavigate } from 'react-router-dom';
 
 interface SubjectItem {
@@ -12,11 +12,10 @@ interface SubjectItem {
   topicsCount: number;
   description: string;
   icon: any;
-  accentGlow: string;
+  featured?: boolean;
 }
 
 export const SubjectsSection: React.FC = () => {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   const subjects: SubjectItem[] = [
@@ -25,137 +24,179 @@ export const SubjectsSection: React.FC = () => {
       name: 'Physics',
       gradeSpan: 'Grades 9–11',
       topicsCount: 24,
-      description: 'Mechanics, electricity, light waves, and thermal physics aligned to national exams.',
+      description: 'Mechanics, kinematics, optical wave phenomena, and current electricity calibrated to Sri Lankan national exams.',
       icon: Atom,
-      accentGlow: 'hover:shadow-[0_0_30px_rgba(255,107,74,0.3)] hover:border-[#FF6B4A]',
+      featured: true,
     },
     {
       id: 'mathematics',
       name: 'Mathematics',
       gradeSpan: 'Grades 9–11',
       topicsCount: 32,
-      description: 'Algebra, geometry, quadratic equations, matrices, and logarithms.',
+      description: 'Algebraic factorizations, quadratic roots, logarithms, trigonometry, and planar geometry proofs.',
       icon: Calculator,
-      accentGlow: 'hover:shadow-[0_0_30px_rgba(91,124,250,0.3)] hover:border-[#5B7CFA]',
+      featured: true,
     },
     {
       id: 'chemistry',
       name: 'Chemistry',
       gradeSpan: 'Grades 10–11',
       topicsCount: 18,
-      description: 'Atomic structure, mole calculations, acids & bases, and periodic trends.',
+      description: 'Atomic structure, mole calculations, redox reactions, and acid-base indicators.',
       icon: FlaskConical,
-      accentGlow: 'hover:shadow-[0_0_30px_rgba(61,217,164,0.3)] hover:border-[#3DD9A4]',
     },
     {
       id: 'biology',
       name: 'Biology',
       gradeSpan: 'Grades 9–11',
       topicsCount: 20,
-      description: 'Cell biology, human organ systems, genetics, and ecology.',
+      description: 'Cell division, genetics, human physiology, and circulatory thermodynamics.',
       icon: Dna,
-      accentGlow: 'hover:shadow-[0_0_30px_rgba(255,193,94,0.3)] hover:border-[#FFC15E]',
     },
     {
       id: 'combined-maths',
       name: 'Combined Maths',
       gradeSpan: 'Senior Foundation',
       topicsCount: 28,
-      description: 'Calculus fundamentals, trigonometry, vectors, and algebraic proofs.',
+      description: 'Calculus derivatives, projectile vectors, complex indices, and mathematical induction.',
       icon: Compass,
-      accentGlow: 'hover:shadow-[0_0_30px_rgba(91,124,250,0.3)] hover:border-[#5B7CFA]',
     },
     {
       id: 'ict',
       name: 'ICT',
       gradeSpan: 'Grades 10–11',
       topicsCount: 16,
-      description: 'Logic gates, algorithm design, Python basics, and networking essentials.',
+      description: 'Boolean logic gates, flowcharts, algorithmic sequencing, and relational data architecture.',
       icon: Binary,
-      accentGlow: 'hover:shadow-[0_0_30px_rgba(255,107,74,0.3)] hover:border-[#FF6B4A]',
     },
   ];
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (scrollRef.current) {
-      const offset = direction === 'left' ? -320 : 320;
-      scrollRef.current.scrollBy({ left: offset, behavior: 'smooth' });
-    }
-  };
-
   return (
-    <section className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)]">
-      <div className="max-w-7xl mx-auto">
+    <section id="subjects" className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] relative overflow-hidden">
+      {/* Background ambient noise */}
+      <div className="absolute inset-0 bg-noise pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto relative z-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div>
-            <Badge variant="indigo" className="mb-3">Syllabus Breadth</Badge>
-            <h2 className="text-[var(--font-size-h1)] font-display font-bold text-white mb-2">
+            <Badge variant="indigo" className="mb-3">National Syllabus Breadth</Badge>
+            <h2 className="text-[var(--font-size-h1)] font-display font-bold text-[var(--color-text-primary)] mb-2">
               Curated for Sri Lankan STEM
             </h2>
             <p className="text-[var(--font-size-body)] text-[var(--color-text-secondary)]">
-              Scroll horizontally to explore subjects mapped directly to local Grade 9–11 specifications.
+              Modular, asymmetric syllabus coverage mapped directly to local Grade 9–11 specifications.
             </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => scroll('left')}
-              className="p-3 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-white hover:bg-[var(--color-bg-surface-alt)] transition-colors"
-              aria-label="Scroll left"
-            >
-              <Icon icon={ChevronLeft} size={20} />
-            </button>
-            <button
-              onClick={() => scroll('right')}
-              className="p-3 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-white hover:bg-[var(--color-bg-surface-alt)] transition-colors"
-              aria-label="Scroll right"
-            >
-              <Icon icon={ChevronRight} size={20} />
-            </button>
           </div>
         </div>
 
-        {/* Scroll-snapping horizontal row */}
-        <div
-          ref={scrollRef}
-          className="flex gap-6 overflow-x-auto pb-6 scroll-smooth snap-x snap-mandatory scrollbar-none"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {subjects.map((subj) => (
+        {/* Asymmetric Bento-Grid Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          {/* Featured Bento 1: Physics (Spans 7 cols) */}
+          <div
+            onClick={() => navigate('/onboarding')}
+            className="md:col-span-7 cursor-pointer group"
+          >
+            <Card
+              interactive
+              className="h-full p-8 flex flex-col justify-between bg-[var(--color-bg-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent-primary)] transition-all duration-300 shadow-lg relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-accent-primary)]/5 rounded-full blur-3xl pointer-events-none group-hover:opacity-100 transition-opacity" />
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface-alt)] text-[var(--color-accent-primary)] border border-[var(--color-border)]">
+                    <Icon icon={Atom} size={28} />
+                  </div>
+                  <Badge variant="accent">Core Curriculum</Badge>
+                </div>
+                <h3 className="text-2xl font-display font-bold text-[var(--color-text-primary)] mb-2">
+                  {subjects[0].name}
+                </h3>
+                <span className="text-xs font-mono text-[var(--color-accent-primary)] mb-4 block font-bold">
+                  {subjects[0].gradeSpan} &bull; {subjects[0].topicsCount} Modules
+                </span>
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed max-w-xl">
+                  {subjects[0].description}
+                </p>
+              </div>
+
+              <div className="pt-6 mt-8 border-t border-[var(--color-border)] flex items-center justify-between text-xs font-mono text-[var(--color-text-primary)]">
+                <span className="group-hover:text-[var(--color-accent-primary)] transition-colors">Explore Physics Syllabus</span>
+                <Icon icon={ArrowRight} size={16} className="group-hover:translate-x-1.5 transition-transform" />
+              </div>
+            </Card>
+          </div>
+
+          {/* Featured Bento 2: Mathematics (Spans 5 cols) */}
+          <div
+            onClick={() => navigate('/onboarding')}
+            className="md:col-span-5 cursor-pointer group"
+          >
+            <Card
+              interactive
+              className="h-full p-8 flex flex-col justify-between bg-[var(--color-bg-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-accent-secondary)] transition-all duration-300 shadow-lg relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-48 h-48 bg-[var(--color-accent-secondary)]/5 rounded-full blur-3xl pointer-events-none" />
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="p-3.5 rounded-xl bg-[var(--color-bg-surface-alt)] text-[var(--color-accent-secondary)] border border-[var(--color-border)]">
+                    <Icon icon={Calculator} size={28} />
+                  </div>
+                  <Badge variant="indigo">High Weightage</Badge>
+                </div>
+                <h3 className="text-2xl font-display font-bold text-[var(--color-text-primary)] mb-2">
+                  {subjects[1].name}
+                </h3>
+                <span className="text-xs font-mono text-[var(--color-accent-secondary)] mb-4 block font-bold">
+                  {subjects[1].gradeSpan} &bull; {subjects[1].topicsCount} Modules
+                </span>
+                <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  {subjects[1].description}
+                </p>
+              </div>
+
+              <div className="pt-6 mt-8 border-t border-[var(--color-border)] flex items-center justify-between text-xs font-mono text-[var(--color-text-primary)]">
+                <span className="group-hover:text-[var(--color-accent-secondary)] transition-colors">Explore Math Units</span>
+                <Icon icon={ArrowRight} size={16} className="group-hover:translate-x-1.5 transition-transform" />
+              </div>
+            </Card>
+          </div>
+
+          {/* Supporting Bento Row: 4 Modular Cards (Col spans 3 each) */}
+          {subjects.slice(2).map((subj) => (
             <div
               key={subj.id}
               onClick={() => navigate('/onboarding')}
-              className="min-w-[300px] md:min-w-[340px] snap-start cursor-pointer"
+              className="md:col-span-3 cursor-pointer group"
             >
               <Card
                 interactive
-                className={`h-full flex flex-col justify-between p-6 transition-all duration-300 ${subj.accentGlow}`}
+                className="h-full p-6 flex flex-col justify-between bg-[var(--color-bg-surface)] border border-[var(--color-border)] group-hover:border-[var(--color-text-secondary)] transition-all duration-300 shadow-sm"
               >
                 <div>
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="p-3 rounded-md bg-[#1C202B] text-white">
-                      <Icon icon={subj.icon} size={24} />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2.5 rounded-lg bg-[var(--color-bg-surface-alt)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
+                      <Icon icon={subj.icon} size={20} />
                     </div>
-                    <span className="text-xs font-mono text-[var(--color-text-secondary)]">
-                      {subj.topicsCount} Modules
+                    <span className="text-[11px] font-mono text-[var(--color-text-secondary)]">
+                      {subj.topicsCount} Mod
                     </span>
                   </div>
 
-                  <h3 className="text-xl font-display font-bold text-white mb-1">
+                  <h4 className="text-lg font-display font-bold text-[var(--color-text-primary)] mb-1">
                     {subj.name}
-                  </h3>
-                  <span className="text-xs font-mono text-[var(--color-accent-primary)] mb-3 block">
+                  </h4>
+                  <span className="text-[11px] font-mono text-[var(--color-accent-secondary)] mb-2.5 block">
                     {subj.gradeSpan}
                   </span>
 
-                  <p className="text-sm text-[var(--color-text-secondary)] leading-relaxed">
+                  <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed line-clamp-3">
                     {subj.description}
                   </p>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-[var(--color-border)] flex items-center justify-between text-xs font-mono text-white">
-                  <span>Explore Syllabus</span>
-                  <span>&rarr;</span>
+                <div className="pt-4 mt-4 border-t border-[var(--color-border)] flex items-center justify-between text-xs font-mono text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] transition-colors">
+                  <span>View Topics</span>
+                  <Icon icon={ArrowRight} size={13} className="group-hover:translate-x-1 transition-transform" />
                 </div>
               </Card>
             </div>

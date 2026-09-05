@@ -1,13 +1,13 @@
-﻿import React from 'react';
-import { LucideIcon, LucideProps } from 'lucide-react';
+import React from 'react';
+import { IconProps as CustomIconProps } from '../icons/types';
 
-interface IconProps extends Omit<LucideProps, 'ref'> {
-  icon: LucideIcon;
+interface IconWrapperProps extends CustomIconProps {
+  icon: React.ComponentType<CustomIconProps>;
   className?: string;
   size?: number | string;
 }
 
-export const Icon: React.FC<IconProps> = ({
+export const Icon: React.FC<IconWrapperProps> = ({
   icon: IconComponent,
   strokeWidth = 1.75,
   size = 20,

@@ -9,8 +9,9 @@ import { Footer } from '../../components/landing/Footer';
 import { Button } from '../../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { KeyRound, ShieldCheck } from 'lucide-react';
+import { KeyRound, ShieldCheck } from '../../components/icons';
 import { Icon } from '../../components/ui/Icon';
+import { ThemeToggle } from '../../components/ui/ThemeToggle';
 
 export const Landing: React.FC = () => {
   const navigate = useNavigate();
@@ -73,6 +74,8 @@ export const Landing: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <ThemeToggle />
+
             <Button
               variant="ghost"
               size="sm"

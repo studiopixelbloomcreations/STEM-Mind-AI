@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
@@ -180,18 +180,39 @@ export const Onboarding: React.FC = () => {
                   {subjectsList.map((s) => {
                     const isSelected = selectedSubjects.includes(s);
                     return (
-                      <button
+                      <motion.button
                         key={s}
+                        whileTap={{ scale: 0.95 }}
+                        whileHover={{ scale: 1.02 }}
                         onClick={() => toggleSubject(s)}
-                        className={`p-4 rounded-md border text-left font-body text-sm font-semibold transition-all flex items-center justify-between ${
+                        className={`p-4 rounded-xl border text-left font-body text-sm font-semibold transition-all flex items-center justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-[#1C202B] border-[var(--color-accent-primary)] text-white'
+                            ? 'bg-[#1C202B] border-[var(--color-accent-primary)] text-white shadow-md ring-1 ring-indigo-500/20'
                             : 'bg-[var(--color-bg-surface-alt)] border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#3E465B]'
                         }`}
                       >
                         <span>{s}</span>
-                        {isSelected && <Icon icon={Check} size={16} className="text-[var(--color-accent-primary)]" />}
-                      </button>
+                        {isSelected && (
+                          <motion.svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-[var(--color-accent-primary)]"
+                          >
+                            <motion.path
+                              d="M20 6L9 17L4 12"
+                              initial={{ pathLength: 0 }}
+                              animate={{ pathLength: 1 }}
+                              transition={{ duration: 0.25, ease: 'easeOut' }}
+                            />
+                          </motion.svg>
+                        )}
+                      </motion.button>
                     );
                   })}
                 </div>

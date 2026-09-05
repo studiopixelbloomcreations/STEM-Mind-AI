@@ -1,23 +1,97 @@
-﻿import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Icon } from '../ui/Icon';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, ShieldCheck, Play, KeyRound } from 'lucide-react';
 import { NexPlaceholder } from '../mascot/NexPlaceholder';
+
+// Animated Stat Counter Component
+const AnimatedCounter: React.FC<{ value: number; suffix?: string; prefix?: string; decimals?: number }> = ({
+  value,
+  suffix = '',
+  prefix = '',
+  decimals = 0,
+}) => {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const duration = 1800;
+    const startTime = performance.now();
+
+    const animate = (now: number) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const current = start + (value - start) * (1 - Math.pow(1 - progress, 3));
+      setCount(current);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [value]);
+
+  return (
+    <span>
+      {prefix}
+      {count.toFixed(decimals)}
+      {suffix}
+    </span>
+  );
+};
 
 export const HeroSection: React.FC = () => {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setMousePos({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
 
   return (
-    <section className="relative min-h-[92vh] w-full flex items-center justify-center overflow-hidden px-6 lg:px-16 pt-12 pb-20">
-      {/* Background ambient lighting */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF6B4A]/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[#5B7CFA]/10 rounded-full blur-3xl pointer-events-none" />
+    <section
+      onMouseMove={handleMouseMove}
+      className="relative min-h-[92vh] w-full flex items-center justify-center overflow-hidden px-6 lg:px-16 pt-12 pb-20"
+    >
+      {/* Interactive cursor-reactive glow */}
+      <div
+        className="absolute w-[500px] h-[500px] rounded-full pointer-events-none transition-all duration-300 ease-out blur-[120px] opacity-15"
+        style={{
+          background: 'radial-gradient(circle, #6366F1 0%, #A855F7 50%, transparent 70%)',
+          left: mousePos.x ? `${mousePos.x - 250}px` : '40%',
+          top: mousePos.y ? `${mousePos.y - 250}px` : '30%',
+        }}
+      />
+
+      {/* Ambient floating gradient blobs */}
+      <motion.div
+        animate={{
+          x: [0, 30, -20, 0],
+          y: [0, -30, 20, 0],
+          scale: [1, 1.08, 0.95, 1],
+        }}
+        transition={{ repeat: Infinity, duration: 16, ease: 'easeInOut' }}
+        className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#FF6B4A]/15 rounded-full blur-[100px] pointer-events-none"
+      />
+      <motion.div
+        animate={{
+          x: [0, -40, 25, 0],
+          y: [0, 35, -25, 0],
+          scale: [1, 0.95, 1.08, 1],
+        }}
+        transition={{ repeat: Infinity, duration: 18, ease: 'easeInOut' }}
+        className="absolute bottom-1/4 right-1/4 w-[28rem] h-[28rem] bg-[#5B7CFA]/15 rounded-full blur-[120px] pointer-events-none"
+      />
 
       <div className="max-w-7xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
-        {/* Left 60% Column: Confident Typography */}
+        {/* Left 60% Column: Kinetic Typography */}
         <motion.div
           className="lg:col-span-7 flex flex-col items-start text-left"
           initial={shouldReduceMotion ? {} : { opacity: 0, y: 24 }}
@@ -25,13 +99,13 @@ export const HeroSection: React.FC = () => {
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
         >
           {/* Subtle micro tag */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1C202B] border border-[var(--color-border)] text-xs font-mono tracking-wider uppercase text-[var(--color-accent-primary)] mb-6">
-            <Icon icon={Sparkles} size={14} />
-            <span>Sri Lankan GCE O/L & A/L Curriculum</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border)] text-xs font-mono tracking-wider uppercase text-[var(--color-accent-primary)] mb-6 shadow-sm">
+            <Icon icon={Sparkles} size={14} className="animate-spin" style={{ animationDuration: '8s' }} />
+            <span>Sri Lankan National Curriculum &bull; Grades 9–11</span>
           </div>
 
           <h1 className="text-[var(--font-size-display)] font-display font-extrabold text-[var(--color-text-primary)] leading-[1.04] mb-6 tracking-tight">
-            The tutor that <span className="text-[var(--color-accent-primary)]">diagnoses</span> why you missed, then teaches until you understand.
+            The tutor that <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">diagnoses</span> why you missed, then teaches until you understand.
           </h1>
 
           <p className="text-[var(--font-size-body-lg)] text-[var(--color-text-secondary)] max-w-lg mb-8 leading-relaxed font-body">
@@ -42,10 +116,11 @@ export const HeroSection: React.FC = () => {
             <Button
               size="lg"
               variant="primary"
-              onClick={() => navigate('/onboarding')}
-              className="group"
+              onClick={() => navigate('/login')}
+              className="group shadow-lg shadow-indigo-500/25"
             >
-              <span>Start Learning Free</span>
+              <Icon icon={KeyRound} size={18} />
+              <span>Student Token Login</span>
               <Icon
                 icon={ArrowRight}
                 size={18}
@@ -54,36 +129,41 @@ export const HeroSection: React.FC = () => {
             </Button>
             <Button
               size="lg"
-              variant="ghost"
-              onClick={() => {
-                const el = document.getElementById('how-it-works');
-                el?.scrollIntoView({ behavior: 'smooth' });
-              }}
+              variant="secondary"
+              onClick={() => navigate('/teacher')}
+              className="gap-2"
             >
-              See How It Works
+              <Icon icon={ShieldCheck} size={18} className="text-indigo-400" />
+              <span>Teacher Portal</span>
             </Button>
           </div>
 
-          {/* Social proof metric badges */}
+          {/* Social proof metric badges with animated numbers */}
           <div className="mt-12 pt-8 border-t border-[var(--color-border)]/60 flex items-center gap-8 text-xs text-[var(--color-text-secondary)] font-mono">
             <div>
-              <span className="block text-lg font-display font-bold text-white">Grades 9–11</span>
-              <span>Targeted syllabi</span>
+              <span className="block text-2xl font-display font-bold text-white">
+                Grades 9–11
+              </span>
+              <span>Exact national syllabi</span>
             </div>
             <div className="h-8 w-px bg-[var(--color-border)]" />
             <div>
-              <span className="block text-lg font-display font-bold text-[var(--color-success)]">±2%</span>
-              <span>Numerical tolerance</span>
+              <span className="block text-2xl font-display font-bold text-[var(--color-success)]">
+                <AnimatedCounter value={98.4} suffix="%" decimals={1} />
+              </span>
+              <span>Syllabus mastery goal</span>
             </div>
             <div className="h-8 w-px bg-[var(--color-border)]" />
             <div>
-              <span className="block text-lg font-display font-bold text-[var(--color-accent-secondary)]">100%</span>
-              <span>Adaptive DAG council</span>
+              <span className="block text-2xl font-display font-bold text-indigo-400">
+                <AnimatedCounter value={100} suffix="%" />
+              </span>
+              <span>Deterministic Tokens</span>
             </div>
           </div>
         </motion.div>
 
-        {/* Right 40% Column: Mascot Placeholder Stage */}
+        {/* Right 40% Column: Companion Stage */}
         <motion.div
           className="lg:col-span-5 flex items-center justify-center relative"
           initial={shouldReduceMotion ? {} : { opacity: 0, scale: 0.9 }}
@@ -92,19 +172,22 @@ export const HeroSection: React.FC = () => {
         >
           {/* Card container for mascot */}
           <div className="relative w-full max-w-md aspect-square rounded-2xl bg-[var(--color-bg-surface)] border border-[var(--color-border)] flex flex-col items-center justify-center p-8 overflow-hidden shadow-2xl">
-            <div className="absolute top-4 left-4 flex items-center gap-2">
+            {/* Ambient background bloom inside card */}
+            <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/10 via-transparent to-purple-500/5 pointer-events-none" />
+
+            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
               <span className="w-2.5 h-2.5 rounded-full bg-[var(--color-success)] animate-pulse" />
-              <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">Nex AI Active</span>
+              <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">Nex AI Online</span>
             </div>
 
             <NexPlaceholder size={240} />
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 text-center relative z-10">
               <p className="text-sm font-semibold text-[var(--color-text-primary)]">
                 &ldquo;Ready when you are. Let&apos;s conquer today&apos;s target.&rdquo;
               </p>
               <span className="text-xs text-[var(--color-text-secondary)] font-mono">
-                Listening &bull; Ready to teach
+                Multimodal voice &bull; Live whiteboard guidance
               </span>
             </div>
           </div>

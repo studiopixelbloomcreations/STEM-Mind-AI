@@ -1,4 +1,4 @@
-﻿import { supabase } from '../config/supabase';
+import { supabase } from '../config/supabase';
 
 /**
  * Format: [FirstInitial][G][GradeTwoDigits][FourDigitSequence]
@@ -11,17 +11,23 @@ export async function generateStudentAccessToken(name: string, grade: number): P
   const prefix = `${firstInitial}G${gradeDigits}`;
 
   try {
-    // Check existing tokens in Supabase starting with this prefix
-    const { data } = await supabase
+    // Select existing students to identify occupied sequence numbers
+    const { data, error } = await supabase
       .from('students')
-      .select('access_token')
-      .ilike('access_token', `${prefix}%`);
+      .select('*')
+      .limit(100);
 
     const existingSeqNumbers = new Set<number>();
-    if (data && Array.isArray(data)) {
+    if (!error && data && Array.isArray(data)) {
       for (const row of data) {
-        if (row.access_token && row.access_token.length >= prefix.length + 4) {
-          const seqPart = row.access_token.slice(prefix.length);
+        let token: string | undefined = row.access_token;
+        if (!token && Array.isArray(row.subjects)) {
+          const t = row.subjects.find((s: any) => typeof s === 'string' && s.startsWith('TOKEN:'));
+          if (t) token = t.replace('TOKEN:', '').trim();
+        }
+
+        if (token && token.startsWith(prefix) && token.length >= prefix.length + 4) {
+          const seqPart = token.slice(prefix.length);
           const parsed = parseInt(seqPart, 10);
           if (!isNaN(parsed)) {
             existingSeqNumbers.add(parsed);
@@ -38,8 +44,6 @@ export async function generateStudentAccessToken(name: string, grade: number): P
     const fourDigit = String(seq).padStart(4, '0');
     return `${prefix}${fourDigit}`;
   } catch (err) {
-    console.warn('[Token Engine] Supabase sequence lookup fallback:', err);
-    // Fallback pseudo-random sequence to guarantee format
     const randomSeq = Math.floor(1000 + Math.random() * 9000);
     return `${prefix}${randomSeq}`;
   }

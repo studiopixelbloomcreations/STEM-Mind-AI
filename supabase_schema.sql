@@ -10,6 +10,8 @@
 CREATE TABLE IF NOT EXISTS teachers (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
+  name TEXT,
+  photo_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -20,6 +22,7 @@ CREATE TABLE IF NOT EXISTS students (
   name TEXT NOT NULL,
   grade INTEGER NOT NULL CHECK (grade BETWEEN 9 AND 11),
   age INTEGER NOT NULL,
+  access_token TEXT,
   subjects TEXT[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -44,6 +47,7 @@ CREATE TABLE IF NOT EXISTS analytics (
   strengths TEXT[] DEFAULT '{}',
   weaknesses TEXT[] DEFAULT '{}',
   topic_mastery JSONB DEFAULT '{}'::jsonb,
+  streak INTEGER DEFAULT 0,
   last_updated TIMESTAMPTZ DEFAULT NOW()
 );
 

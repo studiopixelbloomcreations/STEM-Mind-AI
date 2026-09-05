@@ -77,20 +77,32 @@ export const FloatingHeader: React.FC = () => {
     },
     {
       label: 'Syllabus',
-      action: () => scrollToSection('subjects'),
+      action: () => scrollToSection('syllabus'),
+    },
+    {
+      label: 'Live Nex',
+      action: () => scrollToSection('live-showcase'),
     },
     {
       label: 'Educators',
       action: () => {
-        setMobileMenuOpen(false);
-        navigate('/teacher');
+        if (location.pathname === '/') {
+          scrollToSection('educators');
+        } else {
+          setMobileMenuOpen(false);
+          navigate('/teacher');
+        }
       },
     },
     {
       label: 'Student Hub',
       action: () => {
-        setMobileMenuOpen(false);
-        navigate('/hub');
+        if (location.pathname === '/') {
+          scrollToSection('student-hub');
+        } else {
+          setMobileMenuOpen(false);
+          navigate('/hub');
+        }
       },
     },
   ];

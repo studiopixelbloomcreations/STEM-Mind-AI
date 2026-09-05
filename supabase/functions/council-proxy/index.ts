@@ -8,7 +8,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
 import { jsonWithCors, handleOptions } from '../_shared/cors.ts';
 
-const GEMINI_MODEL = Deno.env.get('GEMINI_HARMONY_MODEL') ?? 'gemini-2.5-flash';
+const GEMINI_MODEL = Deno.env.get('GEMINI_HARMONY_MODEL') ?? 'gemini-3.6-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const AGENT_TIMEOUT_MS = 30_000;
 const MAX_TURNS = 8;

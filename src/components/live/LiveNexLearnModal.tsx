@@ -73,6 +73,7 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [caption, setCaption] = useState<Caption | null>(null);
   const [audioLevels, setAudioLevels] = useState<number[]>(new Array(16).fill(12));
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   // Media & Web Audio references
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -80,6 +81,7 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const isMicActiveRef = useRef<boolean>(false);
 
   const videoStreamRef = useRef<MediaStream | null>(null);
@@ -107,6 +109,14 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
     if (animFrameRef.current) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
+    }
+
+    if (workletNodeRef.current) {
+      try {
+        workletNodeRef.current.port.onmessage = null;
+        workletNodeRef.current.disconnect();
+      } catch (e) {}
+      workletNodeRef.current = null;
     }
 
     if (processorRef.current) {
@@ -139,7 +149,7 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
     setIsMicOn(false);
   }, []);
 
-  // Initialize and start microphone capture
+  // Initialize and start microphone capture using AudioWorkletNode (replaces deprecated ScriptProcessorNode)
   const startAudioPipeline = useCallback(async () => {
     try {
       stopAudioPipeline();
@@ -169,31 +179,71 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
       analyser.fftSize = 64;
       analyser.smoothingTimeConstant = 0.6;
       analyserRef.current = analyser;
-
-      // 4096 samples buffer (~85ms chunks at 48kHz, ~250ms at 16kHz)
-      const processor = ctx.createScriptProcessor(4096, 1, 1);
-      processorRef.current = processor;
-
       source.connect(analyser);
-      source.connect(processor);
-      // Connect to destination through a zero-gain node to keep processor active without echoing to speakers
-      const muteGain = ctx.createGain();
-      muteGain.gain.value = 0;
-      processor.connect(muteGain);
-      muteGain.connect(ctx.destination);
+
+      // Try modern AudioWorkletNode first (zero deprecation warnings)
+      let workletInitialized = false;
+      if (ctx.audioWorklet) {
+        try {
+          const workletCode = `
+            class NexAudioCaptureProcessor extends AudioWorkletProcessor {
+              process(inputs) {
+                const input = inputs[0];
+                if (input && input[0] && input[0].length > 0) {
+                  this.port.postMessage(input[0]);
+                }
+                return true;
+              }
+            }
+            registerProcessor('nex-audio-capture-processor', NexAudioCaptureProcessor);
+          `;
+          const blob = new Blob([workletCode], { type: 'application/javascript' });
+          const workletUrl = URL.createObjectURL(blob);
+          await ctx.audioWorklet.addModule(workletUrl);
+          URL.revokeObjectURL(workletUrl);
+
+          const workletNode = new AudioWorkletNode(ctx, 'nex-audio-capture-processor');
+          workletNodeRef.current = workletNode;
+          source.connect(workletNode);
+
+          workletNode.port.onmessage = (e: MessageEvent) => {
+            if (!isMicActiveRef.current) return;
+            const channelData = e.data as Float32Array;
+            const pcm16 = downsampleTo16kPCM(channelData, ctx.sampleRate);
+            if (geminiLiveService.isReady()) {
+              geminiLiveService.sendAudioChunk(pcm16);
+            }
+          };
+
+          workletInitialized = true;
+        } catch (workletErr) {
+          console.warn('AudioWorklet initialization fallback to ScriptProcessor:', workletErr);
+        }
+      }
+
+      // Fallback only if AudioWorklet unavailable in host environment
+      if (!workletInitialized) {
+        const processor = ctx.createScriptProcessor(4096, 1, 1);
+        processorRef.current = processor;
+        source.connect(processor);
+
+        const muteGain = ctx.createGain();
+        muteGain.gain.value = 0;
+        processor.connect(muteGain);
+        muteGain.connect(ctx.destination);
+
+        processor.onaudioprocess = (e: AudioProcessingEvent) => {
+          if (!isMicActiveRef.current) return;
+          const channelData = e.inputBuffer.getChannelData(0);
+          const pcm16 = downsampleTo16kPCM(channelData, ctx.sampleRate);
+          if (geminiLiveService.isReady()) {
+            geminiLiveService.sendAudioChunk(pcm16);
+          }
+        };
+      }
 
       isMicActiveRef.current = true;
       setIsMicOn(true);
-
-      // Handle continuous microphone PCM chunk conversion
-      processor.onaudioprocess = (e: AudioProcessingEvent) => {
-        if (!isMicActiveRef.current) return;
-        const channelData = e.inputBuffer.getChannelData(0);
-        const pcm16 = downsampleTo16kPCM(channelData, ctx.sampleRate);
-        if (geminiLiveService.isReady()) {
-          geminiLiveService.sendAudioChunk(pcm16);
-        }
-      };
 
       // Real-time amplitude meter loop from AnalyserNode
       const freqData = new Uint8Array(analyser.frequencyBinCount);
@@ -265,28 +315,75 @@ export const LiveNexLearnModal: React.FC<LiveNexLearnModalProps> = ({
     setIsScreenSharing(false);
   }, []);
 
-  // Toggle Camera
+  // Toggle Camera with timeout guard and automatic retry
   const toggleCamera = async () => {
     if (isVideoOn) {
       stopVideoTracks();
+      setCameraError(null);
     } else {
-      try {
-        stopVideoTracks();
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'user' },
-          audio: false,
+      setCameraError(null);
+      stopVideoTracks();
+
+      // Camera acquisition with timeout guard
+      const acquireCameraStream = async (constraints: MediaStreamConstraints, timeoutMs = 8000): Promise<MediaStream> => {
+        return new Promise((resolve, reject) => {
+          let hasTimedOut = false;
+          const timer = setTimeout(() => {
+            hasTimedOut = true;
+            reject(new Error(`Camera start timed out after ${timeoutMs / 1000}s. Device may be in use by another application.`));
+          }, timeoutMs);
+
+          navigator.mediaDevices.getUserMedia(constraints)
+            .then((stream) => {
+              if (hasTimedOut) {
+                stream.getTracks().forEach((t) => t.stop());
+              } else {
+                clearTimeout(timer);
+                resolve(stream);
+              }
+            })
+            .catch((err) => {
+              if (!hasTimedOut) {
+                clearTimeout(timer);
+                reject(err);
+              }
+            });
         });
+      };
+
+      try {
+        let stream: MediaStream;
+        try {
+          stream = await acquireCameraStream({
+            video: { width: { ideal: 640 }, height: { ideal: 360 }, facingMode: 'user' },
+            audio: false,
+          });
+        } catch (firstErr) {
+          console.warn('First camera attempt failed, retrying once with relaxed constraints:', firstErr);
+          await new Promise((r) => setTimeout(r, 800));
+          stream = await acquireCameraStream({ video: true, audio: false }, 10000);
+        }
+
         videoStreamRef.current = stream;
         if (videoElementRef.current) {
           videoElementRef.current.srcObject = stream;
         }
         setIsVideoOn(true);
         setIsScreenSharing(false);
+        setCameraError(null);
 
         // Feed 1 FPS JPEG frame to Gemini Multimodal Live session
         frameIntervalRef.current = window.setInterval(captureAndSendVideoFrame, 1000);
-      } catch (err) {
-        console.warn('Camera access denied or unavailable:', err);
+      } catch (err: any) {
+        console.warn('Camera access denied or unavailable (gracefully degrading to voice-only):', err);
+        const userMsg = err?.message?.includes('timed out')
+          ? 'Camera device busy or timed out. Voice-only tutoring active.'
+          : err?.name === 'NotAllowedError'
+          ? 'Camera permission denied. Voice-only tutoring active.'
+          : 'Camera unavailable. Voice-only tutoring active.';
+        setCameraError(userMsg);
+        setIsVideoOn(false);
+        // Note: The Live audio session remains completely unaffected and active!
       }
     }
   };
@@ -461,6 +558,32 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
             style={{ background: 'radial-gradient(circle, var(--color-accent) 0%, transparent 70%)' }}
           />
 
+          {/* Camera Error Notification (Voice-only graceful degradation notice) */}
+          <AnimatePresence>
+            {cameraError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.18 }}
+                className="absolute top-4 left-6 right-6 z-30 mx-auto max-w-lg p-3 rounded-lg liquid-glass border border-[var(--color-warning)] text-xs font-mono flex items-center justify-between shadow-xl"
+              >
+                <div className="flex items-center gap-2 text-[var(--color-warning)] pr-2">
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-warning)] shrink-0" />
+                  <span>{cameraError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCameraError(null)}
+                  className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] p-1 shrink-0"
+                  aria-label="Dismiss notice"
+                >
+                  <Icon icon={X} size={14} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Camera / Screen Share Video Feed (Full Stage Overlay) */}
           {isVideoActive && (
             <div className="absolute inset-0 z-0 bg-black flex items-center justify-center overflow-hidden">
@@ -569,10 +692,18 @@ Keep spoken responses natural, encouraging, concise (1-3 sentences per turn), an
             <button
               type="button"
               onClick={toggleCamera}
-              title={isVideoOn ? 'Turn Off Camera' : 'Turn On Camera'}
+              title={
+                cameraError
+                  ? `${cameraError} (Click to retry)`
+                  : isVideoOn
+                  ? 'Turn Off Camera'
+                  : 'Turn On Camera'
+              }
               className={`w-12 h-12 rounded-lg flex items-center justify-center transition-colors cursor-pointer ${
                 isVideoOn
                   ? 'bg-[var(--color-accent)] text-white shadow-sm'
+                  : cameraError
+                  ? 'bg-[var(--color-bg-surface-alt)] text-[var(--color-warning)] border border-[var(--color-warning)]/70'
                   : 'bg-[var(--color-bg-surface-alt)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:text-[var(--color-text-primary)]'
               }`}
             >

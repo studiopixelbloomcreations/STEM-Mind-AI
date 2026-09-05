@@ -255,4 +255,42 @@ Bento-grid layouts have been implemented across three core locations:
 - **Egg 4 — Rare Milestone Animation:** Clicking the streak pill in `LearningHub.tsx` triggers the 30-Day Milestone celebration with confetti and mascot reaction; scoring ≥95% in `Results.tsx` unlocks the *"Top Decile Frontier"* celebration.
 - **Egg 5 — Typing "nex":** Typing `n-e-x` while outside text inputs triggers a friendly acknowledgment wave from Nex with a telemetry toast.
 
+---
+
+## 6. Phase 8: Critical Bug Fixes, Live Multimodal Upgrade, Real Hesitation Engine & 10-Section Landing Expansion
+
+### 1. P0 Deprecated Model Replacement & Zero-Fallback Enforcement
+- **Deprecation Root Cause:** `gemini-2.5-flash` returned 404 deprecation errors in production, causing council queries to silently fail into canned local templates.
+- **Model Upgrades:**
+  - Standardized Harmony agents to **`gemini-3.6-flash`** across `geminiHarmonyEngine.js`, `harmony.ts`, and Supabase edge proxies.
+  - Standardized Live Multimodal WebSocket sessions to **`models/gemini-3.1-flash-live`** in `geminiConfig.js`.
+  - Standardized Text-to-Speech (TTS) generation to **`gemini-3.1-flash-tts`** in `voiceSynthesizer.js`.
+- **Degradation Detection:** Embedded `reportHarmonyDegradation` and custom `ai-harmony-fallback-alert` window event to alert developers in real time if any fallback is triggered.
+
+### 2. Live NexLearn Audio & Vision Pipeline Fixes
+- **Web AudioWorklet Migration:** Replaced deprecated main-thread `ScriptProcessorNode` with an inline `AudioWorkletNode` (`NexAudioCaptureProcessor`) for jitter-free 16kHz linear PCM audio capture.
+- **Camera Timeout & Graceful Degradation:** Added an 8-second acquisition timeout with automatic retry for webcam initialization. If video fails, the live session seamlessly maintains voice-only mode without dropping the WebSocket connection.
+- **Human-Readable Close Codes:** Replaced ambiguous "Reason: None provided" logs with a status code translator mapping WebSocket termination codes (1000, 1006, 1008, 1011) to plain-English explanations.
+
+### 3. Real Hesitation-Detection Engine (`QuestionCard.tsx`)
+- Measures continuous question dwell time and detects rapid option-switching oscillation.
+- Renders an intelligent, non-intrusive Nex check-in when difficulty thresholds are breached, providing three clear options:
+  - *Need a hint?* (progressive scaffolding)
+  - *I'm stuck* (deconstructed step explainer whiteboard)
+  - *I'm thinking* (resets dwell timer for 15s)
+
+### 4. 10-Section Landing Page Expansion
+Expanded the landing page to 10 sequential sections adhering strictly to the design system (monochrome palette, single coral accent `#FF6B4A`, 1px solid borders, Liquid Glass header, reveal-on-scroll animations) with zero fabricated social proof:
+1. **Hero Section (`HeroSection.tsx`)**
+2. **How It Works (`HowItWorksSection.tsx`)**
+3. **Syllabus Section (`SyllabusSection.tsx`)**
+4. **Live NexLearn Showcase (`LiveShowcaseSection.tsx`)**
+5. **Educators Section (`ForTeachersSection.tsx`)**
+6. **Student Hub Preview (`StudentHubPreviewSection.tsx`)**
+7. **Council Methodology (`CouncilMethodologySection.tsx`)**
+8. **FAQ Section (`FaqSection.tsx`)**
+9. **Final CTA (`FinalCtaSection.tsx`)**
+10. **Footer (`Footer.tsx`)**
+
+
 

@@ -8,6 +8,7 @@ export const LIVE_API_ENDPOINT =
  * Older TEXT-only Live IDs such as gemini-2.0-flash-live-001 are shut down.
  */
 export const GEMINI_LIVE_AUDIO_MODELS = [
+  'models/gemini-3.1-flash-live',
   'models/gemini-2.5-flash-native-audio-preview-12-2025',
   'models/gemini-2.5-flash-native-audio-preview-09-2025',
 ];

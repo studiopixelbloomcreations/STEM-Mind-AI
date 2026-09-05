@@ -1,6 +1,6 @@
 import { getGeminiApiKey } from '../services/geminiLiveService';
 
-const GEMINI_HARMONY_MODEL = import.meta.env.VITE_GEMINI_HARMONY_MODEL || 'gemini-2.5-flash';
+const GEMINI_HARMONY_MODEL = import.meta.env.VITE_GEMINI_HARMONY_MODEL || 'gemini-3.6-flash';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 const GEMINI_ORCHESTRATOR_PROMPT =

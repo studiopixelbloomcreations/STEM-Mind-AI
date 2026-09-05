@@ -9,7 +9,7 @@
 
 import { getGeminiApiKey } from '../services/geminiLiveService';
 
-const GEMINI_TTS_MODEL = import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-2.5-flash-preview-tts';
+const GEMINI_TTS_MODEL = import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-3.1-flash-tts';
 const GEMINI_TTS_VOICE = import.meta.env.VITE_GEMINI_TTS_VOICE || 'Kore';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_TTS_SAMPLE_RATE = 24000;

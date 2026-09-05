@@ -1,4 +1,4 @@
-﻿import {
+import {
   runHarmonyCouncil,
   runTeacherAgent,
   runExplanationAgent,
@@ -27,11 +27,31 @@ export interface TeachingStep {
   speech: string;
 }
 
+function reportHarmonyDegradation(agent: string, error: unknown) {
+  console.error(
+    `%c[HARMONY AGENT DEGRADATION] ${agent} failed! Fallback engaged. Check model status:`,
+    'background: #FF5C6C; color: #FFFFFF; font-weight: bold; padding: 4px 8px; border-radius: 4px;',
+    error
+  );
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('ai-harmony-fallback-alert', {
+        detail: {
+          agent,
+          error: error instanceof Error ? error.message : String(error),
+          timestamp: Date.now(),
+        },
+      })
+    );
+  }
+}
+
 export async function fetchTopicForSubject(subject: string, grade: number = 10): Promise<string> {
   try {
     const topic = await generateQuizTopic(subject, grade);
     return topic || `${subject} Core Concepts`;
   } catch (err) {
+    reportHarmonyDegradation('Curriculum Topic Generator', err);
     console.warn('[Harmony API] Topic generation fallback:', err);
     return `${subject} Fundamental Principles`;
   }
@@ -60,6 +80,7 @@ export async function generateQuestionFromCouncil(
       };
     }
   } catch (err) {
+    reportHarmonyDegradation('Council Question Generator', err);
     console.warn('[Harmony API] Council question generation fallback:', err);
   }
 
@@ -140,6 +161,7 @@ export async function explainWrongAnswer(
       return steps;
     }
   } catch (err) {
+    reportHarmonyDegradation('Step Explainer Agent', err);
     console.warn('[Harmony API] Step explanation fallback:', err);
   }
 

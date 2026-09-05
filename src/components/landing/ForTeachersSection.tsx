@@ -9,7 +9,7 @@ export const ForTeachersSection: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <section className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border-t border-[var(--color-border)]">
+    <section id="educators" className="w-full py-24 px-6 lg:px-16 bg-[var(--color-bg-base)] text-[var(--color-text-primary)] border-t border-[var(--color-border)]">
       <RevealOnScroll className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Control-Room Value Proposition */}

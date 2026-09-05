@@ -187,14 +187,41 @@ export class GeminiLiveSession {
           rejectOnce(err instanceof Error ? err : new Error('Gemini Live socket error'));
         };
 
+const resolveCloseReason = (code, rawReason) => {
+  if (rawReason && rawReason.trim()) {
+    return rawReason;
+  }
+  switch (code) {
+    case 1000:
+      return 'Normal closure (Session concluded or server completed response stream)';
+    case 1001:
+      return 'Going away (Server endpoint shutting down or client navigating away)';
+    case 1002:
+      return 'Protocol error (Unexpected WebSocket frame)';
+    case 1003:
+      return 'Unsupported data (Invalid payload received)';
+    case 1006:
+      return 'Abnormal closure (Connection dropped without close frame; check network or API key status)';
+    case 1007:
+      return 'Invalid frame payload (Incompatible model parameters or encoding)';
+    case 1008:
+      return 'Policy violation (Invalid API key, quota exceeded, or unauthorized model)';
+    case 1011:
+      return 'Internal server error (Gemini service processing failure)';
+    default:
+      return `Connection closed with code ${code}`;
+  }
+};
+
         ws.onclose = (event) => {
           if (attemptId !== this.connectAttemptId) return;
           this.isConnected = false;
           this.isSetupComplete = false;
-          console.warn(`[Gemini Live Close] Code: ${event.code}, Reason: ${event.reason || 'None provided'}`);
+          const closeReason = resolveCloseReason(event.code, event.reason);
+          console.warn(`[Gemini Live Close] Code: ${event.code}, Reason: ${closeReason}`);
 
           const canFallback =
-            (event.code === 1007 || event.code === 1008 || /not found|not supported/i.test(event.reason || '')) &&
+            (event.code === 1007 || event.code === 1008 || event.code === 1000 || /not found|not supported/i.test(closeReason)) &&
             modelIndex < this.modelList.length - 1;
 
           if (canFallback) {
@@ -205,10 +232,10 @@ export class GeminiLiveSession {
             return;
           }
 
-          this.failPendingTurn(new Error(event.reason || `Gemini Live closed (${event.code})`));
+          this.failPendingTurn(new Error(closeReason));
           this.callbacks.onStatusChange?.('Disconnected');
-          this.callbacks.onClose?.(event);
-          rejectOnce(new Error(event.reason || `Gemini Live WebSocket closed with code ${event.code}.`));
+          this.callbacks.onClose?.({ ...event, reason: closeReason });
+          rejectOnce(new Error(closeReason));
         };
       } catch (err) {
         rejectOnce(err);

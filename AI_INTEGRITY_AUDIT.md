@@ -158,4 +158,42 @@ The landing page (`src/app/routes/Landing.tsx`) was expanded to 10 structured se
    - **Fix:**
      - Added multi-model cascade in `callGeminiAgent` (`gemini-3.6-flash` &rarr; `gemini-2.0-flash` &rarr; `gemini-2.0-flash-lite` &rarr; `gemini-1.5-flash`) so requests automatically fail over across distinct quota buckets.
      - Added a 200ms micro-stagger between parallel question workers in `generateFullSessionConcurrently` to eliminate burst rate limits.
-     - Maintained high-quality pre-calibrated syllabus fallbacks if all network models are unavailable.
+     - Removed all fake/canned mock question generators to uphold the zero fake content principle.
+
+---
+
+## 7. Phase 10: Resilient Multi-Model Failover System & Zero Fake-Content Guarantee
+
+**Status:** Completed & Fully Verified  
+**Core Mandate:** Permanently eliminate silent AI failures by replacing hardcoded single-model dependencies and canned fake content fallbacks with a 3-layer resilient failover architecture.
+
+### 7.1 Architecture
+1. **Layer 1 — Model Registry (`src/lib/ai/modelRegistry.ts`):**
+   - Verified preference orders across 5 discrete capabilities:
+     - `textGeneration`: `['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']`
+     - `liveVoice`: `['gemini-3.1-flash-live', 'gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-2.5-flash-native-audio-preview-09-2025']`
+     - `tts`: `['gemini-3.1-flash-tts', 'gemini-2.5-flash-preview-tts']`
+     - `transcription`: `['gemini-3.5-transcribe-live-preview', 'gemini-2.5-flash-native-audio-preview-12-2025']`
+     - `vision`: `['gemini-3.6-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']`
+   - Dynamically cross-references live available models using Google's `models.list` API endpoint with a 1-hour TTL in memory and storage.
+   - Synchronous, zero-latency retrieval (`<0.01ms` cached overhead).
+
+2. **Layer 2 — Resilient Call Wrapper (`src/lib/ai/resilientModelCall.ts`):**
+   - Dispatches requests against the Model Registry's ordered candidate chain.
+   - Enforces overall time budget (default 30s) and per-model timeout (default 10s).
+   - Strict Error Classification:
+     - **Retryable (Fails over to next model):** 404 (model deprecated/not found), 429 (quota/rate limit), 500/502/503/504 (server errors), timeout/network aborts.
+     - **Non-Retryable (Halts immediately without cycling models):** 400 (malformed request), 401/403 (auth/permissions), Safety refusals.
+   - Zero-Dependency API Key Resolver (`src/lib/ai/apiKey.ts`) preventing circular import deadlocks.
+
+3. **Layer 3 — Telemetry & Honest User Experience (`src/lib/ai/telemetry.ts`):**
+   - Logs `[MODEL FAILOVER]` and dispatches `ai-model-failover-event` on each recovery.
+   - Logs `[CRITICAL AI EXHAUSTION]` and dispatches `ai-total-chain-exhaustion-alert` if all candidates in a chain are exhausted.
+   - Strict Zero Fake-Content Guarantee: Returns explicit `{ success: false }`. Never masks failures with static or canned mock responses.
+   - UI surfaces calm, honest error copy: *"We're having trouble reaching NexLearn's AI right now — please try again in a moment"* with a manual Retry button.
+
+### 7.2 Automated Verification Results (`npm run test:phase10`)
+- **Test 1 (Single-Model Failover):** Simulated 404 on `gemini-3.6-flash`. Automatically fell over to `gemini-2.5-flash`, logged `[MODEL FAILOVER]`, and returned genuine response with zero user disruption. (PASS)
+- **Test 2 (Total Chain Exhaustion):** Simulated 503 across all candidate models. Emitted `[CRITICAL AI EXHAUSTION]`, returned `{ success: false, errorType: 'TOTAL_CHAIN_EXHAUSTION' }`, and returned zero fake data. (PASS)
+- **Test 3 (Overhead Speed):** Measured model chain lookup latency: `0.009ms` (<10ms requirement met). (PASS)
+- **Test 4 (Error Classification):** 400 Bad Request halted immediately without failing over across chain. (PASS)

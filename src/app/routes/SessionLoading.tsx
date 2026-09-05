@@ -91,7 +91,7 @@ export const SessionLoading: React.FC = () => {
     } catch (err: any) {
       console.error('Session generation error:', err);
       setErrorState(
-        err?.message || 'Unable to finalize session. Please retry calibration.'
+        err?.message || "We're having trouble reaching NexLearn's AI right now — please try again in a moment."
       );
     }
   };

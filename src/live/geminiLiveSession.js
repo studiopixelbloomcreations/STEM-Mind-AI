@@ -8,10 +8,12 @@ import {
   LIVE_API_ENDPOINT,
   GEMINI_LIVE_AUDIO_MODELS,
   GEMINI_LIVE_TEXT_MODELS,
+  getLiveAudioModels,
   DEFAULT_LIVE_VOICE,
   getGeminiApiKey,
 } from './geminiConfig';
 import { emitLiveStatus } from './liveStatus';
+import { reportModelFailover, reportTotalChainExhaustion } from '../lib/ai/telemetry';
 
 const parseMaybeJson = async (eventData) => {
   if (eventData instanceof Blob) {
@@ -85,7 +87,7 @@ export class GeminiLiveSession {
     this.disconnect();
     const attemptId = ++this.connectAttemptId;
     this.modality = modality === 'TEXT' ? 'TEXT' : 'AUDIO';
-    this.modelList = models || (this.modality === 'TEXT' ? GEMINI_LIVE_TEXT_MODELS : GEMINI_LIVE_AUDIO_MODELS);
+    this.modelList = models || getLiveAudioModels();
 
     if (this.modality === 'AUDIO') {
       await this.initAudioContext();
@@ -225,12 +227,32 @@ const resolveCloseReason = (code, rawReason) => {
             modelIndex < this.modelList.length - 1;
 
           if (canFallback) {
+            const failedModel = selectedModel;
+            const nextModel = this.modelList[modelIndex + 1];
+            reportModelFailover({
+              capability: 'liveVoice',
+              failedModel,
+              nextModel,
+              errorType: /not found|not supported/i.test(closeReason) ? 'DEPRECATED_404' : 'SERVER_5XX',
+              errorMessage: closeReason,
+              attemptIndex: modelIndex + 1,
+              timestamp: Date.now(),
+            });
+
             this.currentModelIndex = modelIndex + 1;
             this._openSocket({ key, systemInstruction, voice, temperature, attemptId: this.connectAttemptId })
               .then(resolveOnce)
               .catch(rejectOnce);
             return;
           }
+
+          reportTotalChainExhaustion({
+            capability: 'liveVoice',
+            attemptedModels: this.modelList.slice(0, modelIndex + 1),
+            durationMs: 0,
+            finalError: closeReason,
+            timestamp: Date.now(),
+          });
 
           this.failPendingTurn(new Error(closeReason));
           this.callbacks.onStatusChange?.('Disconnected');

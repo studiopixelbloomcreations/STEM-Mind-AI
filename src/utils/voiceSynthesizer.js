@@ -90,7 +90,7 @@ class VoiceSynthesizer {
   }
 
   getCacheKey(text) {
-    return `${GEMINI_TTS_MODEL}:${GEMINI_TTS_VOICE}:${String(text || '').trim()}`;
+    return `${GEMINI_TTS_VOICE}:${String(text || '').trim()}`;
   }
 
   rememberAudioPromise(key, promise) {
@@ -108,27 +108,72 @@ class VoiceSynthesizer {
       throw new Error('Gemini API key is not configured for voice narration.');
     }
 
-    const response = await fetch(
-      `${GEMINI_API_BASE}/models/${encodeURIComponent(GEMINI_TTS_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(this.buildGeminiBody(text)),
+    const ttsModels = getModelChain('tts');
+    const attemptedModels = [];
+    let lastError = null;
+
+    for (let i = 0; i < ttsModels.length; i++) {
+      const model = ttsModels[i];
+      const nextModel = ttsModels[i + 1] || null;
+      attemptedModels.push(model);
+
+      try {
+        const cleanModel = model.replace(/^models\//, '');
+        const response = await fetch(
+          `${GEMINI_API_BASE}/models/${encodeURIComponent(cleanModel)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.buildGeminiBody(text)),
+          }
+        );
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          const err = new Error(`TTS model "${model}" failed: ${response.status} - ${errorText}`);
+          reportModelFailover({
+            capability: 'tts',
+            failedModel: model,
+            nextModel,
+            errorType: response.status === 404 ? 'DEPRECATED_404' : response.status === 429 ? 'QUOTA_429' : 'SERVER_5XX',
+            errorMessage: err.message,
+            attemptIndex: attemptedModels.length,
+            timestamp: Date.now(),
+          });
+          lastError = err;
+          continue;
+        }
+
+        const data = await response.json();
+        const inlineData = data?.candidates?.[0]?.content?.parts?.find((part) => part.inlineData)?.inlineData;
+        const base64Audio = inlineData?.data;
+        if (!base64Audio) {
+          throw new Error(`TTS model "${model}" returned no audio data.`);
+        }
+        return base64Audio;
+      } catch (err) {
+        lastError = err;
+        reportModelFailover({
+          capability: 'tts',
+          failedModel: model,
+          nextModel,
+          errorType: 'UNKNOWN',
+          errorMessage: err.message || 'TTS generation error',
+          attemptIndex: attemptedModels.length,
+          timestamp: Date.now(),
+        });
       }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini native audio failed: ${response.status} - ${errorText}`);
     }
 
-    const data = await response.json();
-    const inlineData = data?.candidates?.[0]?.content?.parts?.find((part) => part.inlineData)?.inlineData;
-    const base64Audio = inlineData?.data;
-    if (!base64Audio) {
-      throw new Error('Gemini native audio returned no audio data.');
-    }
-    return base64Audio;
+    reportTotalChainExhaustion({
+      capability: 'tts',
+      attemptedModels,
+      durationMs: 0,
+      finalError: lastError?.message || 'All TTS models exhausted',
+      timestamp: Date.now(),
+    });
+
+    throw lastError || new Error('All TTS models failed.');
   }
 
   getOrCreateAudioPromise(text) {

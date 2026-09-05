@@ -136,6 +136,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       try {
         const steps = await explainWrongAnswer(question.question, question.correctAnswer, userAnswer);
         setTeachingSteps(steps);
+      } catch (err: any) {
+        console.warn('[QuestionCard] Could not generate repair steps:', err);
       } finally {
         setIsLoadingSteps(false);
       }
@@ -152,6 +154,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     try {
       const steps = await explainWrongAnswer(question.question, question.correctAnswer, 'Uncertain');
       setTeachingSteps(steps);
+    } catch (err: any) {
+      console.warn('[QuestionCard] Could not generate teaching steps:', err);
     } finally {
       setIsLoadingSteps(false);
     }

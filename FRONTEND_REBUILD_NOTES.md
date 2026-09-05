@@ -338,6 +338,17 @@ Expanded the landing page to 10 sequential sections adhering strictly to the des
 - **`NexLogo.tsx`:** Standardized SVG mascot logo component with animated glow, replacing placeholder lettermarks across header and footer.
 - **Brand Favicons:** Vector SVG favicon (`favicon.svg`) and multi-resolution raster icons (`favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`) integrated into `index.html`.
 
+---
+
+## 8. Phase 10: Resilient Multi-Model Failover System
+
+### 1. Architectural Overview
+- **Layer 1 (Model Registry):** `src/lib/ai/modelRegistry.ts` maintains prioritized capability chains, cached in-memory and in `localStorage` with a 1-hour TTL, dynamically cross-referenced against live `models.list`.
+- **Layer 2 (Resilient Model Call):** `src/lib/ai/resilientModelCall.ts` dispatches requests across candidate chains, classifies errors (404/429/5xx retryable vs 400/401/safety non-retryable), and manages a wall-clock time budget.
+- **Layer 3 (Telemetry & Zero Fake Content):** `src/lib/ai/telemetry.ts` logs and dispatches structured events for failover recovery and chain exhaustion. All silent fake fallbacks were completely removed.
+- **Dedicated Key Resolver:** `src/lib/ai/apiKey.ts` provides clean, circular-dependency-free key resolution across browser and Node SSR/test environments.
+
+
 
 
 

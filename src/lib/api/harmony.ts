@@ -193,65 +193,25 @@ export async function generateFullSessionConcurrently(
       throw new Error('Malformed payload');
     } catch (err) {
       reportHarmonyDegradation(`Question #${questionIndex} Worker`, err);
-      completedCount += 1;
-      onProgress?.(completedCount, TOTAL_QUESTIONS);
-
-      // Return clean, syllabus-aligned fallback question for this slot
-      return {
-        id: `q-fallback-${questionIndex}-${Date.now()}`,
-        question: questionIndex === 1
-          ? `In Grade ${grade} ${subject}, which principle directly governs ${topic}?`
-          : questionIndex === 2
-          ? `When calculating quantities in ${topic}, which standard unit relationship applies?`
-          : questionIndex === 3
-          ? `What is the expected outcome when conditions in ${topic} are doubled?`
-          : questionIndex === 4
-          ? `Which of the following represents a common marking-scheme pitfall in ${topic}?`
-          : `Synthesizing the core theorem of ${topic}, which conclusion is universally valid?`,
-        questionType: 'MCQ',
-        choices: [
-          `Direct proportional relationship governed by national syllabus standards`,
-          `Inverse square deviation under non-standard temperature`,
-          `Constant equilibrium without external force transfer`,
-          `Nullified differential across symmetrical states`,
-        ],
-        correctAnswer: `Direct proportional relationship governed by national syllabus standards`,
-        hint: `Focus on the foundational conservation laws and syllabus definitions for ${topic}.`,
-        howToApproach: `Carefully list all provided variables, identify which relationship binds them under NIE guidelines, and eliminate units that do not match standard SI form.`,
-        syllabusRef: `Grade ${grade} ${subject} — ${topic}`,
-        difficulty,
-        teachingSteps: [
-          {
-            stepNumber: 1,
-            title: 'Identify the Given Information',
-            visual: `<div style="padding:14px; border:1px solid #38bdf8; border-radius:8px; text-align:center;">Examining parameters for ${topic}</div>`,
-            speech: `Let us begin by identifying what the question has given us, and what quantity we are asked to find.`,
-          },
-          {
-            stepNumber: 2,
-            title: 'Apply the Governing Formula',
-            visual: `<div style="padding:14px; border:1px solid #34d399; border-radius:8px; text-align:center;">Direct proportional relationship governed by national syllabus standards</div>`,
-            speech: `Now we substitute our values into the primary relationship, checking every negative sign and unit.`,
-          },
-          {
-            stepNumber: 3,
-            title: 'Verify the Final Derivation',
-            visual: `<div style="padding:14px; border:1px solid #fbbf24; border-radius:8px; text-align:center;">Verified: Direct proportional relationship governed by national syllabus standards</div>`,
-            speech: `And there we have it! The derivation is complete and matches the national curriculum benchmark.`,
-          },
-        ],
-      };
+      // Section 0 Core Principle: Never substitute fake content on total failure
+      throw err;
     }
   };
 
   // Launch all 5 workers in parallel with a micro-stagger to avoid burst quota limits
-  const promises = Array.from({ length: TOTAL_QUESTIONS }, async (_, i) => {
-    if (i > 0) {
-      await new Promise((resolve) => setTimeout(resolve, i * 200));
-    }
-    return generateSingleWorker(i + 1);
-  });
-  return await Promise.all(promises);
+  try {
+    const promises = Array.from({ length: TOTAL_QUESTIONS }, async (_, i) => {
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, i * 200));
+      }
+      return generateSingleWorker(i + 1);
+    });
+    return await Promise.all(promises);
+  } catch (err: any) {
+    throw new Error(
+      `We're having trouble reaching NexLearn's AI right now — please try again in a moment.`
+    );
+  }
 }
 
 export async function generateQuestionFromCouncil(
@@ -278,100 +238,32 @@ export async function generateQuestionFromCouncil(
     }
   } catch (err) {
     reportHarmonyDegradation('Council Question Generator', err);
-    console.warn('[Harmony API] Council question generation fallback:', err);
+    console.warn('[Harmony API] Council question generation failed:', err);
+    throw err;
   }
 
-  // Robust curriculum-grounded fallback
-  const fallbackBank: Record<string, QuizQuestionPayload[]> = {
-    Physics: [
-      {
-        question: "A stone is dropped from the top of a 45m high cliff. Taking g = 10 m/s², what is the speed of the stone just before striking the ground?",
-        questionType: "NUMERICAL",
-        correctAnswer: "30",
-        hint: "Use v² = u² + 2as with u = 0, a = 10, s = 45.",
-        difficulty: "medium",
-        syllabusRef: "GCE O/L Physics — Motion under gravity",
-        examTips: "Write the equation first, substitute with standard SI units, then evaluate.",
-        motivator: "You have all the variables — plug into v² = u² + 2as."
-      },
-      {
-        question: "What is the equivalent resistance of a 6Ω resistor and a 3Ω resistor connected in parallel?",
-        questionType: "NUMERICAL",
-        correctAnswer: "2",
-        hint: "1/R = 1/R1 + 1/R2 = 1/6 + 1/3.",
-        difficulty: "easy",
-        syllabusRef: "Grade 10 Science — Electric Circuits",
-        examTips: "Parallel resistance is always smaller than the smallest branch resistor.",
-        motivator: "Check your answer: 2Ω is less than 3Ω, so it makes physical sense!"
-      }
-    ],
-    Mathematics: [
-      {
-        question: "Solve for x: 2x² - 8x = 0. What is the non-zero root?",
-        questionType: "NUMERICAL",
-        correctAnswer: "4",
-        hint: "Factor out 2x: 2x(x - 4) = 0.",
-        difficulty: "easy",
-        syllabusRef: "Grade 10 Mathematics — Quadratic Equations",
-        examTips: "Never divide both sides by x, or you lose the x = 0 root.",
-        motivator: "Factorization is the cleanest path here."
-      },
-      {
-        question: "If log₁₀(x) = 3, what is the value of x?",
-        questionType: "NUMERICAL",
-        correctAnswer: "1000",
-        hint: "Rewrite in index form: x = 10³.",
-        difficulty: "easy",
-        syllabusRef: "Grade 11 Mathematics — Logarithms",
-        examTips: "Remember: log_b(a) = c means b^c = a.",
-        motivator: "Index form unlocks the answer directly."
-      }
-    ],
-    Chemistry: [
-      {
-        question: "What is the mass of 0.5 moles of Calcium Carbonate (CaCO₃)? (Ar: Ca=40, C=12, O=16)",
-        questionType: "NUMERICAL",
-        correctAnswer: "50",
-        hint: "Molar mass of CaCO₃ = 40 + 12 + 3(16) = 100 g/mol.",
-        difficulty: "medium",
-        syllabusRef: "Grade 11 Science — Mole concept",
-        examTips: "Mass = moles × molar mass.",
-        motivator: "Half a mole is half of 100g."
-      }
-    ]
-  };
-
-  const subjectBank = fallbackBank[subject] || fallbackBank['Physics'];
-  const picked = subjectBank[Math.floor(Math.random() * subjectBank.length)];
-  return picked;
+  throw new Error(`AI Council was unable to formulate question for ${subject} — ${topic}. Please retry.`);
 }
 
 export async function explainWrongAnswer(
   question: string,
   correctAnswer: string,
   wrongAnswer: string,
-  eli10: boolean = false
+  eli10 = false
 ): Promise<TeachingStep[]> {
   try {
     const steps = await runStepByStepExplanationAgent(question, correctAnswer, wrongAnswer, eli10);
     if (Array.isArray(steps) && steps.length > 0) {
-      return steps;
+      return steps.map((s) => ({
+        visual: s.visual || `<div style="font-size:18px; text-align:center;">${question}</div>`,
+        caption: s.caption || 'Analyze the relationship.',
+        speech: s.speech || `The correct answer is ${correctAnswer}.`,
+      }));
     }
   } catch (err) {
-    reportHarmonyDegradation('Step Explainer Agent', err);
-    console.warn('[Harmony API] Step explanation fallback:', err);
+    reportHarmonyDegradation('Step-by-Step Explanation Agent', err);
+    throw err;
   }
 
-  return [
-    {
-      visual: `<div class="p-4 rounded-lg bg-[#1C202B] text-center"><span class="text-[#FF5C6C] line-through">${wrongAnswer}</span> <span class="mx-2">→</span> <span class="text-[#3DD9A4] font-bold">${correctAnswer}</span></div>`,
-      caption: "Step 1: Identify the discrepancy.",
-      speech: `Let's take this step by step. The correct value is ${correctAnswer}. Let's see how we arrive there.`
-    },
-    {
-      visual: `<div class="p-4 rounded-lg bg-[#1C202B] font-mono text-center text-[#FFC15E]">Applied Formula: Result = ${correctAnswer}</div>`,
-      caption: "Step 2: Apply the governing principle.",
-      speech: `Substitute the known values into the equation to compute the exact result of ${correctAnswer}.`
-    }
-  ];
+  return [];
 }

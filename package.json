@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --test",
+    "test:phase10": "node scripts/test-phase10-failover.mjs",
     "verify": "node scripts/runtime-check.mjs"
   },
   "dependencies": {

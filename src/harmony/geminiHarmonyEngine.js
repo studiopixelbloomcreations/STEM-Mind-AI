@@ -1,4 +1,5 @@
 import { getGeminiApiKey } from '../services/geminiLiveService';
+import { callWithFallback } from '../lib/ai/resilientModelCall';
 
 const GEMINI_HARMONY_MODEL = import.meta.env.VITE_GEMINI_HARMONY_MODEL || 'gemini-3.6-flash';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
@@ -43,77 +44,30 @@ const toGeminiParts = (message) => {
 };
 
 /**
- * Executes a Gemini GenerateContent request for a specific Harmony agent role.
+ * Executes a Gemini GenerateContent request for a specific Harmony agent role
+ * routed through the Phase 10 Resilient Multi-Model Failover Architecture.
  */
 async function callGeminiAgent(agentName, messages, responseFormat = null, temperature = 0.7) {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    throw new Error('Gemini API key is not configured. Set VITE_GEMINI_API_KEY in Vercel or your local .env file.');
-  }
-
-  const body = {
-    systemInstruction: {
-      parts: [{ text: AGENT_SYSTEM_PROMPTS[agentName] || GEMINI_ORCHESTRATOR_PROMPT }],
-    },
-    contents: messages.map((message) => ({
-      role: message.role === 'assistant' ? 'model' : 'user',
-      parts: toGeminiParts(message),
-    })),
-    generationConfig: {
+  const capability = agentName === 'imageAnalyzer' ? 'vision' : 'textGeneration';
+  const result = await callWithFallback(
+    capability,
+    {
+      agentName,
+      systemInstruction: AGENT_SYSTEM_PROMPTS[agentName] || GEMINI_ORCHESTRATOR_PROMPT,
+      messages,
+      responseFormat,
       temperature,
     },
-  };
-
-  if (responseFormat?.type === 'json_object') {
-    body.generationConfig.responseMimeType = 'application/json';
-  }
-
-  const candidateModels = [
-    GEMINI_HARMONY_MODEL,
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-1.5-flash',
-  ].filter((m, i, arr) => arr.indexOf(m) === i);
-
-  let lastError = null;
-
-  for (const model of candidateModels) {
-    try {
-      const response = await fetch(
-        `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        // If quota is exhausted (429), model not found (404), or temporarily overloaded (503), try next model
-        if (response.status === 429 || response.status === 404 || response.status === 503) {
-          console.warn(`[Gemini Engine] Model "${model}" responded with ${response.status}. Attempting candidate model fallback.`);
-          lastError = new Error(`Gemini model "${model}" failed: ${response.status} - ${errorText}`);
-          continue;
-        }
-        throw new Error(`Gemini Harmony agent "${agentName}" failed: ${response.status} - ${errorText}`);
-      }
-
-      const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text || '')
-        .join('')
-        .trim();
-
-      if (text) {
-        return text;
-      }
-    } catch (err) {
-      lastError = err;
+    {
+      totalTimeBudgetMs: 25000,
     }
+  );
+
+  if (!result.success) {
+    throw new Error(`Gemini Harmony agent "${agentName}" failed across failover chain: ${result.error}`);
   }
 
-  throw lastError || new Error(`Gemini Harmony agent "${agentName}" returned an empty response.`);
+  return result.data;
 }
 
 /**
@@ -417,7 +371,7 @@ Return only a raw JSON object:
       explanation: step?.explanation || '',
     })),
     summary: String(parsed.summary || '').trim(),
-    provider: `gemini-image-analyzer:${GEMINI_HARMONY_MODEL}`,
+    provider: 'gemini-image-analyzer',
   };
 }
 

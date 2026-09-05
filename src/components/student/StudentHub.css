@@ -1,0 +1,198 @@
+/* ==========================================================================
+   StudentHub — the learning-space surface styles.
+   Consumes only design-system tokens and base primitives (nx-label,
+   nx-chip, nx-meter, nx-field, nx-dock, nx-btn). Scoped under .hub so it
+   can never leak into the marketing site or teacher surfaces.
+   ========================================================================== */
+
+.hub { min-height: 100vh; padding-bottom: 132px; } /* bar clearance */
+
+/* --- Header band ------------------------------------------------------- */
+.hub__head { padding-block: var(--space-lg) var(--space-md); }
+.hub__band-in { grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-sm); }
+
+.hub__exit {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+  transition: color var(--dur-1) var(--ease-settle);
+}
+.hub__exit:hover { color: var(--text-hi); }
+
+.hub__hello { display: flex; flex-direction: column; gap: var(--space-xs); }
+
+.hub__h1 {
+  font-size: var(--text-title-lg);
+  color: var(--text-hi);
+  margin: 0;
+}
+
+.hub__meta { display: flex; align-items: center; gap: var(--space-2xs); flex-wrap: wrap; }
+.hub__metachips { display: inline-flex; gap: var(--space-2xs); flex-wrap: wrap; }
+
+/* --- Main column ------------------------------------------------------- */
+.hub__main { padding-block: var(--space-md) var(--space-lg); row-gap: var(--space-lg); }
+.hub__main > * { grid-column: 1 / -1; }
+
+.hub__sectionhead {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+.hub__offline { color: var(--text-lo); }
+
+/* --- Plates — hairline-bordered selectable cards ------------------------ */
+.hub__plates { display: grid; gap: var(--space-sm); }
+
+/* Subjects: 4 across at full width, collapsing to 2 then 1. */
+.hub__plates--subject { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Topics: 3 across at full width (max 2-3 per row), collapsing the same way. */
+.hub__plates--topic { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+.hub__plate {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2xs);
+  padding: var(--space-md);
+  background: transparent;
+  border: 1px solid var(--ink-600);
+  border-radius: var(--r-md);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-1) var(--ease-settle),
+    background var(--dur-1) var(--ease-settle),
+    transform var(--dur-1) var(--ease-spring);
+}
+.hub__plate:hover {
+  border-color: var(--ink-500);
+  background: var(--ink-900);
+  transform: translateY(-1px);
+}
+.hub__plate:active { transform: scale(0.995); }
+
+/* The single selected register: amber hairline. */
+.hub__plate[aria-pressed="true"] { border-color: var(--amber-line); }
+.hub__plate[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--amber-400);
+  border-radius: var(--r-md);
+  pointer-events: none;
+  opacity: 0.55;
+}
+.hub__plate[aria-pressed="true"] .hub__plate-name { color: var(--amber-400); }
+
+.hub__plate-name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-title-sm);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--text-hi);
+}
+.hub__plate-name--topic { font-size: var(--text-body-lg); }
+
+.hub__plate-meta {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+}
+
+.hub__plate-meter {
+  display: flex; align-items: center; gap: var(--space-2xs);
+  width: 100%; margin-top: var(--space-2xs);
+}
+.hub__plate-meter .nx-meter { flex: 1; }
+.hub__plate-meterlabel {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.62rem;
+  color: var(--text-lo);
+}
+
+/* Hover-reveal affordance: motion is meaningful — hover unveils the action. */
+.hub__plate-begin {
+  position: absolute;
+  right: var(--space-sm);
+  bottom: var(--space-2xs);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  color: var(--amber-400);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity var(--dur-1) var(--ease-settle), transform var(--dur-1) var(--ease-settle);
+}
+.hub__plate--topic:hover .hub__plate-begin,
+.hub__plate--topic:focus-visible .hub__plate-begin { opacity: 1; transform: translateX(0); }
+/* Selection keeps the affordance visible — it is now the committed action. */
+.hub__plate--topic[aria-pressed="true"] .hub__plate-begin { opacity: 1; transform: none; color: var(--amber-300); }
+
+/* --- Shimmer placeholders ---------------------------------------------- */
+.hub__plate--shimmer {
+  pointer-events: none;
+  cursor: default;
+  border-color: var(--ink-700);
+  min-height: 108px;
+  overflow: hidden;
+}
+.hub__plate--shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    var(--ink-900) 0%,
+    var(--ink-800) 45%,
+    var(--ink-900) 90%
+  );
+  background-size: 220% 100%;
+  background-position: 180% 0;
+  animation: hub-shimmer 1.6s var(--ease-scroll) infinite;
+}
+@keyframes hub-shimmer {
+  from { background-position: 180% 0; }
+  to   { background-position: -80% 0; }
+}
+
+/* --- Sticky session bar ------------------------------------------------- */
+.hub__barwrap {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: var(--z-sticky);
+  background: color-mix(in srgb, var(--ink-950) 88%, transparent);
+  border-top: 1px solid var(--ink-700);
+  padding-block: var(--space-sm);
+  backdrop-filter: blur(10px);
+}
+.hub__bar {
+  display: flex; align-items: center; gap: var(--space-md);
+  flex-wrap: wrap;
+}
+.hub__select { width: auto; min-width: 190px; padding-block: 9px 9px; font-size: 0.85rem; }
+.hub__qcount { white-space: nowrap; }
+.hub__bar .nx-btn--primary { margin-left: auto; }
+
+/* --- Responsive -------------------------------------------------------- */
+@media (max-width: 1023px) {
+  .hub__plates--subject { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hub__plates--topic   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .hub__plates--subject,
+  .hub__plates--topic { grid-template-columns: minmax(0, 1fr); }
+  .hub__plate-begin { opacity: 1; transform: none; } /* no hover on touch — never hidden */
+  .hub__bar { gap: var(--space-sm); }
+  .hub__select { flex: 1 1 100%; }
+  .hub__bar .nx-btn--primary { margin-left: 0; flex: 1; }
+  .hub { padding-bottom: 208px; } /* taller stacked bar */
+}

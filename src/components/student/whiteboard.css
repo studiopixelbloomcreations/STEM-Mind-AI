@@ -1,0 +1,207 @@
+/* ==========================================================================
+   NEXLEARN — TeachingWhiteboard scoped styles (src/components/student)
+   The teaching board is a dark instrument panel: --ink-900 surface, ink
+   hairlines, amber reserved for Nex's pointing light, resolve green spent
+   only on the completed-step tick. SVG text sizing, the step filmstrip,
+   the scene crossfade and the highlight draw-in live here; shared tokens
+   (src/design/*.css) carry everything else.
+
+   Reduced motion is handled globally: base.css collapses every animation
+   and transition to 0.01ms under prefers-reduced-motion.
+   ========================================================================== */
+
+.nx-wb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+}
+.nx-wb--compact { gap: var(--space-xs); }
+
+/* --- Board chrome (top bar: microlabel + step index + exit) ---------------- */
+
+.nx-board__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-2xs) var(--space-xs) var(--space-2xs) var(--space-sm);
+  border-bottom: 1px solid var(--ink-700);
+}
+.nx-board__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.nx-board__idx { white-space: nowrap; }
+
+.nx-wb__exit { flex: none; }
+.nx-wb__exit-short { display: none; }
+
+/* --- Stage: the SVG keeps a strict 5:3 instrument ratio --------------------- */
+
+.nx-board__stage {
+  position: relative;
+  aspect-ratio: 5 / 3;
+  background: var(--ink-900);
+}
+
+/* Scene crossfade — the scene group remounts per step (contract §3.2).
+   The outgoing layer fades with --ease-exit while the incoming one settles. */
+.nx-wb-scene {
+  animation: nx-wb-in var(--dur-2) var(--ease-settle) both;
+}
+.nx-wb-scene--out {
+  animation: nx-wb-out var(--dur-2) var(--ease-exit) both;
+}
+@keyframes nx-wb-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes nx-wb-out {
+  to { opacity: 0; }
+}
+
+/* Nex's pointing light — a soft amber field plus a hairline outline that
+   draws itself in around the targeted region (contract §3.3 boardHighlight).
+   --wb-dash carries the rect perimeter so the draw lands exactly once. */
+.nx-wb-hl { pointer-events: none; }
+.nx-wb-hl__fill {
+  fill: var(--amber-400);
+  animation: nx-wb-hl-fade var(--dur-2) var(--ease-settle) both;
+}
+.nx-wb-hl__line {
+  fill: none;
+  stroke: var(--amber-line);
+  stroke-width: 1.5;
+  animation: nx-wb-draw var(--dur-3) var(--ease-settle) both;
+}
+@keyframes nx-wb-hl-fade {
+  from { opacity: 0; }
+}
+@keyframes nx-wb-draw {
+  from { stroke-dashoffset: var(--wb-dash, 2400); }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Progress-scene bar — grows in with the same settle vocabulary. */
+.nx-wb-bar {
+  animation: nx-wb-grow var(--dur-3) var(--ease-settle) both;
+  transform-origin: left center;
+}
+@keyframes nx-wb-grow {
+  from { transform: scaleX(0); }
+}
+
+/* The note line — mono microtype. */
+.nx-wb-note { letter-spacing: 0.05em; }
+
+/* --- Step filmstrip (bottom bar of the board) ------------------------------- */
+
+.nx-board__strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-top: 1px solid var(--ink-700);
+  flex-wrap: wrap;
+}
+.nx-wb__chips {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.nx-wb__nav { flex: none; }
+
+.nx-wb-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 46px;
+  height: 34px;
+  padding-inline: 10px;
+  border: 1px solid var(--ink-600);
+  border-radius: var(--r-sm);
+  background: var(--ink-850);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  color: var(--text-mid);
+  transition:
+    color var(--dur-1) var(--ease-settle),
+    border-color var(--dur-1) var(--ease-settle),
+    background var(--dur-1) var(--ease-settle),
+    transform var(--dur-1) var(--ease-spring);
+}
+.nx-wb-chip:hover {
+  color: var(--text-hi);
+  border-color: var(--ink-500);
+  background: var(--ink-800);
+}
+.nx-wb-chip:active { transform: scale(0.94); }
+.nx-wb-chip.is-active {
+  color: var(--amber-400);
+  border-color: var(--amber-line);
+  background: var(--amber-glow);
+}
+/* Done steps: resolve is spent on the tick alone — used sparingly. */
+.nx-wb-chip.is-done { color: var(--resolve-300); }
+.nx-wb-chip__tick { display: inline-flex; align-items: center; gap: 4px; }
+.nx-wb-chip__tick svg {
+  width: 11px;
+  height: 11px;
+  stroke: var(--resolve-400);
+}
+
+/* --- Narration column -------------------------------------------------------- */
+
+.nx-wb__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  max-width: 72ch;
+}
+.nx-wb__caption {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-title-sm);
+  line-height: var(--leading-display);
+  letter-spacing: -0.01em;
+  color: var(--text-hi);
+  text-wrap: balance;
+}
+.nx-wb__narration {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  color: var(--text-mid);
+}
+.nx-wb__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--space-2xs);
+}
+
+.nx-wb--compact .nx-wb__narration { font-size: var(--text-body-sm); }
+.nx-wb--compact .nx-wb__caption { font-size: 1.05rem; }
+.nx-wb--compact .nx-wb__tags { margin-top: 0; }
+.nx-wb--compact .nx-board__idx { display: none; }
+
+/* --- Responsive: filmstrip wraps, exit shortens; the SVG simply scales ------ */
+
+@media (max-width: 719px) {
+  .nx-wb__exit-full { display: none; }
+  .nx-wb__exit-short { display: inline; }
+  .nx-wb__nav { flex: 1 1 auto; }
+  .nx-wb__body { max-width: none; }
+  .nx-wb-chip { min-width: 40px; height: 32px; padding-inline: 8px; }
+  .nx-board__chrome { padding: var(--space-2xs); }
+}

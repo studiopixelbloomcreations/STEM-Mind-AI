@@ -1,0 +1,6 @@
+# Firebase ID tokens are verified inside each function; gateway JWT checks break CORS preflight.
+[functions.stem-live]
+verify_jwt = false
+
+[functions.vision-analyze]
+verify_jwt = false

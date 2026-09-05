@@ -1,0 +1,160 @@
+/* ==========================================================================
+   NEXLEARN — DESIGN TOKENS
+   Single source of truth for the marketing site and the application.
+   Art direction: "a premium instrument for learning" — warm graphite ink,
+   one amber light (insight), one green light (resolve). Typography-led.
+   ========================================================================== */
+
+:root {
+  /* ---------------------------------------------------------------
+     COLOR — INK (base surfaces, warm graphite; never pure #000)
+     --------------------------------------------------------------- */
+  --ink-950: #0a0b0d;   /* page base */
+  --ink-900: #101216;   /* raised base */
+  --ink-850: #15181d;   /* surface */
+  --ink-800: #1b1f26;   /* surface high / inputs */
+  --ink-700: #262b33;   /* strong border */
+  --ink-600: #3a414b;   /* border */
+  --ink-500: #565e69;   /* faint border / dividers */
+
+  /* COLOR — TEXT */
+  --text-hi:  #f2f0ea;  /* warm white — primary text */
+  --text-mid: #a9aeb6;  /* secondary text */
+  --text-lo:  #6e747d;  /* tertiary / meta text */
+
+  /* COLOR — INSIGHT AMBER (primary accent: the tutor's lamp) */
+  --amber-100: #fff3d6;
+  --amber-300: #ffd98a;  /* large-type / on-ink text usage */
+  --amber-400: #f5be5a;  /* primary accent */
+  --amber-500: #e8a93e;  /* pressed / deep */
+  --amber-600: #c98a26;  /* borders, engraved detail */
+  --amber-glow: rgba(245, 190, 90, 0.14);
+  --amber-line: rgba(245, 190, 90, 0.32);
+
+  /* COLOR — RESOLVE (secondary accent: correct / success; used sparingly) */
+  --resolve-300: #9fe8c6;
+  --resolve-400: #59d6a3;
+  --resolve-600: #2fa97a;
+  --resolve-glow: rgba(89, 214, 163, 0.12);
+
+  /* COLOR — ALERT (errors / stuck states) */
+  --alert-300: #ffb1a8;
+  --alert-400: #ff7a6b;
+  --alert-glow: rgba(255, 122, 107, 0.12);
+
+  /* COLOR — PAPER (deliberate light passages — teachers section) */
+  --paper-50:  #f5f2eb;
+  --paper-100: #ede8dd;
+  --paper-200: #e2dccc;
+  --paper-line: #d5cfbf;
+  --paper-ink: #14161a;
+  --paper-mid: #494f57;
+  --paper-amber: #a06a14;
+
+  /* ---------------------------------------------------------------
+     TYPOGRAPHY
+     Display: Instrument Serif — editorial confidence at scale.
+     Text:    Satoshi — legible, warm grotesque workhorse.
+     Mono:    JetBrains Mono — data, agents, labels.
+     --------------------------------------------------------------- */
+  --font-display: "Instrument Serif", "Georgia", serif;
+  --font-text: "Satoshi", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  /* Fluid type scale (mobile → desktop) */
+  --text-display-xl: clamp(3.4rem, 9vw, 8.5rem);    /* landing hero */
+  --text-display-lg: clamp(2.75rem, 6.5vw, 5.5rem); /* section statements */
+  --text-display-md: clamp(2.2rem, 4.5vw, 3.6rem);  /* major in-app moments */
+  --text-title-lg:   clamp(1.7rem, 3vw, 2.5rem);
+  --text-title:      clamp(1.35rem, 2.2vw, 1.75rem);
+  --text-title-sm:   clamp(1.1rem, 1.6vw, 1.3rem);
+  --text-body-lg:    clamp(1.05rem, 1.35vw, 1.25rem);
+  --text-body:       1rem;
+  --text-body-sm:    0.875rem;
+  --text-label:      0.75rem;   /* mono, uppercase, tracked — see .nx-label */
+
+  --leading-tight: 1.04;
+  --leading-display: 1.12;
+  --leading-body: 1.6;
+
+  /* ---------------------------------------------------------------
+     SPACING (4px base; section rhythm is deliberate and generous)
+     --------------------------------------------------------------- */
+  --space-3xs: 4px;
+  --space-2xs: 8px;
+  --space-xs:  12px;
+  --space-sm:  16px;
+  --space-md:  24px;
+  --space-lg:  40px;
+  --space-xl:  64px;
+  --space-2xl: 96px;
+  --space-3xl: 160px;
+  --space-section: clamp(96px, 12vw, 200px); /* vertical rhythm between sections */
+
+  /* ---------------------------------------------------------------
+     GRID — 12-column editorial grid
+     --------------------------------------------------------------- */
+  --grid-max: 1360px;
+  --grid-pad: clamp(20px, 4.5vw, 56px);
+  --grid-gap: clamp(16px, 2vw, 32px);
+  --grid-col: calc((100% - 11 * var(--grid-gap)) / 12);
+
+  /* ---------------------------------------------------------------
+     RADIUS — deliberately restrained; editorial, not "SaaS card"
+     --------------------------------------------------------------- */
+  --r-xs:   4px;
+  --r-sm:   8px;
+  --r-md:   12px;
+  --r-lg:   20px;
+  --r-full: 999px;
+
+  /* ---------------------------------------------------------------
+     ELEVATION — on dark, elevation is light, not shadow
+     --------------------------------------------------------------- */
+  --elev-1: 0 1px 0 rgba(242, 240, 234, 0.04) inset;
+  --elev-2: 0 8px 32px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(242, 240, 234, 0.05) inset;
+  --elev-3: 0 24px 64px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(242, 240, 234, 0.06) inset;
+  --glow-accent: 0 0 48px var(--amber-glow);
+  --glow-resolve: 0 0 40px var(--resolve-glow);
+  --glow-alert: 0 0 40px var(--alert-glow);
+
+  /* ---------------------------------------------------------------
+     MOTION GRAMMAR — one vocabulary, everywhere.
+     settle: the signature entrance ("arrive, then rest")
+     exit:   quicker, decisive
+     spring: interactive feedback only
+     --------------------------------------------------------------- */
+  --dur-1: 150ms;   /* micro: hover, focus, chip states */
+  --dur-2: 300ms;   /* standard UI transitions */
+  --dur-3: 600ms;   /* settle entrances */
+  --dur-4: 900ms;   /* cinematic: hero, section reveals */
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-exit:    cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-scroll:  cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* ---------------------------------------------------------------
+     Z-INDEX
+     --------------------------------------------------------------- */
+  --z-canvas: 1;      /* 3D stages sit behind content they light */
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-nav: 200;
+  --z-overlay: 300;   /* teaching mode, modals */
+  --z-toast: 400;
+
+  /* ---------------------------------------------------------------
+     NEX — the avatar's own material identity.
+     Bone ceramic shell + graphite joints; the face display and
+     chest core are lit with the same amber the brand uses — Nex
+     is lit by the product's light, deliberately.
+     --------------------------------------------------------------- */
+  --nex-shell:      #e8e2d6;  /* satin bone ceramic */
+  --nex-shell-deep: #c9c2b2;  /* shaded shell */
+  --nex-graphite:   #33373d;  /* joints, back plate */
+  --nex-visor:      #14161a;  /* face display glass (dark) */
+  --nex-display:    var(--amber-400); /* eye + core emissive */
+  --nex-display-hi: var(--amber-300);
+  --nex-core:       var(--amber-400);
+  --nex-core-resolve: var(--resolve-400);
+}

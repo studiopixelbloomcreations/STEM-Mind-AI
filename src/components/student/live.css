@@ -1,0 +1,367 @@
+/* ==========================================================================
+   Live Tutor Mode — the full-screen conversational surface.
+   Nex is the room: he is the primary presence (320px center-stage, 240px on
+   tablet), every state is legible from his animation with the chrome as the
+   quiet second voice. Rings are driven by --live-level, written by the rAF
+   amplitude loop from the real AnalyserNode.
+   ========================================================================== */
+
+.nx-live-stage {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background:
+    radial-gradient(120% 90% at 50% 12%, var(--ink-900), var(--ink-950) 62%),
+    var(--ink-950);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  --live-level: 0;            /* 0..1 — real mic RMS, set from JS */
+  --live-ring-base: 380px;    /* set from JS with Nex's size */
+}
+
+/* Nex's room floor — a quiet pool of light, not glow for its own sake */
+.nx-live-stage__floor {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  width: min(72vw, 760px);
+  height: 120px;
+  transform: translateX(-50%);
+  background: radial-gradient(50% 100% at 50% 100%, var(--amber-glow), transparent 72%);
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   TOP — status truth, quiet second voice to Nex's animation
+   -------------------------------------------------------------------------- */
+
+.nx-live-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--ink-700);
+  background: color-mix(in srgb, var(--ink-950) 72%, transparent);
+  backdrop-filter: blur(10px);
+  z-index: 3;
+}
+.nx-live-top__subject {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+  margin-right: auto;
+}
+.nx-live-top__chips { display: flex; align-items: center; gap: var(--space-2xs); flex-wrap: wrap; }
+
+/* --------------------------------------------------------------------------
+   CENTER — Nex center-stage
+   -------------------------------------------------------------------------- */
+
+.nx-live-center {
+  position: relative;
+  display: grid;
+  place-items: center;
+  grid-template-rows: auto auto;
+  row-gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-md) var(--space-xl);
+}
+
+.nx-live-nex {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: end center;
+}
+.nx-live-nex__ghost {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-lg);
+  background: var(--ink-900);
+  animation: nx-pulse 1.6s var(--ease-scroll) infinite;
+}
+
+/* Captions — Nex's line, live */
+.nx-live-captions {
+  color: var(--text-hi);
+  z-index: 3;
+  text-wrap: pretty;
+  min-height: 1.5em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+.nx-live-stage.is-thinking .nx-live-captions { color: var(--text-lo); }
+.nx-live-stage.is-speaking .nx-live-captions { color: var(--amber-300); }
+
+/* Honest error note — quiet, never blocking Nex */
+.nx-live-error {
+  margin-top: calc(-1 * var(--space-sm));
+  max-width: 64ch;
+  text-align: center;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  color: var(--alert-300);
+  background: color-mix(in srgb, var(--ink-950) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--alert-400) 30%, transparent);
+  border-radius: var(--r-sm);
+  padding: var(--space-2xs) var(--space-xs);
+  z-index: 3;
+}
+
+/* --------------------------------------------------------------------------
+   VOICE RINGS — real amplitude, written to --live-level each frame.
+   Three concentric amber hairlines scale 1 -> 1.4 with the level; opacity
+   falls off per-ring so the whole thing reads as one breathing instrument.
+   -------------------------------------------------------------------------- */
+
+.nx-live-rings {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.nx-voice-ring {
+  width: var(--live-ring-base);
+  height: var(--live-ring-base);
+  grid-area: 1 / 1;
+  border-color: var(--amber-line);
+  transform: translate(0, -8%);
+  transition: border-color var(--dur-2) var(--ease-settle);
+  will-change: transform, opacity;
+}
+
+/* Level-driven scale: 1 at silence, up to ~1.4 at full voice. Each ring is
+   offset a step so motion reads as a ripple, and each ring's opacity range
+   differs — innermost is the most present, outer two trail it. */
+.nx-voice-ring--1 {
+  transform: translate(0, -8%) scale(calc(1 + var(--live-level) * 0.40));
+  opacity: calc(0.34 + var(--live-level) * 0.66);
+}
+.nx-voice-ring--2 {
+  transform: translate(0, -8%) scale(calc(0.94 + var(--live-level) * 0.52));
+  opacity: calc(0.18 + var(--live-level) * 0.58);
+}
+.nx-voice-ring--3 {
+  transform: translate(0, -8%) scale(calc(0.88 + var(--live-level) * 0.64));
+  opacity: calc(0.08 + var(--live-level) * 0.46);
+}
+
+/* The listening state warms the rings; they stay hairlines, never glow. */
+.nx-live-stage.is-listening .nx-voice-ring { border-color: color-mix(in srgb, var(--amber-400) 55%, transparent); }
+
+/* Nex's silhouette sits visually between the rings and the captions */
+.nx-live-stage__floor { z-index: 0; }
+
+/* --------------------------------------------------------------------------
+   TRANSCRIPT RAIL — quiet left edge, last 8 turns
+   -------------------------------------------------------------------------- */
+
+.nx-live-rail {
+  position: absolute;
+  left: var(--space-sm);
+  top: 84px;
+  bottom: 132px;
+  width: 264px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  z-index: 4;
+}
+
+.nx-live-rail__toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  height: 28px;
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+  border: 1px solid var(--ink-600);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--ink-900) 82%, transparent);
+  color: var(--text-lo);
+  transition: color var(--dur-1) var(--ease-settle), border-color var(--dur-1) var(--ease-settle);
+}
+.nx-live-rail__toggle:hover { color: var(--amber-400); border-color: var(--amber-line); }
+
+.nx-live-rail__scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-2xs);
+  border-left: 1px solid var(--ink-700);
+  mask-image: linear-gradient(180deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.nx-live-rail__line {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  color: var(--text-mid);
+  text-wrap: pretty;
+}
+.nx-live-rail__line--nex { color: var(--amber-300); }
+.nx-live-rail__who {
+  display: block;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  color: var(--text-lo);
+  margin-bottom: 1px;
+}
+.nx-live-rail__line--nex .nx-live-rail__who { color: var(--amber-600); }
+
+.nx-live-rail__empty {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  color: var(--text-lo);
+  padding: var(--space-2xs);
+}
+
+/* --------------------------------------------------------------------------
+   CAMERA SELF-VIEW — what Nex sees, bottom-right
+   -------------------------------------------------------------------------- */
+
+.nx-live-selfview {
+  position: absolute;
+  right: var(--space-md);
+  bottom: 132px;
+  width: 180px;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin: 0;
+}
+
+.nx-live-selfview__video {
+  width: 180px;
+  height: 102px;             /* 16:9 */
+  object-fit: cover;
+  transform: scaleX(-1);    /* mirror — matches how the student sees themself */
+  border: 1px solid var(--ink-500);
+  border-radius: var(--r-sm);
+  background: var(--ink-900);
+}
+
+.nx-live-selfview__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--amber-400);
+}
+
+/* --------------------------------------------------------------------------
+   CONTROL BAR — glass-dark, bottom center; mono keys beneath each button
+   -------------------------------------------------------------------------- */
+
+.nx-live-controls {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-md) var(--space-md) var(--space-lg);
+  z-index: 5;
+}
+
+.nx-live-controls__inner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-lg);
+  padding: var(--space-sm) var(--space-lg);
+  background: color-mix(in srgb, var(--ink-900) 88%, transparent);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--r-full);
+  backdrop-filter: blur(12px);
+  box-shadow: var(--elev-2);
+}
+
+.nx-live-controls__unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* IconButton is a 38px ghost by default; the live bar lifts it slightly and
+   marks the active state with the amber line, matching the chip register. */
+.nx-live-controls .nx-btn { width: 42px; height: 42px; }
+.nx-live-controls .nx-btn.is-on {
+  color: var(--amber-400);
+  border-color: var(--amber-line);
+  background: var(--amber-glow);
+}
+.nx-live-controls .nx-live-controls__end { color: var(--alert-400); }
+.nx-live-controls .nx-live-controls__end:hover { background: var(--alert-glow); border-color: color-mix(in srgb, var(--alert-400) 40%, transparent); }
+
+.nx-live-controls__key {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   STATE TINTS — the stage itself answers the session state, subtly
+   -------------------------------------------------------------------------- */
+
+.nx-live-stage.is-listening { background: radial-gradient(120% 90% at 50% 14%, var(--ink-900), var(--ink-950) 60%), var(--ink-950); }
+.nx-live-stage.is-thinking .nx-live-stage__floor { opacity: 0.55; }
+.nx-live-stage.is-speaking .nx-live-stage__floor { opacity: 1; }
+.nx-live-stage.is-error .nx-live-top { border-bottom-color: color-mix(in srgb, var(--alert-400) 35%, transparent); }
+
+/* --------------------------------------------------------------------------
+   REDUCED MOTION — rings and cadence envelopes off; states stay legible
+   through the chips, captions, and Nex's resting pose (CSS layer handles
+   keyframe/transition collapse globally; this hides the ring surface).
+   -------------------------------------------------------------------------- */
+
+.nx-live-stage.is-reduced .nx-live-rings { display: none; }
+.nx-live-stage.is-reduced .nx-voice-ring { display: none; }
+.nx-live-stage.is-reduced .nx-live-nex__ghost { animation: none; }
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE — tablet: Nex shrinks to 240px, the rail becomes an overlay,
+   controls stay bottom center. Phone: controls tighten, chips wrap.
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .nx-live-rail {
+    position: absolute;
+    left: var(--space-sm);
+    top: 76px;
+    width: min(272px, 78vw);
+    background: color-mix(in srgb, var(--ink-950) 94%, transparent);
+    border: 1px solid var(--ink-700);
+    border-radius: var(--r-md);
+    padding: var(--space-2xs);
+    z-index: 6;
+    box-shadow: var(--elev-3);
+  }
+  .nx-live-rail:not(.is-open) { border-color: transparent; background: none; box-shadow: none; }
+  .nx-live-rail:not(.is-open) .nx-live-rail__scroll { display: none; }
+}
+
+@media (max-width: 719px) {
+  .nx-live-top { flex-wrap: wrap; gap: var(--space-xs); padding: var(--space-xs) var(--space-sm); }
+  .nx-live-top__chips { gap: 6px; }
+  .nx-live-center { padding-inline: var(--space-sm); }
+  .nx-live-selfview { width: 132px; right: var(--space-sm); bottom: 150px; }
+  .nx-live-selfview__video { width: 132px; height: 76px; }
+  .nx-live-controls { padding: var(--space-sm) var(--space-sm) var(--space-md); }
+  .nx-live-controls__inner { gap: var(--space-md); padding: var(--space-xs) var(--space-md); }
+  .nx-live-captions { font-size: clamp(1rem, 4.6vw, 1.2rem); }
+}

@@ -1,0 +1,248 @@
+/* ==========================================================================
+   NEXLEARN — BASE LAYER
+   Reset, editorial primitives, grid, motion-governed transitions.
+   Consumed by both the marketing site and the application.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+* { margin: 0; }
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+body {
+  background: var(--ink-950);
+  color: var(--text-hi);
+  font-family: var(--font-text);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+}
+
+img, svg, video, canvas { display: block; max-width: 100%; }
+
+input, button, textarea, select { font: inherit; color: inherit; }
+
+button { cursor: pointer; background: none; border: none; padding: 0; }
+
+a { color: inherit; text-decoration: none; }
+
+::selection { background: var(--amber-400); color: var(--ink-950); }
+
+:focus-visible {
+  outline: 2px solid var(--amber-400);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Scrollbar — quiet, on-brand */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--ink-950); }
+::-webkit-scrollbar-thumb {
+  background: var(--ink-600);
+  border: 3px solid var(--ink-950);
+  border-radius: var(--r-full);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink-500); }
+
+/* --------------------------------------------------------------------------
+   TYPOGRAPHY PRIMITIVES
+   -------------------------------------------------------------------------- */
+
+h1, h2, h3, .nx-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: var(--leading-display);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+h4, h5, h6 {
+  font-family: var(--font-text);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+p { text-wrap: pretty; }
+
+/* Microlabel — the signature editorial device. Mono, tracked, ticked. */
+.nx-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-lo);
+}
+.nx-label::before {
+  content: "";
+  width: 18px;
+  height: 1px;
+  background: var(--amber-400);
+  flex: none;
+}
+.nx-label--plain::before { display: none; }
+.nx-label--amber { color: var(--amber-400); }
+
+/* Numerals in prose / data callouts */
+.nx-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* --------------------------------------------------------------------------
+   GRID — 12-column editorial grid
+   -------------------------------------------------------------------------- */
+
+.nx-grid {
+  width: 100%;
+  max-width: var(--grid-max);
+  margin-inline: auto;
+  padding-inline: var(--grid-pad);
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  column-gap: var(--grid-gap);
+  row-gap: 0;
+}
+
+.nx-c-1  { grid-column: span 1; }
+.nx-c-2  { grid-column: span 2; }
+.nx-c-3  { grid-column: span 3; }
+.nx-c-4  { grid-column: span 4; }
+.nx-c-5  { grid-column: span 5; }
+.nx-c-6  { grid-column: span 6; }
+.nx-c-7  { grid-column: span 7; }
+.nx-c-8  { grid-column: span 8; }
+.nx-c-9  { grid-column: span 9; }
+.nx-c-10 { grid-column: span 10; }
+.nx-c-11 { grid-column: span 11; }
+.nx-c-12 { grid-column: span 12; }
+
+/* Left/right rail columns often need the exact grid edge */
+.nx-c-edge-l { margin-left: calc(-1 * (var(--grid-pad) + 0px)); padding-left: var(--grid-pad); }
+
+/* Deliberate grid breaks — announce themselves, never accidental */
+.nx-break-out {
+  grid-column: 1 / -1;
+  width: calc(100% + 2 * var(--grid-pad));
+  margin-left: calc(-1 * var(--grid-pad));
+}
+
+/* --------------------------------------------------------------------------
+   HAIRLINES — the poster register
+   -------------------------------------------------------------------------- */
+
+.nx-rule {
+  border: none;
+  height: 1px;
+  background: var(--ink-600);
+  width: 100%;
+}
+.nx-rule--faint { background: color-mix(in srgb, var(--ink-600) 55%, transparent); }
+.nx-rule--amber { background: var(--amber-line); }
+
+/* --------------------------------------------------------------------------
+   MOTION GOVERNANCE
+   Directed motion only. These are the ONLY entrance/exit channels.
+   -------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-settle] {
+    opacity: 0;
+    transform: translateY(14px);
+    transition:
+      opacity var(--dur-3) var(--ease-settle),
+      transform var(--dur-3) var(--ease-settle);
+  }
+  [data-settle].is-settled { opacity: 1; transform: none; }
+  [data-settle] { transition-delay: var(--settle-delay, 0ms); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Living states — status light pulses. Meaningful: they signal live systems. */
+@keyframes nx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.nx-pulse { animation: nx-pulse 1.8s var(--ease-scroll) infinite; }
+
+@keyframes nx-breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* --------------------------------------------------------------------------
+   PAPER — deliberate light passages (teacher control room, proof sections)
+   -------------------------------------------------------------------------- */
+
+.nx-paper {
+  background: var(--paper-50);
+  color: var(--paper-ink);
+}
+.nx-paper ::selection { background: var(--paper-ink); color: var(--paper-50); }
+.nx-paper .nx-label { color: var(--paper-mid); }
+.nx-paper .nx-label::before { background: var(--paper-amber); }
+.nx-paper .nx-rule { background: var(--paper-line); }
+.nx-paper :focus-visible { outline-color: var(--paper-amber); }
+.nx-paper h1, .nx-paper h2, .nx-paper h3, .nx-paper .nx-display { color: var(--paper-ink); }
+
+/* --------------------------------------------------------------------------
+   UTILITIES
+   -------------------------------------------------------------------------- */
+
+.nx-u-hide { display: none !important; }
+.nx-u-sr {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.nx-stack { display: flex; flex-direction: column; }
+.nx-row   { display: flex; align-items: center; }
+.nx-gap-xs { gap: var(--space-xs); }
+.nx-gap-sm { gap: var(--space-sm); }
+.nx-gap-md { gap: var(--space-md); }
+
+/* Small-caps section index, e.g. "02 · THE COUNCIL" */
+.nx-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: 0.2em;
+  color: var(--text-lo);
+}
+
+@media (max-width: 1023px) {
+  .nx-c-1, .nx-c-2, .nx-c-3, .nx-c-4, .nx-c-5,
+  .nx-c-7, .nx-c-8, .nx-c-9, .nx-c-10, .nx-c-11 { grid-column: span 6; }
+}
+@media (max-width: 719px) {
+  .nx-c-1, .nx-c-2, .nx-c-3, .nx-c-4, .nx-c-5,
+  .nx-c-6, .nx-c-7, .nx-c-8, .nx-c-9, .nx-c-10, .nx-c-11 { grid-column: span 12; }
+}

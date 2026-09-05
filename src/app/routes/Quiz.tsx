@@ -124,22 +124,23 @@ export const Quiz: React.FC = () => {
     navigate('/session/teach', {
       state: {
         question: currentQ,
-        questionIndex: currentIndex,
-        totalQuestions: TOTAL_QUESTIONS,
-        subject,
+        questionIndex: Number(currentIndex),
+        totalQuestions: Number(TOTAL_QUESTIONS),
+        subject: String(subject),
       },
     });
   };
 
-  const handleGoToCorrection = (userAnswer: string) => {
+  const handleGoToCorrection = (userAnswer: any) => {
+    const safeAnswer = typeof userAnswer === 'string' ? userAnswer : String(userAnswer || '');
     const currentQ = sessionQuestions[currentIndex];
     navigate('/session/correct', {
       state: {
         question: currentQ,
-        userAnswer,
-        questionIndex: currentIndex,
-        totalQuestions: TOTAL_QUESTIONS,
-        subject,
+        userAnswer: safeAnswer,
+        questionIndex: Number(currentIndex),
+        totalQuestions: Number(TOTAL_QUESTIONS),
+        subject: String(subject),
       },
     });
   };

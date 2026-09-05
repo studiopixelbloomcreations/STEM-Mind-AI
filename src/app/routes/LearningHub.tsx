@@ -129,11 +129,13 @@ export const LearningHub: React.FC = () => {
     };
   });
 
-  const handleStartSession = (subjectName?: string) => {
-    const target = subjectName || selectedSubject || (subjectsToDisplay[0]?.name ?? 'Science');
+  const handleStartSession = (subjectName?: any) => {
+    const target = (typeof subjectName === 'string' && subjectName.trim())
+      ? subjectName.trim()
+      : (selectedSubject || (subjectsToDisplay[0]?.name ?? 'Science'));
     sessionStorage.setItem('current_quiz_subject', target);
     sessionStorage.setItem('current_quiz_grade', String(student.grade));
-    navigate('/session/setup', { state: { subject: target, grade: student.grade } });
+    navigate('/session/setup', { state: { subject: target, grade: Number(student.grade) || 10 } });
   };
 
   const handleLogout = () => {
@@ -343,7 +345,7 @@ export const LearningHub: React.FC = () => {
             <Button
               size="lg"
               variant="primary"
-              onClick={handleStartSession}
+              onClick={() => handleStartSession()}
               className="w-full sm:w-auto px-6 gap-2"
             >
               <Icon icon={Play} size={16} />

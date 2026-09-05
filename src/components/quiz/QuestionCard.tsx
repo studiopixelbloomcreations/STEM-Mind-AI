@@ -26,6 +26,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   totalQuestions,
   onAnswerSubmit,
   onNextQuestion,
+  onGoToTeaching,
+  onGoToCorrection,
 }) => {
   const [userAnswer, setUserAnswer] = useState('');
   const [submissionState, setSubmissionState] = useState<'unanswered' | 'correct' | 'incorrect' | 'teaching'>('unanswered');

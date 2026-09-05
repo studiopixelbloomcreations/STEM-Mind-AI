@@ -30,12 +30,13 @@ export const SessionSetup: React.FC = () => {
 
   // Retrieve subject & grade from navigation state or session storage
   const navState = (location.state as { subject?: string; grade?: number }) || {};
-  const [subject, setSubject] = useState<string>(
-    navState.subject || sessionStorage.getItem('current_quiz_subject') || 'Science'
-  );
-  const [grade, setGrade] = useState<number>(
-    navState.grade || Number(sessionStorage.getItem('current_quiz_grade')) || 10
-  );
+  const rawSubject = typeof navState.subject === 'string' ? navState.subject : sessionStorage.getItem('current_quiz_subject');
+  const initialSubject = (typeof rawSubject === 'string' && !rawSubject.includes('[object')) ? rawSubject : 'Science';
+  const rawGrade = typeof navState.grade === 'number' ? navState.grade : Number(sessionStorage.getItem('current_quiz_grade'));
+  const initialGrade = (typeof rawGrade === 'number' && !isNaN(rawGrade) && rawGrade > 0) ? rawGrade : 10;
+
+  const [subject, setSubject] = useState<string>(initialSubject);
+  const [grade, setGrade] = useState<number>(initialGrade);
 
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
   const [recommendationReason, setRecommendationReason] = useState<string>(
@@ -120,21 +121,23 @@ export const SessionSetup: React.FC = () => {
     }
   };
 
-  const handleProceed = (topicToUse?: string) => {
-    const finalTopic = topicToUse || selectedTopic || (topics[0]?.topic ?? `${subject} Core Principles`);
+  const handleProceed = (topicToUse?: any) => {
+    const finalTopic = (typeof topicToUse === 'string' && topicToUse.trim())
+      ? topicToUse.trim()
+      : (selectedTopic || (topics[0]?.topic ?? `${subject} Core Principles`));
     
     // Save selections for session loading and quiz
-    sessionStorage.setItem('current_quiz_subject', subject);
+    sessionStorage.setItem('current_quiz_subject', String(subject));
     sessionStorage.setItem('current_quiz_grade', String(grade));
-    sessionStorage.setItem('current_quiz_difficulty', difficulty);
-    sessionStorage.setItem('current_quiz_topic', finalTopic);
+    sessionStorage.setItem('current_quiz_difficulty', String(difficulty));
+    sessionStorage.setItem('current_quiz_topic', String(finalTopic));
 
     navigate('/session/loading', {
       state: {
-        subject,
-        grade,
-        difficulty,
-        topic: finalTopic,
+        subject: String(subject),
+        grade: Number(grade),
+        difficulty: String(difficulty),
+        topic: String(finalTopic),
       },
     });
   };

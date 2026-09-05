@@ -192,7 +192,7 @@ export const DedicatedTeachingScreen: React.FC = () => {
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleReturnToQuiz}
+            onClick={() => handleReturnToQuiz()}
             className="gap-2 text-xs font-mono"
           >
             <span>Return to Quiz</span>
@@ -344,7 +344,7 @@ export const DedicatedTeachingScreen: React.FC = () => {
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={handleReturnToQuiz}
+                  onClick={() => handleReturnToQuiz()}
                   className="gap-2 w-full sm:w-auto px-6 bg-[var(--color-success)] hover:bg-[var(--color-success)]/90"
                 >
                   <Icon icon={CheckCircle2} size={16} />

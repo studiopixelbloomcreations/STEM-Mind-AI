@@ -68,31 +68,52 @@ async function callGeminiAgent(agentName, messages, responseFormat = null, tempe
     body.generationConfig.responseMimeType = 'application/json';
   }
 
-  const response = await fetch(
-    `${GEMINI_API_BASE}/models/${encodeURIComponent(GEMINI_HARMONY_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-    method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  const candidateModels = [
+    GEMINI_HARMONY_MODEL,
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash',
+  ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+  let lastError = null;
+
+  for (const model of candidateModels) {
+    try {
+      const response = await fetch(
+        `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        // If quota is exhausted (429), model not found (404), or temporarily overloaded (503), try next model
+        if (response.status === 429 || response.status === 404 || response.status === 503) {
+          console.warn(`[Gemini Engine] Model "${model}" responded with ${response.status}. Attempting candidate model fallback.`);
+          lastError = new Error(`Gemini model "${model}" failed: ${response.status} - ${errorText}`);
+          continue;
+        }
+        throw new Error(`Gemini Harmony agent "${agentName}" failed: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || '')
+        .join('')
+        .trim();
+
+      if (text) {
+        return text;
+      }
+    } catch (err) {
+      lastError = err;
     }
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini Harmony agent "${agentName}" failed: ${response.status} - ${errorText}`);
   }
 
-  const data = await response.json();
-  const text = data?.candidates?.[0]?.content?.parts
-    ?.map((part) => part.text || '')
-    .join('')
-    .trim();
-
-  if (!text) {
-    throw new Error(`Gemini Harmony agent "${agentName}" returned an empty response.`);
-  }
-
-  return text;
+  throw lastError || new Error(`Gemini Harmony agent "${agentName}" returned an empty response.`);
 }
 
 /**

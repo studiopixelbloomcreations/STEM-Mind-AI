@@ -21,10 +21,14 @@ export const SessionLoading: React.FC = () => {
     topic?: string;
   }) || {};
 
-  const subject = navState.subject || sessionStorage.getItem('current_quiz_subject') || 'Science';
-  const grade = navState.grade || Number(sessionStorage.getItem('current_quiz_grade')) || 10;
-  const difficulty = navState.difficulty || (sessionStorage.getItem('current_quiz_difficulty') as any) || 'medium';
-  const topic = navState.topic || sessionStorage.getItem('current_quiz_topic') || 'Core Principles';
+  const rawSubject = typeof navState.subject === 'string' ? navState.subject : sessionStorage.getItem('current_quiz_subject');
+  const subject = (typeof rawSubject === 'string' && !rawSubject.includes('[object')) ? rawSubject : 'Science';
+  const rawGrade = typeof navState.grade === 'number' ? navState.grade : Number(sessionStorage.getItem('current_quiz_grade'));
+  const grade = (typeof rawGrade === 'number' && !isNaN(rawGrade) && rawGrade > 0) ? rawGrade : 10;
+  const rawDiff = typeof navState.difficulty === 'string' ? navState.difficulty : (sessionStorage.getItem('current_quiz_difficulty') as any);
+  const difficulty = (rawDiff === 'easy' || rawDiff === 'hard') ? rawDiff : 'medium';
+  const rawTopic = typeof navState.topic === 'string' ? navState.topic : sessionStorage.getItem('current_quiz_topic');
+  const topic = (typeof rawTopic === 'string' && !rawTopic.includes('[object')) ? rawTopic : 'Core Principles';
 
   const [completedCount, setCompletedCount] = useState<number>(0);
   const [statusMessage, setStatusMessage] = useState<string>('Initializing multi-agent session...');

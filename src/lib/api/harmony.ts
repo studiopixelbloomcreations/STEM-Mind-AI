@@ -244,8 +244,13 @@ export async function generateFullSessionConcurrently(
     }
   };
 
-  // Launch ALL 5 workers CONCURRENTLY using Promise.all
-  const promises = Array.from({ length: TOTAL_QUESTIONS }, (_, i) => generateSingleWorker(i + 1));
+  // Launch all 5 workers in parallel with a micro-stagger to avoid burst quota limits
+  const promises = Array.from({ length: TOTAL_QUESTIONS }, async (_, i) => {
+    if (i > 0) {
+      await new Promise((resolve) => setTimeout(resolve, i * 200));
+    }
+    return generateSingleWorker(i + 1);
+  });
   return await Promise.all(promises);
 }
 

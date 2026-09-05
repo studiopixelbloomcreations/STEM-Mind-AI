@@ -145,3 +145,17 @@ The landing page (`src/app/routes/Landing.tsx`) was expanded to 10 structured se
   - `public/favicon-16x16.png` & `public/favicon-32x32.png`: Crisp raster icons for browser tabs.
   - `public/apple-touch-icon.png`: 180x180 iOS touch icon.
   - Updated `index.html` headers to reference all standardized brand icon assets.
+
+### 6.5 Post-Deploy Runtime Fixes & Quota Resilience
+1. **`onGoToTeaching` ReferenceError Resolved:**
+   - **Root Cause:** `onGoToTeaching` and `onGoToCorrection` were declared in `QuestionCardProps` but omitted from the component parameter destructuring, causing an unhandled ReferenceError when students clicked "I don't know how to solve" or submitted incorrect answers.
+   - **Fix:** Properly destructured `onGoToTeaching` and `onGoToCorrection` in `QuestionCard.tsx`.
+2. **`DataCloneError` PointerEvent PushState Fixed:**
+   - **Root Cause:** Button `onClick={handleStartSession}` passed React's synthetic `PointerEvent` as the first argument (`subjectName`) to `handleStartSession(subjectName)`, which subsequently passed the non-cloneable event into `navigate('/session/setup', { state: { subject: target } })`.
+   - **Fix:** Strictly sanitized all arguments, ensured `target` is guaranteed to be a valid string, and wrapped `onClick={() => handleStartSession()}`. Also applied defensive serialization sanitization across `SessionSetup.tsx`, `SessionLoading.tsx`, `Quiz.tsx`, `DedicatedTeachingScreen.tsx`, and `DedicatedCorrectionScreen.tsx`.
+3. **Gemini 429 Quota Exhaustion Multi-Model Fallback & Stagger:**
+   - **Root Cause:** Firing 5 concurrent generation requests simultaneously in `Promise.all` burst-exhausted the free-tier model quota for `gemini-3.6-flash` (20 requests/day per model).
+   - **Fix:**
+     - Added multi-model cascade in `callGeminiAgent` (`gemini-3.6-flash` &rarr; `gemini-2.0-flash` &rarr; `gemini-2.0-flash-lite` &rarr; `gemini-1.5-flash`) so requests automatically fail over across distinct quota buckets.
+     - Added a 200ms micro-stagger between parallel question workers in `generateFullSessionConcurrently` to eliminate burst rate limits.
+     - Maintained high-quality pre-calibrated syllabus fallbacks if all network models are unavailable.

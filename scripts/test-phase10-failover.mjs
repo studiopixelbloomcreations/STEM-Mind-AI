@@ -10,7 +10,7 @@ const vite = await createServer({
 const load = (p) => vite.ssrLoadModule(p);
 
 console.log('----------------------------------------------------');
-console.log('NEXLEARN PHASE 13: PINNED MODEL & SINGLE-ATTEMPT HONEST FAILURE TEST');
+console.log('NEXLEARN PHASE 14: BOUNDED CURRENT-GENERATION MODEL FAILOVER TEST');
 console.log('----------------------------------------------------\n');
 
 let allPassed = true;
@@ -42,17 +42,24 @@ try {
   }
 
   // 1. Load Registry & Telemetry
-  const { PINNED_MODELS, getPinnedModel, getModelChain } = await load('/src/lib/ai/modelRegistry.ts');
+  const { PINNED_MODELS, TEXT_GENERATION_CHAIN, getPinnedModel, getModelChain } = await load('/src/lib/ai/modelRegistry.ts');
   const { callWithFallback } = await load('/src/lib/ai/resilientModelCall.ts');
   const { generateFullSessionConcurrently, generateQuestionFromCouncil, explainWrongAnswer } = await load('/src/lib/api/harmony.ts');
 
-  test('Registry: has pinned models configured for all capabilities',
-    PINNED_MODELS.textGeneration === 'gemini-3.8-flash' &&
+  const textChain = getModelChain('textGeneration');
+  test('Registry: has 4-model bounded chain for textGeneration and pinned models for other capabilities',
+    Array.isArray(TEXT_GENERATION_CHAIN) &&
+    TEXT_GENERATION_CHAIN.length === 4 &&
+    TEXT_GENERATION_CHAIN[0] === 'gemini-3.8-flash' &&
+    TEXT_GENERATION_CHAIN[1] === 'gemini-3.7-flash' &&
+    TEXT_GENERATION_CHAIN[2] === 'gemini-3.6-flash' &&
+    TEXT_GENERATION_CHAIN[3] === 'gemini-3.5-flash' &&
+    textChain.join(',') === 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash' &&
     PINNED_MODELS.vision === 'gemini-3.8-flash' &&
     PINNED_MODELS.liveVoice === 'gemini-3.1-flash-live' &&
     PINNED_MODELS.tts === 'gemini-3.1-flash-tts' &&
     PINNED_MODELS.transcription === 'gemini-3.5-transcribe-live',
-    `textGen=${PINNED_MODELS.textGeneration}, liveVoice=${PINNED_MODELS.liveVoice}`
+    `textGenChain=[${textChain.join(', ')}], liveVoice=${PINNED_MODELS.liveVoice}`
   );
 
   // 2. Test Speed: Direct lookup overhead is negligible (<1ms)
@@ -63,9 +70,9 @@ try {
   const t2 = performance.now();
   const lookupTimeMs = t2 - t1;
 
-  test('Speed: Pinned model lookup overhead is negligible (<1ms)',
+  test('Speed: Model chain lookup overhead is negligible (<1ms)',
     lookupTimeMs < 1,
-    `lookup: ${lookupTimeMs.toFixed(3)}ms (model: ${m1})`
+    `lookup: ${lookupTimeMs.toFixed(3)}ms (primary: ${m1})`
   );
 
   // Helper to extract requested model name from fetch arguments
@@ -81,9 +88,9 @@ try {
     return modelMatch ? modelMatch[1] : 'unknown';
   };
 
-  // 3. Test Single-Call Execution: Successful call makes exactly ONE network request to pinned model
+  // 3. Test Primary Call Execution: Successful call resolves on primary model in 1 request
   const originalFetch = globalThis.fetch;
-  process.env.GEMINI_API_KEY = 'test-key-phase-13';
+  process.env.GEMINI_API_KEY = 'test-key-phase-14';
 
   let callCount = 0;
   let modelsCalled = [];
@@ -99,14 +106,14 @@ try {
         candidates: [
           {
             content: {
-              parts: [{ text: 'Calculated successfully by pinned model.' }],
+              parts: [{ text: 'Calculated successfully by primary model.' }],
             },
             finishReason: 'STOP',
           },
         ],
       }),
       text: async () => JSON.stringify({
-        candidates: [{ content: { parts: [{ text: 'Calculated successfully by pinned model.' }] } }],
+        candidates: [{ content: { parts: [{ text: 'Calculated successfully by primary model.' }] } }],
       }),
     };
   };
@@ -115,47 +122,136 @@ try {
     prompt: 'What is Newton second law?',
   });
 
-  test('Single Attempt: Successful AI call makes exactly 1 request to pinned model',
+  test('Primary Success: Normal healthy call resolves on primary model in 1 request',
     successResult.success === true &&
     successResult.modelUsed === 'gemini-3.8-flash' &&
     callCount === 1 &&
     modelsCalled[0] === 'gemini-3.8-flash' &&
-    successResult.data === 'Calculated successfully by pinned model.',
+    successResult.data === 'Calculated successfully by primary model.',
     `modelUsed=${successResult.modelUsed}, requestsMade=${callCount}`
   );
 
-  // 4. Test Single Failure: If pinned model fails, halts immediately without cascading
-  let failureCallCount = 0;
-  let failureModelsAttempted = [];
+  // 4. Test Retryable Failover: 503 high-demand on 3.8-flash fails over to 3.7-flash and succeeds
+  let failoverCallCount = 0;
+  let failoverModelsAttempted = [];
   globalThis.fetch = async (url, opts) => {
-    failureCallCount++;
+    failoverCallCount++;
     const modelName = extractModelName(url, opts);
-    failureModelsAttempted.push(modelName);
+    failoverModelsAttempted.push(modelName);
 
+    if (modelName === 'gemini-3.8-flash') {
+      return {
+        ok: false,
+        status: 503,
+        json: async () => ({
+          error: {
+            code: 503,
+            message: 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.',
+            status: 'UNAVAILABLE',
+          },
+        }),
+        text: async () => JSON.stringify({
+          error: {
+            code: 503,
+            message: 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.',
+            status: 'UNAVAILABLE',
+          },
+        }),
+      };
+    }
+
+    // Next model (gemini-3.7-flash) succeeds
     return {
-      ok: false,
-      status: 503,
-      json: async () => ({ error: 'Gemini service unavailable.' }),
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Recovered via sibling current model.' }],
+            },
+            finishReason: 'STOP',
+          },
+        ],
+      }),
       text: async () => JSON.stringify({
-        error: { code: 503, message: 'Gemini service unavailable.' },
+        candidates: [{ content: { parts: [{ text: 'Recovered via sibling current model.' }] } }],
       }),
     };
   };
 
-  const failureResult = await callWithFallback('textGeneration', {
+  const failoverResult = await callWithFallback('textGeneration', {
     prompt: 'What is momentum?',
   });
 
-  test('Single Failure: Rejects immediately on failure without cascading to other models',
-    failureResult.success === false &&
-    failureCallCount === 1 &&
-    failureModelsAttempted.length === 1 &&
-    failureModelsAttempted[0] === 'gemini-3.8-flash',
-    `attemptsMade=${failureCallCount}, attemptedModels=[${failureModelsAttempted.join(', ')}]`
+  test('Retryable Failover: 503 high-demand fails over to next model (gemini-3.7-flash) and succeeds',
+    failoverResult.success === true &&
+    failoverResult.modelUsed === 'gemini-3.7-flash' &&
+    failoverCallCount === 2 &&
+    failoverModelsAttempted[0] === 'gemini-3.8-flash' &&
+    failoverModelsAttempted[1] === 'gemini-3.7-flash' &&
+    failoverResult.data === 'Recovered via sibling current model.',
+    `modelUsed=${failoverResult.modelUsed}, requestsMade=${failoverCallCount}, attempted=[${failoverModelsAttempted.join(', ')}]`
   );
 
-  // 5. Test Full Session Honest Error Propagation When Model Fails (Phase 11/13)
-  // When model fails, session generation must reject honestly with error rather than injecting fake static content
+  // 5. Test Non-Retryable Error: 400 Bad Request halts immediately without cascading
+  let nonRetryCallCount = 0;
+  let nonRetryModelsAttempted = [];
+  globalThis.fetch = async (url, opts) => {
+    nonRetryCallCount++;
+    const modelName = extractModelName(url, opts);
+    nonRetryModelsAttempted.push(modelName);
+
+    return {
+      ok: false,
+      status: 400,
+      json: async () => ({ error: { code: 400, message: 'Invalid payload argument' } }),
+      text: async () => JSON.stringify({ error: { code: 400, message: 'Invalid payload argument' } }),
+    };
+  };
+
+  const nonRetryResult = await callWithFallback('textGeneration', {
+    prompt: 'Malformed input',
+  });
+
+  test('Non-Retryable Halt: 400 Bad Request halts immediately without cascading to remaining models',
+    nonRetryResult.success === false &&
+    nonRetryCallCount === 1 &&
+    nonRetryModelsAttempted.length === 1 &&
+    nonRetryModelsAttempted[0] === 'gemini-3.8-flash',
+    `requestsMade=${nonRetryCallCount}, attempted=[${nonRetryModelsAttempted.join(', ')}]`
+  );
+
+  // 6. Test Full Chain Exhaustion: When all 4 models fail with 503, exhausts chain and returns honest failure
+  let fullExhaustCallCount = 0;
+  let fullExhaustModelsAttempted = [];
+  globalThis.fetch = async (url, opts) => {
+    fullExhaustCallCount++;
+    const modelName = extractModelName(url, opts);
+    fullExhaustModelsAttempted.push(modelName);
+
+    return {
+      ok: false,
+      status: 503,
+      json: async () => ({ error: { code: 503, message: 'High demand across capacity' } }),
+      text: async () => JSON.stringify({ error: { code: 503, message: 'High demand across capacity' } }),
+    };
+  };
+
+  const fullExhaustResult = await callWithFallback('textGeneration', {
+    prompt: 'Exhaustion test prompt',
+  });
+
+  test('Full Chain Exhaustion: When all 4 models fail, exhausts chain and returns honest error',
+    fullExhaustResult.success === false &&
+    fullExhaustCallCount === 4 &&
+    fullExhaustModelsAttempted.length === 4 &&
+    fullExhaustModelsAttempted.join(',') === 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash',
+    `requestsMade=${fullExhaustCallCount}, chain=[${fullExhaustModelsAttempted.join(' -> ')}]`
+  );
+
+  // 7. Test Full Session Honest Error Propagation When Chain Fails (Phase 11/13/14)
+  // When all models fail, session generation must reject honestly with error rather than injecting fake static content
   let sessionErrorThrew = false;
   let sessionErrorMessage = '';
   try {
@@ -175,7 +271,7 @@ try {
     `error="${sessionErrorMessage}"`
   );
 
-  // 6. Test Council Question Honest Error Propagation (Phase 11/13)
+  // 8. Test Council Question Honest Error Propagation (Phase 11/13/14)
   let councilErrorThrew = false;
   let councilErrorMessage = '';
   try {
@@ -190,7 +286,7 @@ try {
     `error="${councilErrorMessage}"`
   );
 
-  // 7. Test Explanation Honest Error Propagation (Phase 11/13)
+  // 9. Test Explanation Honest Error Propagation (Phase 11/13/14)
   let explanationErrorThrew = false;
   let explanationErrorMessage = '';
   try {
@@ -218,7 +314,7 @@ try {
   await vite.close();
   console.log('\n----------------------------------------------------');
   if (allPassed) {
-    console.log('\x1b[32mALL PINNED MODEL & HONEST FAILURE TESTS PASSED.\x1b[0m');
+    console.log('\x1b[32mALL PHASE 14 BOUNDED MODEL FAILOVER & HONEST FAILURE TESTS PASSED.\x1b[0m');
     process.exit(0);
   } else {
     console.log('\x1b[31mSOME TESTS FAILED. CHECK LOGS ABOVE.\x1b[0m');

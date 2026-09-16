@@ -56,7 +56,7 @@ try {
     TEXT_GENERATION_CHAIN[3] === 'gemini-3.5-flash' &&
     textChain.join(',') === 'gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash' &&
     PINNED_MODELS.vision === 'gemini-3.8-flash' &&
-    PINNED_MODELS.liveVoice === 'gemini-3.1-flash-live' &&
+    PINNED_MODELS.liveVoice === 'gemini-2.5-flash-native-audio-latest' &&
     PINNED_MODELS.tts === 'gemini-3.1-flash-tts' &&
     PINNED_MODELS.transcription === 'gemini-3.5-transcribe-live',
     `textGenChain=[${textChain.join(', ')}], liveVoice=${PINNED_MODELS.liveVoice}`
@@ -299,6 +299,25 @@ try {
   test('Honest Failure: Step explainer rejects with clean error (No fake explanations)',
     explanationErrorThrew && Boolean(explanationErrorMessage),
     `error="${explanationErrorMessage}"`
+  );
+
+  // 10. Test Live Session Authentication Path (Phase 15 Section 1.2)
+  const { getLiveSessionAuth } = await load('/src/lib/ai/proxyClient.ts');
+  let liveAuthCalled = false;
+  globalThis.fetch = async (url, opts) => {
+    liveAuthCalled = true;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ key: 'test-live-key', endpoint: 'BidiGenerateContent' }),
+      text: async () => JSON.stringify({ key: 'test-live-key', endpoint: 'BidiGenerateContent' }),
+    };
+  };
+
+  const liveAuthResult = await getLiveSessionAuth();
+  test('Live Auth: Server proxy mints live session credentials without client-side key exposure',
+    liveAuthResult && Boolean(liveAuthResult.key || liveAuthResult.token) && liveAuthCalled,
+    `endpoint=${liveAuthResult.endpoint}, mode=${liveAuthResult.key ? 'session-key' : 'token'}`
   );
 
   // Allow parallel worker promises and micro-staggers to settle under mock

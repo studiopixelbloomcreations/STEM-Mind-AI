@@ -26,7 +26,7 @@ function getSupabaseConfig(): { url: string; anonKey: string } {
   if (raw) {
     try {
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (parsed.url) {
+      if (parsed?.url) {
         return {
           url: parsed.url.replace(/\/$/, ''),
           anonKey: parsed.anonKey || '',
@@ -37,7 +37,21 @@ function getSupabaseConfig(): { url: string; anonKey: string } {
     }
   }
 
-  return { url: '', anonKey: '' };
+  const envUrl =
+    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL)) ||
+    (typeof process !== 'undefined' && process.env && (process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL));
+  const envKey =
+    (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY)) ||
+    (typeof process !== 'undefined' && process.env && (process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY));
+
+  if (envUrl) {
+    return {
+      url: String(envUrl).replace(/\/$/, ''),
+      anonKey: String(envKey || ''),
+    };
+  }
+
+  return { url: 'https://jxhljizbivkrnpzwswce.supabase.co', anonKey: String(envKey || '') };
 }
 
 export function getProxyUrl(): string | null {

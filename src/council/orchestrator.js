@@ -10,8 +10,18 @@ import { ROSTER, ROSTER_BY_ID } from './roster.js';
    ========================================================================== */
 
 const PROXY_URL = () => {
-  const cfg = JSON.parse(import.meta.env.VITE_SUPABASE_CONFIG || '{}');
-  return `${cfg.url || ''}/functions/v1/council-proxy`;
+  try {
+    const raw = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_CONFIG : undefined;
+    if (raw) {
+      const cfg = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (cfg?.url) return `${cfg.url.replace(/\/$/, '')}/functions/v1/council-proxy`;
+    }
+    const envUrl = typeof import.meta !== 'undefined' && import.meta.env
+      ? (import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL)
+      : undefined;
+    if (envUrl) return `${String(envUrl).replace(/\/$/, '')}/functions/v1/council-proxy`;
+  } catch {}
+  return 'https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/council-proxy';
 };
 
 /** Single agent call through the secure proxy. Returns parsed JSON or throws. */

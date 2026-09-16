@@ -23,11 +23,9 @@ export const getLiveTranscribeModel = () => {
 
 export const GEMINI_LIVE_AUDIO_MODELS = [
   'models/gemini-3.1-flash-live',
-  'models/gemini-2.5-flash-native-audio-preview-12-2025',
-  'models/gemini-2.5-flash-native-audio-preview-09-2025',
 ];
 export const GEMINI_LIVE_TEXT_MODELS = GEMINI_LIVE_AUDIO_MODELS;
-export const GEMINI_LIVE_TRANSCRIBE_MODEL = 'models/gemini-3.5-transcribe-live-preview';
+export const GEMINI_LIVE_TRANSCRIBE_MODEL = 'models/gemini-3.5-transcribe-live';
 
 export const DEFAULT_LIVE_VOICE =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_TTS_VOICE) || 'Kore';

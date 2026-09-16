@@ -229,3 +229,57 @@ The landing page (`src/app/routes/Landing.tsx`) was expanded to 10 structured se
 - **B3 Desktop Custom Cursor:** Responsive spring cursor that reacts on clickables and hides on touch/inputs.
 - **B5 Deepened Bento Layout:** Asymmetric hero metric + live student activity feed (`CohortActivityFeed.tsx`).
 - **B7 404 Route & Offline Banner:** High-tech `NotFound.tsx` route with Nex mascot and floating network-loss banner.
+
+---
+
+## 9. Phase 13: Supabase Root Connectivity & Pinned Model Architecture (September 2026)
+
+### 9.1 Root Cause Diagnosis & Connectivity Resolution
+- **Symptom in Telemetry:**
+  ```
+  jxhljizbivkrnpzwswce.supabase.co/functions/v1/council-proxy:1 Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+  Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+  ```
+- **Root Cause 1 (DNS Resolution & Project Inactivity):**
+  - Live DNS verification (`Resolve-DnsName jxhljizbivkrnpzwswce.supabase.co`) confirmed the Supabase host resolves to Cloudflare edges (`172.64.149.246`, `104.18.38.10`).
+  - Free-tier Supabase projects enter paused state after 7 days of inactivity, causing temporary DNS resolution drops until actively unpaused.
+- **Root Cause 2 (CORS Preflight 404 on Undeployed Function):**
+  - Direct HTTP inspection revealed `curl -X OPTIONS https://jxhljizbivkrnpzwswce.supabase.co/functions/v1/council-proxy` returned `404 Not Found`.
+  - In browsers, an `OPTIONS` preflight returning non-2xx causes immediate fetch rejection with: `Response to preflight request doesn't pass access control check: It does not have HTTP ok status.`
+  - In contrast, deployed functions (`stem-live`, `vision-analyze`) returned `204 No Content` with full CORS headers.
+- **Fixes Applied:**
+  1. **HTTP 200 Preflight:** Updated `supabase/functions/_shared/cors.ts` so `handleOptions` returns HTTP 200 OK with comprehensive CORS headers (`Access-Control-Allow-Origin: *`, `Access-Control-Allow-Methods: OPTIONS, POST, GET, HEAD`, `Access-Control-Allow-Headers`).
+  2. **Top-Level Error Boundary:** Wrapped `supabase/functions/council-proxy/index.ts` in an outer `try/catch` ensuring CORS headers are guaranteed on every error path.
+  3. **Dashboard Deployment Script:** Created `supabase/dashboard-deploy/council-proxy.ts` with inlined CORS for single-click dashboard deployment without CLI dependency.
+  4. **Multi-Format Env Var Resolution:** Updated `src/config/supabase.js` and `src/lib/ai/proxyClient.ts` to accept `VITE_SUPABASE_CONFIG` (JSON), `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, and auto-fallback to active project `https://jxhljizbivkrnpzwswce.supabase.co`.
+
+### 9.2 Centralized Pinned Model Architecture
+- **Mandate:** Replace cascading 9-model failover chains with single, current, pinned model per capability.
+- **Pinned Model Allocation (`src/lib/ai/modelRegistry.ts`):**
+  - **`textGeneration`:** `gemini-3.8-flash` (Google's current stable Flash-tier model, GA September 2, 2026).
+  - **`vision`:** `gemini-3.8-flash` (Unified multimodal Flash model natively processing images/desk frames).
+  - **`liveVoice`:** `gemini-3.1-flash-live` (Gemini Multimodal Live WebSocket model).
+  - **`tts`:** `gemini-3.1-flash-tts` (Dedicated speech synthesis model).
+  - **`transcription`:** `gemini-3.5-transcribe-live` (Real-time live audio transcription model).
+- **Dead Models Purged:** Removed legacy retired models (`gemini-2.0-flash`, `gemini-2.0-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-1.5-flash`, `gemini-1.5-pro`, `gemini-pro`, `gemini-1.0-pro`).
+- **Single-Attempt Execution (`src/lib/ai/resilientModelCall.ts`):**
+  - Deleted the multi-model iteration loop.
+  - Exactly **1 network request** is made per attempt.
+  - If the call fails, logs a single clear line: `[AI Call] gemini-3.8-flash failed: <error>` and `[AI FAILURE] textGeneration request failed`.
+  - Retains the absolute zero-fake-content guarantee: returns honest failure immediately without cycling.
+
+### 9.3 Verification Evidence
+- **Automated Test Suite (`npm run test:phase10`):**
+  - `✔ PASS Registry: has pinned models configured for all capabilities (textGen=gemini-3.8-flash, liveVoice=gemini-3.1-flash-live)`
+  - `✔ PASS Speed: Pinned model lookup overhead is negligible (<1ms) (lookup: 0.004ms)`
+  - `✔ PASS Single Attempt: Successful AI call makes exactly 1 request to pinned model (modelUsed=gemini-3.8-flash, requestsMade=1)`
+  - `✔ PASS Single Failure: Rejects immediately on failure without cascading to other models (attemptsMade=1)`
+  - `✔ PASS Honest Failure: Session generation rejects with clean error on failure`
+  - `✔ PASS Honest Failure: Council question generator rejects with clean error`
+  - `✔ PASS Honest Failure: Step explainer rejects with clean error`
+- **Runtime Council Verification (`npm run verify`):**
+  - 8/8 checks passed (Code 0).
+- **TypeScript Strictness (`npx tsc --noEmit`):**
+  - 0 errors, 0 warnings (Code 0).
+- **Production Build (`npm run build`):**
+  - 1127 modules transformed in 7.83s; clean vendor splitting (Code 0).

@@ -8,7 +8,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
 import { jsonWithCors, handleOptions } from '../_shared/cors.ts';
 
-const GEMINI_MODEL = Deno.env.get('GEMINI_HARMONY_MODEL') ?? 'gemini-3.6-flash';
+const GEMINI_MODEL = Deno.env.get('GEMINI_HARMONY_MODEL') ?? 'gemini-3.8-flash';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const AGENT_TIMEOUT_MS = 30_000;
 const MAX_TURNS = 8;
@@ -72,7 +72,9 @@ async function verifyAuth(request: Request): Promise<void> {
 
 Deno.serve(async (request: Request) => {
   if (request.method === 'OPTIONS') return handleOptions(request);
-  if (request.method !== 'POST') return jsonWithCors(request, { error: 'method not allowed' }, 405);
+
+  try {
+    if (request.method !== 'POST') return jsonWithCors(request, { error: 'method not allowed' }, 405);
 
   try {
     await verifyAuth(request);
@@ -230,6 +232,9 @@ Deno.serve(async (request: Request) => {
     return jsonWithCors(request, { error: aborted ? `agent ${agentId} timed out` : `agent ${agentId} failed` }, aborted ? 504 : 502);
   } finally {
     clearTimeout(timer);
+  }
+  } catch (fatalErr: any) {
+    return jsonWithCors(request, { error: fatalErr?.message || 'Internal proxy error' }, 500);
   }
 });
 

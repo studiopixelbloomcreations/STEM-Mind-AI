@@ -19,23 +19,32 @@ const isAllowedOrigin = (origin: string) => {
   return false;
 };
 
-export const buildCorsHeaders = (request: Request): Record<string, string> => {
-  const origin = request.headers.get('Origin') || '';
-  const allowOrigin = isAllowedOrigin(origin) ? origin : '*';
-  return {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers':
-      'authorization, x-client-info, apikey, content-type, x-requested-with, accept, x-supabase-api-version',
-    'Access-Control-Allow-Methods': 'OPTIONS, POST, GET',
-    'Access-Control-Max-Age': '86400',
-    Vary: 'Origin',
-  };
+export const buildCorsHeaders = (request?: Request): Record<string, string> => {
+  try {
+    const origin = request?.headers?.get('Origin') || '';
+    const allowOrigin = isAllowedOrigin(origin) ? origin : '*';
+    return {
+      'Access-Control-Allow-Origin': allowOrigin,
+      'Access-Control-Allow-Headers':
+        'authorization, x-client-info, apikey, content-type, x-requested-with, accept, x-supabase-api-version, x-deno-execution-id',
+      'Access-Control-Allow-Methods': 'OPTIONS, POST, GET, HEAD',
+      'Access-Control-Max-Age': '86400',
+    };
+  } catch {
+    return {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers':
+        'authorization, x-client-info, apikey, content-type, x-requested-with, accept, x-supabase-api-version, x-deno-execution-id',
+      'Access-Control-Allow-Methods': 'OPTIONS, POST, GET, HEAD',
+      'Access-Control-Max-Age': '86400',
+    };
+  }
 };
 
 export const resolveCorsHeaders = buildCorsHeaders;
 
-export const handleOptions = (request: Request) =>
-  new Response(null, { status: 204, headers: buildCorsHeaders(request) });
+export const handleOptions = (request?: Request) =>
+  new Response('ok', { status: 200, headers: buildCorsHeaders(request) });
 
 export const jsonWithCors = (request: Request, body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {

@@ -1,13 +1,12 @@
 /**
- * Layer 2 — Resilient Call Wrapper (Phase 10)
- * Executes API requests against the Model Registry's ordered model chain.
- * Enforces wall-clock time budget, bounded retries, strict error classification,
- * structured failover telemetry, and guaranteed honest failure reporting without fake content.
+ * Layer 2 — Pinned Model Call Wrapper (Phase 13)
+ * Dispatches API requests against the single pinned Gemini model for the requested capability.
+ * Enforces per-request timeout, strict error classification, single-attempt logging,
+ * and guaranteed honest failure reporting without fake content.
  */
 
-import { AICapability, reportModelFailover, reportTotalChainExhaustion } from './telemetry';
-import { getModelChain, invalidateModelRegistryCache } from './modelRegistry';
-import { getGeminiApiKey } from './apiKey';
+import { AICapability, reportAiFailure } from './telemetry';
+import { getPinnedModel } from './modelRegistry';
 import { proxyGenerateContent } from './proxyClient';
 
 export interface ModelCallSuccess<T = any> {
@@ -34,7 +33,6 @@ export interface ResilientRequestPayload {
   generationConfig?: any;
   responseFormat?: { type: 'json_object' } | null;
   temperature?: number;
-  // For TTS
   text?: string;
   voice?: string;
 }
@@ -43,8 +41,6 @@ export interface ResilientCallOptions {
   totalTimeBudgetMs?: number;
   perModelTimeoutMs?: number;
 }
-
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 
 type ErrorCategory =
   | 'DEPRECATED_404'
@@ -57,65 +53,49 @@ type ErrorCategory =
   | 'UNKNOWN';
 
 interface ClassifiedError {
-  isRetryable: boolean;
   category: ErrorCategory;
   message: string;
 }
 
-/**
- * Section 3.3 Error Classification Table:
- * 404 (model deprecated/not found) -> Retryable (yes)
- * 429 (quota/rate limit)          -> Retryable (yes)
- * 500, 502, 503, 504 (server)    -> Retryable (yes)
- * Timeout / network abort         -> Retryable (yes)
- * 400 (malformed request)         -> Retryable (no) - fix caller bug
- * 401, 403 (auth/key error)       -> Retryable (no) - fix configuration
- * Safety refusal                  -> Retryable (no) - legitimate refusal
- */
 function classifyError(status: number | null, rawMessage: string): ClassifiedError {
   const msgLower = (rawMessage || '').toLowerCase();
 
   if (status === 404 || msgLower.includes('not found') || msgLower.includes('no longer available') || msgLower.includes('deprecated')) {
-    return { isRetryable: true, category: 'DEPRECATED_404', message: rawMessage };
+    return { category: 'DEPRECATED_404', message: rawMessage };
   }
 
   if (status === 429 || msgLower.includes('quota') || msgLower.includes('rate limit') || msgLower.includes('resource_exhausted')) {
-    return { isRetryable: true, category: 'QUOTA_429', message: rawMessage };
+    return { category: 'QUOTA_429', message: rawMessage };
   }
 
   if (status && status >= 500 && status <= 504) {
-    return { isRetryable: true, category: 'SERVER_5XX', message: rawMessage };
+    return { category: 'SERVER_5XX', message: rawMessage };
   }
 
   if (msgLower.includes('timeout') || msgLower.includes('aborted') || msgLower.includes('network') || msgLower.includes('econnreset')) {
-    return { isRetryable: true, category: 'TIMEOUT', message: rawMessage };
+    return { category: 'TIMEOUT', message: rawMessage };
   }
 
   if (status === 400) {
-    return { isRetryable: false, category: 'BAD_REQUEST_400', message: rawMessage };
+    return { category: 'BAD_REQUEST_400', message: rawMessage };
   }
 
   if (status === 401 || status === 403 || msgLower.includes('permission') || msgLower.includes('api key not valid')) {
-    return { isRetryable: false, category: 'AUTH_ERROR_401', message: rawMessage };
+    return { category: 'AUTH_ERROR_401', message: rawMessage };
   }
 
-  if (msgLower.includes('safety') || msgLower.includes('blocked') || msgLower.includes('harm_category')) {
-    return { isRetryable: false, category: 'SAFETY_REFUSAL', message: rawMessage };
-  }
+  return { category: 'UNKNOWN', message: rawMessage };
+}
 
-  return { isRetryable: true, category: 'UNKNOWN', message: rawMessage };
+function toGeminiParts(message: { content?: string; parts?: any[] }): any[] {
+  if (Array.isArray(message.parts) && message.parts.length > 0) {
+    return message.parts;
+  }
+  return [{ text: String(message.content || '') }];
 }
 
 /**
- * Normalizes user messages into Gemini API parts format.
- */
-function toGeminiParts(message: any): any[] {
-  if (Array.isArray(message.parts)) return message.parts;
-  return [{ text: String(message.content || message.text || '') }];
-}
-
-/**
- * Performs a single request to Gemini generateContent for a specified model.
+ * Executes a single API request against the specified model via the server-side proxy.
  */
 async function executeModelRequest(
   model: string,
@@ -123,7 +103,7 @@ async function executeModelRequest(
   timeoutMs: number
 ): Promise<{ text: string; rawData: any }> {
   try {
-    const generationConfig: Record<string, any> = {
+    const generationConfig: Record<string, unknown> = {
       temperature: payload.temperature ?? 0.7,
       ...(payload.generationConfig || {}),
     };
@@ -165,12 +145,11 @@ async function executeModelRequest(
       timeoutMs
     );
 
-    // Check for safety finishReason
     const candidate = data?.candidates?.[0];
     if (candidate?.finishReason === 'SAFETY') {
       const err: any = new Error('Content generation was blocked by safety filters.');
       err.status = 400;
-      err.classified = { isRetryable: false, category: 'SAFETY_REFUSAL', message: err.message };
+      err.classified = { category: 'SAFETY_REFUSAL', message: err.message };
       throw err;
     }
 
@@ -187,7 +166,6 @@ async function executeModelRequest(
   } catch (err: any) {
     if (err.name === 'AbortError' || err.status === 504) {
       const classified: ClassifiedError = {
-        isRetryable: true,
         category: 'TIMEOUT',
         message: `Request to model "${model}" timed out after ${timeoutMs}ms.`,
       };
@@ -203,95 +181,40 @@ async function executeModelRequest(
 }
 
 /**
- * Section 3.1 & 3.2 Core Function:
- * Dispatches a capability request against the Model Registry's ordered chain.
- * Retries transient failures across models, halts on non-retryable bugs,
- * respects time budgets, and reports telemetry.
+ * Section 2 Single Pinned Model Executor:
+ * Makes exactly ONE real call to the pinned model for the requested capability.
+ * If it fails, logs clearly and returns an honest failure immediately — no cycling through alternates.
+ * Never substitutes fake or static content.
  */
 export async function callWithFallback(
   capability: AICapability,
   requestPayload: ResilientRequestPayload,
   options?: ResilientCallOptions
 ): Promise<ModelCallResult<string>> {
-  const chain = await getModelChain(capability);
-  if (!chain || chain.length === 0) {
+  const model = getPinnedModel(capability);
+  const timeoutMs = options?.perModelTimeoutMs ?? options?.totalTimeBudgetMs ?? 25000;
+
+  try {
+    const result = await executeModelRequest(model, requestPayload, timeoutMs);
+    return {
+      success: true,
+      data: result.text,
+      modelUsed: model,
+    };
+  } catch (err: any) {
+    const classified: ClassifiedError = err.classified || classifyError(err.status ?? null, err.message || '');
+    const errorMessage = classified.message || err.message || 'AI request failed.';
+
+    // Single clear log line for the attempt
+    console.warn(`[AI Call] ${model} failed: ${errorMessage}`);
+    reportAiFailure(capability, model, errorMessage);
+
+    // Section 0 Core Principle: Return explicit failure immediately, NEVER substitute fake content
     return {
       success: false,
-      error: `No candidate models available for capability: ${capability}`,
-      attemptedModels: [],
-      errorType: 'NO_MODELS_AVAILABLE',
+      error: errorMessage,
+      attemptedModels: [model],
+      errorType: classified.category,
     };
   }
-
-  const totalBudgetMs = options?.totalTimeBudgetMs ?? 30000;
-  const perModelTimeoutMs = options?.perModelTimeoutMs ?? 10000;
-  const startTime = Date.now();
-  const attemptedModels: string[] = [];
-  let lastError: any = null;
-
-  for (let i = 0; i < chain.length; i++) {
-    const model = chain[i];
-    const elapsedTime = Date.now() - startTime;
-    const remainingTime = totalBudgetMs - elapsedTime;
-
-    // Check if total budget is exhausted
-    if (remainingTime <= 1000) {
-      console.warn(`[AI Failover] Total time budget exhausted (${elapsedTime}ms) before trying model ${model}`);
-      break;
-    }
-
-    const currentTimeout = Math.min(perModelTimeoutMs, remainingTime);
-    attemptedModels.push(model);
-
-    try {
-      const result = await executeModelRequest(model, requestPayload, currentTimeout);
-      return {
-        success: true,
-        data: result.text,
-        modelUsed: model,
-      };
-    } catch (err: any) {
-      lastError = err;
-      const classified: ClassifiedError = err.classified || classifyError(err.status ?? null, err.message || '');
-
-      // Report model failure and try next available candidate model in the chain
-      console.warn(`[AI Failover] Model ${model} failed (${classified.category}): ${classified.message}. Attempting next model...`);
-
-      // Retryable error: report failover telemetry and continue to next model
-      const nextCandidate = chain[i + 1] || null;
-      reportModelFailover({
-        capability,
-        failedModel: model,
-        nextModel: nextCandidate,
-        errorType: (classified.category as any) || 'UNKNOWN',
-        errorMessage: classified.message,
-        attemptIndex: attemptedModels.length,
-        timestamp: Date.now(),
-      });
-    }
-  }
-
-  // All models in chain were exhausted without a successful response
-  const totalDuration = Date.now() - startTime;
-  const finalErrorMessage = lastError?.classified?.message || lastError?.message || 'All candidate models failed.';
-
-  // Invalidate registry cache so next attempt refreshes the model list
-  invalidateModelRegistryCache();
-
-  // Emit high-severity total chain exhaustion event
-  reportTotalChainExhaustion({
-    capability,
-    attemptedModels,
-    durationMs: totalDuration,
-    finalError: finalErrorMessage,
-    timestamp: Date.now(),
-  });
-
-  // Section 0 Core Principle: Return explicit failure, NEVER substitute fake or canned mock content
-  return {
-    success: false,
-    error: finalErrorMessage,
-    attemptedModels,
-    errorType: 'TOTAL_CHAIN_EXHAUSTION',
-  };
 }

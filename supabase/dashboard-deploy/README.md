@@ -4,6 +4,7 @@ Use this folder when the Supabase CLI hangs or fails on Windows. Each `.ts` file
 
 | File | Dashboard function name (slug) |
 |------|--------------------------------|
+| `council-proxy.ts` | `council-proxy` |
 | `vision-analyze.ts` | `vision-analyze` |
 | `stem-live.ts` | `stem-live` |
 

@@ -1,26 +1,47 @@
 import { createClient } from '@supabase/supabase-js';
 
-const getSupabaseConfig = () => {
-  const jsonStr = import.meta.env.VITE_SUPABASE_CONFIG;
-  if (!jsonStr) {
-    console.warn('VITE_SUPABASE_CONFIG environment variable is not defined.');
-    return { url: '', anonKey: '' };
+export const getSupabaseConfig = () => {
+  const jsonStr = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_CONFIG : undefined;
+  if (jsonStr) {
+    try {
+      const parsed = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+      if (parsed?.url) {
+        return {
+          url: parsed.url.replace(/\/$/, ''),
+          anonKey: parsed.anonKey || '',
+        };
+      }
+    } catch (err) {
+      console.error('Failed to parse VITE_SUPABASE_CONFIG JSON:', err);
+    }
   }
-  try {
-    return JSON.parse(jsonStr);
-  } catch (err) {
-    console.error('Failed to parse VITE_SUPABASE_CONFIG JSON:', err);
-    return { url: '', anonKey: '' };
+
+  // Also support individual env vars (e.g. Vercel standard environment variables)
+  const envUrl = typeof import.meta !== 'undefined' && import.meta.env
+    ? (import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL)
+    : undefined;
+  const envKey = typeof import.meta !== 'undefined' && import.meta.env
+    ? (import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY)
+    : undefined;
+
+  if (envUrl) {
+    return {
+      url: envUrl.replace(/\/$/, ''),
+      anonKey: envKey || '',
+    };
   }
+
+  // Fallback to active project URL
+  return {
+    url: 'https://jxhljizbivkrnpzwswce.supabase.co',
+    anonKey: envKey || '',
+  };
 };
 
 const { url, anonKey } = getSupabaseConfig();
 
-if (!url || !anonKey) {
-  console.warn(
-    'Supabase URL or Anon Key is missing. Please verify VITE_SUPABASE_CONFIG env var.'
-  );
-}
-
-export const supabase = createClient(url || 'https://placeholder.supabase.co', anonKey || 'placeholder');
+export const supabase = createClient(
+  url || 'https://jxhljizbivkrnpzwswce.supabase.co',
+  anonKey || 'placeholder'
+);
 export default supabase;

@@ -10,7 +10,7 @@ const vite = await createServer({
 const load = (p) => vite.ssrLoadModule(p);
 
 console.log('----------------------------------------------------');
-console.log('NEXLEARN PHASE 10: RESILIENT MULTI-MODEL FAILOVER & FALLBACK TEST');
+console.log('NEXLEARN PHASE 13: PINNED MODEL & SINGLE-ATTEMPT HONEST FAILURE TEST');
 console.log('----------------------------------------------------\n');
 
 let allPassed = true;
@@ -42,58 +42,56 @@ try {
   }
 
   // 1. Load Registry & Telemetry
-  const { MODEL_PREFERENCES, getModelChain } = await load('/src/lib/ai/modelRegistry.ts');
+  const { PINNED_MODELS, getPinnedModel, getModelChain } = await load('/src/lib/ai/modelRegistry.ts');
   const { callWithFallback } = await load('/src/lib/ai/resilientModelCall.ts');
   const { generateFullSessionConcurrently, generateQuestionFromCouncil, explainWrongAnswer } = await load('/src/lib/api/harmony.ts');
 
-  test('Registry: has comprehensive model chains for all capabilities',
-    MODEL_PREFERENCES.textGeneration.length >= 8 &&
-    MODEL_PREFERENCES.liveVoice.length >= 3,
-    `textGen=${MODEL_PREFERENCES.textGeneration.length}, liveVoice=${MODEL_PREFERENCES.liveVoice.length}`
+  test('Registry: has pinned models configured for all capabilities',
+    PINNED_MODELS.textGeneration === 'gemini-3.8-flash' &&
+    PINNED_MODELS.vision === 'gemini-3.8-flash' &&
+    PINNED_MODELS.liveVoice === 'gemini-3.1-flash-live' &&
+    PINNED_MODELS.tts === 'gemini-3.1-flash-tts' &&
+    PINNED_MODELS.transcription === 'gemini-3.5-transcribe-live',
+    `textGen=${PINNED_MODELS.textGeneration}, liveVoice=${PINNED_MODELS.liveVoice}`
   );
 
-  // 2. Test Speed & In-Memory Caching (<10ms overhead)
+  // 2. Test Speed: Direct lookup overhead is negligible (<1ms)
   const t0 = performance.now();
-  const chain1 = await getModelChain('textGeneration');
+  const m1 = getPinnedModel('textGeneration');
   const t1 = performance.now();
-  const chain2 = await getModelChain('textGeneration');
+  const m2 = getPinnedModel('textGeneration');
   const t2 = performance.now();
-  const cacheLookupTimeMs = t2 - t1;
+  const lookupTimeMs = t2 - t1;
 
-  test('Speed: Model chain cache lookup overhead is negligible (<10ms)',
-    cacheLookupTimeMs < 10,
-    `cached lookup: ${cacheLookupTimeMs.toFixed(3)}ms`
+  test('Speed: Pinned model lookup overhead is negligible (<1ms)',
+    lookupTimeMs < 1,
+    `lookup: ${lookupTimeMs.toFixed(3)}ms (model: ${m1})`
   );
 
-  // 3. Test Single-Model Failover Simulation: First model fails -> Next model succeeds
+  // Helper to extract requested model name from fetch arguments
+  const extractModelName = (url, opts) => {
+    if (opts?.body) {
+      try {
+        const b = typeof opts.body === 'string' ? JSON.parse(opts.body) : opts.body;
+        if (b.model) return b.model;
+      } catch {}
+    }
+    const urlStr = String(url);
+    const modelMatch = urlStr.match(/models\/([^:]+):generateContent/);
+    return modelMatch ? modelMatch[1] : 'unknown';
+  };
+
+  // 3. Test Single-Call Execution: Successful call makes exactly ONE network request to pinned model
   const originalFetch = globalThis.fetch;
-  process.env.GEMINI_API_KEY = 'test-key-phase-10';
+  process.env.GEMINI_API_KEY = 'test-key-phase-13';
 
   let callCount = 0;
   let modelsCalled = [];
   globalThis.fetch = async (url, opts) => {
     callCount++;
-    const urlStr = String(url);
-    const modelMatch = urlStr.match(/models\/([^:]+):generateContent/);
-    const modelName = modelMatch ? modelMatch[1] : 'unknown';
+    const modelName = extractModelName(url, opts);
     modelsCalled.push(modelName);
 
-    if (callCount === 1) {
-      // Simulate 404: model no longer available
-      return {
-        ok: false,
-        status: 404,
-        text: async () => JSON.stringify({
-          error: {
-            code: 404,
-            message: `models/${modelName} is not found.`,
-            status: 'NOT_FOUND',
-          },
-        }),
-      };
-    }
-
-    // Second model succeeds
     return {
       ok: true,
       status: 200,
@@ -101,54 +99,63 @@ try {
         candidates: [
           {
             content: {
-              parts: [{ text: 'Calculated successfully by failover model.' }],
+              parts: [{ text: 'Calculated successfully by pinned model.' }],
             },
             finishReason: 'STOP',
           },
         ],
       }),
+      text: async () => JSON.stringify({
+        candidates: [{ content: { parts: [{ text: 'Calculated successfully by pinned model.' }] } }],
+      }),
     };
   };
 
-  const failoverResult = await callWithFallback('textGeneration', {
+  const successResult = await callWithFallback('textGeneration', {
     prompt: 'What is Newton second law?',
   });
 
-  test('Failover: First model 404 automatically falls over to next candidate without error',
-    failoverResult.success === true &&
-    failoverResult.modelUsed !== undefined &&
-    failoverResult.data === 'Calculated successfully by failover model.',
-    `modelUsed=${failoverResult.modelUsed}, attempts=${modelsCalled.length}`
+  test('Single Attempt: Successful AI call makes exactly 1 request to pinned model',
+    successResult.success === true &&
+    successResult.modelUsed === 'gemini-3.8-flash' &&
+    callCount === 1 &&
+    modelsCalled[0] === 'gemini-3.8-flash' &&
+    successResult.data === 'Calculated successfully by pinned model.',
+    `modelUsed=${successResult.modelUsed}, requestsMade=${callCount}`
   );
 
-  // 4. Test Multi-Model Cycle: If one model fails, ALL available models in chain are attempted
-  let allModelsAttempted = [];
+  // 4. Test Single Failure: If pinned model fails, halts immediately without cascading
+  let failureCallCount = 0;
+  let failureModelsAttempted = [];
   globalThis.fetch = async (url, opts) => {
-    const urlStr = String(url);
-    const modelMatch = urlStr.match(/models\/([^:]+):generateContent/);
-    const modelName = modelMatch ? modelMatch[1] : 'unknown';
-    allModelsAttempted.push(modelName);
+    failureCallCount++;
+    const modelName = extractModelName(url, opts);
+    failureModelsAttempted.push(modelName);
 
     return {
       ok: false,
       status: 503,
+      json: async () => ({ error: 'Gemini service unavailable.' }),
       text: async () => JSON.stringify({
         error: { code: 503, message: 'Gemini service unavailable.' },
       }),
     };
   };
 
-  const exhaustionResult = await callWithFallback('textGeneration', {
+  const failureResult = await callWithFallback('textGeneration', {
     prompt: 'What is momentum?',
-  }, { totalTimeBudgetMs: 5000, perModelTimeoutMs: 500 });
+  });
 
-  test('Multi-Model Coverage: All candidate models in chain were attempted on failure',
-    allModelsAttempted.length >= 5 && exhaustionResult.success === false,
-    `attempted ${allModelsAttempted.length} models: [${allModelsAttempted.slice(0, 4).join(', ')}...]`
+  test('Single Failure: Rejects immediately on failure without cascading to other models',
+    failureResult.success === false &&
+    failureCallCount === 1 &&
+    failureModelsAttempted.length === 1 &&
+    failureModelsAttempted[0] === 'gemini-3.8-flash',
+    `attemptsMade=${failureCallCount}, attemptedModels=[${failureModelsAttempted.join(', ')}]`
   );
 
-  // 5. Test Full Session Honest Error Propagation When All Models Fail (Phase 11 — A1)
-  // When all models fail, session generation must reject honestly with error rather than injecting fake static content
+  // 5. Test Full Session Honest Error Propagation When Model Fails (Phase 11/13)
+  // When model fails, session generation must reject honestly with error rather than injecting fake static content
   let sessionErrorThrew = false;
   let sessionErrorMessage = '';
   try {
@@ -163,12 +170,12 @@ try {
     sessionErrorMessage = err.message || '';
   }
 
-  test('Honest Failure: Session generation rejects with clean error when all models fail (No fake questions)',
+  test('Honest Failure: Session generation rejects with clean error on failure (No fake questions)',
     sessionErrorThrew && sessionErrorMessage.includes('trouble reaching NexLearn\'s AI'),
     `error="${sessionErrorMessage}"`
   );
 
-  // 6. Test Council Question Honest Error Propagation (Phase 11 — A1)
+  // 6. Test Council Question Honest Error Propagation (Phase 11/13)
   let councilErrorThrew = false;
   let councilErrorMessage = '';
   try {
@@ -183,7 +190,7 @@ try {
     `error="${councilErrorMessage}"`
   );
 
-  // 7. Test Explanation Honest Error Propagation (Phase 11 — A1)
+  // 7. Test Explanation Honest Error Propagation (Phase 11/13)
   let explanationErrorThrew = false;
   let explanationErrorMessage = '';
   try {
@@ -198,6 +205,9 @@ try {
     `error="${explanationErrorMessage}"`
   );
 
+  // Allow parallel worker promises and micro-staggers to settle under mock
+  await new Promise((r) => setTimeout(r, 1200));
+
   // Restore fetch
   globalThis.fetch = originalFetch;
 
@@ -208,7 +218,7 @@ try {
   await vite.close();
   console.log('\n----------------------------------------------------');
   if (allPassed) {
-    console.log('\x1b[32mALL MULTI-MODEL FAILOVER & FALLBACK TESTS PASSED.\x1b[0m');
+    console.log('\x1b[32mALL PINNED MODEL & HONEST FAILURE TESTS PASSED.\x1b[0m');
   } else {
     console.log('\x1b[31mSOME TESTS FAILED. CHECK LOGS ABOVE.\x1b[0m');
     process.exit(1);

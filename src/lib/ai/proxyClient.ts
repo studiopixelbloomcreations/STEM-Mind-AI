@@ -240,3 +240,45 @@ export async function proxySynthesizeTts(
     clearTimeout(timer);
   }
 }
+
+/**
+ * Fetches short-lived live multimodal session credentials from the server-side proxy.
+ * Avoids exposing raw Gemini API keys in the client bundle.
+ */
+export async function getLiveSessionAuth(timeoutMs: number = 10000): Promise<{ key?: string; token?: string; endpoint?: string }> {
+  const proxyUrl = getProxyUrl();
+  const headers = await getAuthHeaders();
+
+  if (!proxyUrl) {
+    const testKey = typeof process !== 'undefined' && process.env?.GEMINI_API_KEY;
+    if (testKey) {
+      return { key: testKey, endpoint: 'BidiGenerateContent' };
+    }
+    throw new Error('Supabase Edge Function proxy is not configured.');
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(proxyUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        action: 'getLiveSessionAuth',
+      }),
+      signal: controller.signal,
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const err: any = new Error(data?.error || `Live auth proxy returned HTTP ${res.status}`);
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+

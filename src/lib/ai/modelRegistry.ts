@@ -25,17 +25,37 @@ export const PINNED_MODELS: Record<AICapability, string> = {
 };
 
 /**
- * Returns the single pinned model for the specified capability.
+ * Bounded current-generation fallback chain for textGeneration (Phase 14).
+ * Ordered newest to oldest, strictly restricted to current active 3.x models:
+ * 1. gemini-3.8-flash (current primary)
+ * 2. gemini-3.7-flash
+ * 3. gemini-3.6-flash
+ * 4. gemini-3.5-flash
+ * Zero legacy/dead models (no 2.x, 1.x).
+ */
+export const TEXT_GENERATION_CHAIN: readonly string[] = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.5-flash',
+] as const;
+
+/**
+ * Returns the primary pinned model for the specified capability.
  */
 export function getPinnedModel(capability: AICapability): string {
   return PINNED_MODELS[capability] || PINNED_MODELS.textGeneration;
 }
 
 /**
- * Returns a 1-element array containing the pinned model.
- * Maintained for backwards-compatible call sites.
+ * Returns the ordered model chain for the capability:
+ * - textGeneration: 4-model bounded current-generation chain (Phase 14)
+ * - all other capabilities: single pinned model (Phase 13)
  */
 export function getModelChain(capability: AICapability): string[] {
+  if (capability === 'textGeneration') {
+    return [...TEXT_GENERATION_CHAIN];
+  }
   return [getPinnedModel(capability)];
 }
 

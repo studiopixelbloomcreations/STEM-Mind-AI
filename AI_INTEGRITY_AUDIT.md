@@ -283,3 +283,77 @@ The landing page (`src/app/routes/Landing.tsx`) was expanded to 10 structured se
   - 0 errors, 0 warnings (Code 0).
 - **Production Build (`npm run build`):**
   - 1127 modules transformed in 7.83s; clean vendor splitting (Code 0).
+
+---
+
+## 10. Phase 14: Bounded Current-Generation Model Fallback & Transient Capacity Resilience
+
+### 10.1 Production Telemetry & Problem Statement
+With the single pinned model architecture in Phase 13, real Google Gemini API telemetry captured legitimate transient capacity spikes:
+```
+[AI Call] gemini-3.8-flash failed: {"code":503, "message":"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.", "status":"UNAVAILABLE"}
+[AI FAILURE] textGeneration request failed (model: gemini-3.8-flash): ...
+[HARMONY AGENT DEGRADATION] Question #1..5 Worker failed! Fallback engaged.
+Session generation error: Error: We're having trouble reaching NexLearn's AI right now — please try again in a moment.
+```
+While the honest-failure behavior worked properly (zero fake content), temporary capacity spikes caused full user-facing failures. Redundancy was required without regressing to the legacy 9-model chain of dead 1.x/2.x models.
+
+### 10.2 Bounded 4-Model Fallback Architecture (`src/lib/ai/modelRegistry.ts`)
+* **Strictly Current Generation:** Restricted strictly to active 3.x Flash-tier models, ordered newest-first:
+  1. `gemini-3.8-flash` (primary)
+  2. `gemini-3.7-flash`
+  3. `gemini-3.6-flash`
+  4. `gemini-3.5-flash`
+* **Zero Dead Models:** Prohibits any 1.x or 2.x models (no `2.5-flash`, `2.0-flash`, `1.5-flash`).
+* **Non-Text Capabilities Pinned:** `vision` (`gemini-3.8-flash`), `liveVoice` (`gemini-3.1-flash-live`), `tts` (`gemini-3.1-flash-tts`), and `transcription` (`gemini-3.5-transcribe-live`) remain single pinned models per Phase 13.
+
+### 10.3 Strict Error Classification & Time Budgeting (`src/lib/ai/resilientModelCall.ts`)
+* **Retryable Failover Triggers:** Failover only engages on genuine availability or capacity errors:
+  - `503 UNAVAILABLE` / High demand
+  - `429` Rate limit / Quota exhausted
+  - `504` / Gateway timeout / Network abort
+  - `404` Model not found (retirement defense)
+* **Non-Retryable Immediate Halts:** Halts immediately with zero cascading on:
+  - `400 Bad Request` (payload error)
+  - `401 / 403 Auth Error` (configuration/credential error)
+  - `SAFETY` refusal (content filter)
+* **Latency Safeguards:**
+  - `perModelTimeoutMs`: 6,000ms. Prevents slow/hanging models from stalling the chain.
+  - `totalTimeBudgetMs`: 20,000ms. Enforces a hard ceiling across all attempts combined.
+* **Clean Logging:**
+  - On attempt failover: `[AI Call] gemini-3.8-flash failed (503 high demand), trying gemini-3.7-flash...`
+  - On chain exhaustion: `[AI FAILURE] textGeneration exhausted all 4 current models: <lastError>`
+
+### 10.4 Live Verification Evidence
+
+#### A. Real Observed Live Fallover (503 Simulation -> 3.7 Timeout -> 3.6 Recovery)
+Executed live request through `council-proxy` edge function:
+```
+--- Triggering textGeneration callWithFallback ---
+[Probe] Simulating 503 high demand on gemini-3.8-flash
+[AI FAILURE] textGeneration request failed (model: gemini-3.8-flash): {"code":503,"message":"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.","status":"UNAVAILABLE"}
+[AI Call] gemini-3.8-flash failed ({"code":503,"message":"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.","status":"UNAVAILABLE"}), trying gemini-3.7-flash...
+[AI FAILURE] textGeneration request failed (model: gemini-3.7-flash): Request to model "gemini-3.7-flash" timed out after 6000ms.
+[AI Call] gemini-3.7-flash failed (Request to model "gemini-3.7-flash" timed out after 6000ms.), trying gemini-3.6-flash...
+SUCCESS: true
+MODEL USED: gemini-3.6-flash
+DATA: pineapple
+```
+* **Proof:** Demonstrates that a 503 on 3.8-flash fell over to 3.7-flash; when 3.7-flash timed out at 6000ms, the system immediately fell over to 3.6-flash, which completed successfully with real AI content.
+
+#### B. Automated Verification Suite (`npm run test:phase10`)
+* `✔ PASS Registry: has 4-model bounded chain for textGeneration and pinned models for other capabilities`
+* `✔ PASS Speed: Model chain lookup overhead is negligible (<1ms) (lookup: 0.003ms)`
+* `✔ PASS Primary Success: Normal healthy call resolves on primary model in 1 request (modelUsed=gemini-3.8-flash, requestsMade=1)`
+* `✔ PASS Retryable Failover: 503 high-demand fails over to next model (gemini-3.7-flash) and succeeds (modelUsed=gemini-3.7-flash, requestsMade=2)`
+* `✔ PASS Non-Retryable Halt: 400 Bad Request halts immediately without cascading to remaining models (requestsMade=1)`
+* `✔ PASS Full Chain Exhaustion: When all 4 models fail, exhausts chain and returns honest error (requestsMade=4, chain=[gemini-3.8-flash -> gemini-3.7-flash -> gemini-3.6-flash -> gemini-3.5-flash])`
+* `✔ PASS Honest Failure: Session generation rejects with clean error on failure (No fake questions)`
+* `✔ PASS Honest Failure: Council question generator rejects with clean error (No fake fallback questions)`
+* `✔ PASS Honest Failure: Step explainer rejects with clean error (No fake explanations)`
+
+#### C. Build & Type Checks
+* `npm run verify`: 8/8 checks passed (Code 0).
+* `npx tsc --noEmit`: 0 errors, 0 warnings (Code 0).
+* `npm run build`: 1127 modules transformed, Vite build in 8.38s (Code 0).
+

@@ -19,7 +19,7 @@ import { AICapability } from './telemetry';
 export const PINNED_MODELS: Record<AICapability, string> = {
   textGeneration: 'gemini-3.8-flash',
   vision: 'gemini-3.8-flash',
-  liveVoice: 'gemini-3.1-flash-live',
+  liveVoice: 'gemini-2.5-flash-native-audio-latest',
   tts: 'gemini-3.1-flash-tts',
   transcription: 'gemini-3.5-transcribe-live',
 };

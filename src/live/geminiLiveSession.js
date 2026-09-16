@@ -14,6 +14,7 @@ import {
 } from './geminiConfig';
 import { emitLiveStatus } from './liveStatus';
 import { reportModelFailover, reportTotalChainExhaustion } from '../lib/ai/telemetry';
+import { getLiveSessionAuth } from '../lib/ai/proxyClient';
 
 const parseMaybeJson = async (eventData) => {
   if (eventData instanceof Blob) {
@@ -76,8 +77,27 @@ export class GeminiLiveSession {
     temperature = 0.7,
     models = null,
   } = {}) {
-    const key = getGeminiApiKey();
+    let key = getGeminiApiKey();
+    let liveToken = null;
+
     if (!key) {
+      try {
+        const auth = await getLiveSessionAuth();
+        if (auth?.token) {
+          liveToken = auth.token;
+        } else if (auth?.key) {
+          key = auth.key;
+        }
+      } catch (authErr) {
+        console.error('[GeminiLiveSession] Live session authentication failed:', authErr);
+        const errorMsg =
+          'Live multimodal tutor requires real-time connection. Please check network settings.';
+        this.callbacks.onError?.(new Error(errorMsg));
+        throw new Error(errorMsg);
+      }
+    }
+
+    if (!key && !liveToken) {
       const errorMsg =
         'Live multimodal tutor requires real-time connection. Please check network settings.';
       this.callbacks.onError?.(new Error(errorMsg));
@@ -99,6 +119,7 @@ export class GeminiLiveSession {
 
     return this._openSocket({
       key,
+      liveToken,
       systemInstruction,
       voice,
       temperature,
@@ -106,10 +127,15 @@ export class GeminiLiveSession {
     });
   }
 
-  _openSocket({ key, systemInstruction, voice, temperature, attemptId }) {
+  _openSocket({ key, liveToken, systemInstruction, voice, temperature, attemptId }) {
     const modelIndex = this.currentModelIndex || 0;
     const selectedModel = this.modelList[modelIndex % this.modelList.length];
-    const url = `${LIVE_API_ENDPOINT}?key=${encodeURIComponent(key)}`;
+    let url;
+    if (liveToken) {
+      url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(liveToken)}`;
+    } else {
+      url = `${LIVE_API_ENDPOINT}?key=${encodeURIComponent(key)}`;
+    }
 
     return new Promise((resolve, reject) => {
       let settled = false;

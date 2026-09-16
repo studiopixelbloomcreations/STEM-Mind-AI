@@ -54,13 +54,13 @@ export const CohortActivityFeed: React.FC<{ activities?: ActivityEvent[] }> = ({
     <Card className="p-5 bg-[var(--color-bg-surface)] border border-[var(--color-border)] rounded-2xl">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-emerald-400" />
+          <Zap className="w-4 h-4 text-[var(--color-accent)]" />
           <h4 className="text-xs font-mono uppercase tracking-wider text-[var(--color-text-primary)] font-bold">
             Live Cohort Activity Stream
           </h4>
         </div>
-        <span className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+        <span className="flex items-center gap-1.5 text-[10px] font-mono text-[var(--color-accent)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] animate-ping" />
           Live Stream
         </span>
       </div>
@@ -68,17 +68,17 @@ export const CohortActivityFeed: React.FC<{ activities?: ActivityEvent[] }> = ({
       <div className="space-y-3">
         {activities.map((item) => {
           let badgeVariant: 'default' | 'success' | 'warning' | 'accent' = 'default';
-          let icon = <Brain className="w-3.5 h-3.5 text-neutral-400" />;
+          let icon = <Brain className="w-3.5 h-3.5 text-[var(--color-text-secondary)]" />;
 
           if (item.type === 'mastery') {
             badgeVariant = 'success';
-            icon = <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+            icon = <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-success)]" />;
           } else if (item.type === 'intervention') {
             badgeVariant = 'warning';
-            icon = <Sparkles className="w-3.5 h-3.5 text-amber-400" />;
+            icon = <Sparkles className="w-3.5 h-3.5 text-[var(--color-warning)]" />;
           } else if (item.type === 'milestone') {
             badgeVariant = 'accent';
-            icon = <TrendingUp className="w-3.5 h-3.5 text-sky-400" />;
+            icon = <TrendingUp className="w-3.5 h-3.5 text-[var(--color-accent)]" />;
           }
 
           return (

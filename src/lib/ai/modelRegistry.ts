@@ -15,11 +15,11 @@ import { proxyListModels } from './proxyClient';
 export const MODEL_PREFERENCES: Record<AICapability, string[]> = {
   textGeneration: [
     'gemini-3.6-flash',
-    'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-2.0-flash-lite',
     'gemini-1.5-flash',
     'gemini-1.5-pro',
+    'gemini-2.5-flash',
     'gemini-2.5-pro',
     'gemini-pro',
     'gemini-1.0-pro',
@@ -40,10 +40,10 @@ export const MODEL_PREFERENCES: Record<AICapability, string[]> = {
   ],
   vision: [
     'gemini-3.6-flash',
-    'gemini-2.5-flash',
     'gemini-2.0-flash',
     'gemini-1.5-flash',
     'gemini-1.5-pro',
+    'gemini-2.5-flash',
   ],
 };
 

@@ -22,16 +22,16 @@ export const NotFound: React.FC = () => {
       >
         {/* Nex Mascot Avatar */}
         <div className="relative inline-flex items-center justify-center p-4 rounded-2xl bg-white/5 border border-white/10 ring-1 ring-white/5">
-          <NexLogo className="w-12 h-12 text-emerald-400" />
+          <NexLogo className="w-12 h-12 text-[var(--color-accent)]" />
           <motion.span
             animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
             transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+            className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]"
           />
         </div>
 
         <div className="space-y-2">
-          <span className="text-[11px] font-mono tracking-widest uppercase text-emerald-400/90 font-medium">
+          <span className="text-[11px] font-mono tracking-widest uppercase text-[var(--color-accent)] font-medium">
             Error 404 — Coordinate Undefined
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-white">

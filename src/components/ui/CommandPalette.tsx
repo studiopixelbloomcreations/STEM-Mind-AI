@@ -62,7 +62,7 @@ export const CommandPalette: React.FC = () => {
       title: 'Start AI Learning Session',
       category: 'Navigation',
       shortcut: 'S',
-      icon: <Zap className="w-4 h-4 text-emerald-400" />,
+      icon: <Zap className="w-4 h-4 text-[var(--color-accent)]" />,
       action: () => {
         navigate('/session/setup');
         setIsOpen(false);
@@ -73,7 +73,7 @@ export const CommandPalette: React.FC = () => {
       title: 'Learning Hub & Syllabus',
       category: 'Navigation',
       shortcut: 'H',
-      icon: <Brain className="w-4 h-4 text-sky-400" />,
+      icon: <Brain className="w-4 h-4 text-[var(--color-text-secondary)]" />,
       action: () => {
         navigate('/hub');
         setIsOpen(false);
@@ -84,7 +84,7 @@ export const CommandPalette: React.FC = () => {
       title: 'Teacher Portal & Roster Analytics',
       category: 'Navigation',
       shortcut: 'T',
-      icon: <Users className="w-4 h-4 text-purple-400" />,
+      icon: <Users className="w-4 h-4 text-[var(--color-text-secondary)]" />,
       action: () => {
         navigate('/teacher');
         setIsOpen(false);
@@ -95,7 +95,7 @@ export const CommandPalette: React.FC = () => {
       title: 'Quick Diagnostic Assessment',
       category: 'Navigation',
       shortcut: 'Q',
-      icon: <BookOpen className="w-4 h-4 text-amber-400" />,
+      icon: <BookOpen className="w-4 h-4 text-[var(--color-text-secondary)]" />,
       action: () => {
         navigate('/quiz');
         setIsOpen(false);
@@ -105,7 +105,7 @@ export const CommandPalette: React.FC = () => {
       id: 'onboarding',
       title: 'Student Diagnostic Onboarding',
       category: 'Navigation',
-      icon: <Sparkles className="w-4 h-4 text-indigo-400" />,
+      icon: <Sparkles className="w-4 h-4 text-[var(--color-text-secondary)]" />,
       action: () => {
         navigate('/onboarding');
         setIsOpen(false);
@@ -116,7 +116,7 @@ export const CommandPalette: React.FC = () => {
       title: `Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`,
       category: 'Preferences',
       shortcut: 'M',
-      icon: <SunMoon className="w-4 h-4 text-amber-300" />,
+      icon: <SunMoon className="w-4 h-4 text-[var(--color-text-primary)]" />,
       action: () => {
         toggleTheme();
         setIsOpen(false);
@@ -126,7 +126,7 @@ export const CommandPalette: React.FC = () => {
       id: 'settings',
       title: 'System & Audio Settings',
       category: 'Preferences',
-      icon: <SettingsIcon className="w-4 h-4 text-neutral-400" />,
+      icon: <SettingsIcon className="w-4 h-4 text-[var(--color-text-secondary)]" />,
       action: () => {
         navigate('/settings');
         setIsOpen(false);

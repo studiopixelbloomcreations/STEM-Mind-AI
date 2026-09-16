@@ -52,8 +52,7 @@ async function getAuthToken() {
 
 /* ---------------------------------------------------------------------------
    Full question cycle. Emits monitor events; resolves a fused Question
-   (contract §3.1) or — if the council is unavailable — an offline-bank item
-   so the product never dead-ends.
+   (contract §3.1) or rejects honestly if the council is unavailable.
    --------------------------------------------------------------------------- */
 
 export async function runQuestionCycle(ctx, { onEvent, signal } = {}) {
@@ -80,7 +79,10 @@ export async function runQuestionCycle(ctx, { onEvent, signal } = {}) {
   // Wave 2 — the questioner needs curriculum fit + difficulty.
   try {
     results.questioner = await callAgent('questioner', buildPayload('questioner', ctx, results), { signal, onEvent: emit });
-  } catch { results.questioner = offlineQuestion(ctx); emit({ type: 'agent:done', agentId: 'questioner', at: performance.now(), output: 'offline fallback', offline: true }); }
+  } catch (err) {
+    emit({ type: 'agent:error', agentId: 'questioner', at: performance.now(), error: err.message });
+    throw new Error(`We're having trouble reaching NexLearn's AI right now — please try again in a moment.`);
+  }
 
   // Wave 3 — everyone who reacts to the question, concurrent again.
   const wave3 = ROSTER.filter((a) => a.wave === 3);
@@ -214,96 +216,15 @@ const num = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
    when the proxy is unconfigured or the network is down.
    --------------------------------------------------------------------------- */
 
-const OFFLINE_BANK = {
-  Mathematics: {
-    medium: {
-      question: 'A resistor in a circuit carries 2 A when 12 V is applied. What is its resistance in ohms?',
-      questionType: 'NUMERICAL',
-      choices: null, correctAnswer: '6',
-      hints: ['Ohm\u2019s law links V, I and R.', 'R = V / I.'],
-      conceptTags: ['Ohm\u2019s law'],
-      steps: [
-        { caption: 'Write the law', narration: 'Ohm\u2019s law says voltage equals current times resistance.', board: { kind: 'expression', expression: 'V = I \u00d7 R' } },
-        { caption: 'Rearrange for R', narration: 'Divide both sides by the current to isolate R.', board: { kind: 'expression', expression: 'R = V / I' } },
-        { caption: 'Substitute', narration: 'Twelve volts over two amps.', board: { kind: 'expression', expression: 'R = 12 / 2' } },
-        { caption: 'Resolve', narration: 'Twelve divided by two is six ohms.', board: { kind: 'progress', value: 6, total: 12, note: 'R = 6 \u03a9' } },
-      ],
-      syllabusRef: 'Grade 10 Mathematics \u2014 applied arithmetic: ratio and proportion (Sri Lankan curriculum)',
-    },
-  },
-  Physics: {
-    medium: {
-      question: 'A lamp draws 0.5 A from a 230 V mains supply. How much power does it dissipate, in watts?',
-      questionType: 'NUMERICAL',
-      choices: null, correctAnswer: '115',
-      hints: ['Power is voltage times current.', 'P = V \u00d7 I.'],
-      conceptTags: ['electrical power'],
-      steps: [
-        { caption: 'The power law', narration: 'Electrical power is voltage multiplied by current.', board: { kind: 'expression', expression: 'P = V \u00d7 I' } },
-        { caption: 'Substitute', narration: 'Two hundred thirty volts times half an amp.', board: { kind: 'expression', expression: 'P = 230 \u00d7 0.5' } },
-        { caption: 'Resolve', narration: 'That gives one hundred fifteen watts.', board: { kind: 'progress', value: 115, total: 230, note: 'P = 115 W' } },
-      ],
-      syllabusRef: 'Grade 10 Physics \u2014 electricity (Sri Lankan curriculum)',
-    },
-  },
-  Chemistry: {
-    medium: {
-      question: 'Water forms when hydrogen burns in oxygen. Write the balanced equation and state the ratio of hydrogen to oxygen molecules.',
-      questionType: 'SHORT_ANSWER',
-      choices: null, correctAnswer: '2H\u2082 + O\u2082 \u2192 2H\u2082O; 2 : 1',
-      hints: ['Count atoms on each side of the arrow.', 'Hydrogen gas and oxygen gas are both diatomic.'],
-      conceptTags: ['balancing equations'],
-      steps: [
-        { caption: 'Unbalanced form', narration: 'Hydrogen plus oxygen gives water, but the atoms do not yet match.', board: { kind: 'expression', expression: 'H\u2082 + O\u2082 \u2192 H\u2082O' } },
-        { caption: 'Balance the oxygen', narration: 'Two oxygens on the left need two waters on the right.', board: { kind: 'expression', expression: 'H\u2082 + O\u2082 \u2192 2H\u2082O' } },
-        { caption: 'Balance the hydrogen', narration: 'Four hydrogens on the right need two hydrogen molecules on the left.', board: { kind: 'expression', expression: '2H\u2082 + O\u2082 \u2192 2H\u2082O' } },
-      ],
-      syllabusRef: 'Grade 10 Chemistry \u2014 chemical reactions (Sri Lankan curriculum)',
-    },
-  },
-  Science: {
-    medium: {
-      question: 'Name the process plants use to make glucose, and state the two raw materials it needs.',
-      questionType: 'SHORT_ANSWER',
-      choices: null, correctAnswer: 'Photosynthesis; carbon dioxide and water',
-      hints: ['It happens in the chloroplasts.', 'Light provides the energy.'],
-      conceptTags: ['photosynthesis'],
-      steps: [
-        { caption: 'The process', narration: 'Plants build glucose from simple raw materials using light energy.', board: { kind: 'expression', expression: 'photosynthesis' } },
-        { caption: 'The inputs', narration: 'Carbon dioxide from the air, water from the roots.', board: { kind: 'expression', expression: 'CO\u2082 + H\u2082O + light' } },
-        { caption: 'The outputs', narration: 'Glucose for the plant, oxygen released.', board: { kind: 'expression', expression: '\u2192 glucose + O\u2082' } },
-      ],
-      syllabusRef: 'Grade 9\u201311 Science \u2014 life processes (Sri Lankan curriculum)',
-    },
-  },
-  default: {
-    medium: {
-      question: 'State the relationship between force, mass and acceleration, and name the unit of force.',
-      questionType: 'SHORT_ANSWER',
-      choices: null, correctAnswer: 'F = ma; the newton (N)',
-      hints: ['The law links three quantities.', 'It is Newton\u2019s second law.'],
-      conceptTags: ['Newton\u2019s second law'],
-      steps: [
-        { caption: 'The law', narration: 'Force equals mass times acceleration.', board: { kind: 'expression', expression: 'F = m \u00d7 a' } },
-        { caption: 'The unit', narration: 'One newton is the force that accelerates one kilogram at one metre per second squared.', board: { kind: 'expression', expression: '1 N = 1 kg\u00b7m/s\u00b2' } },
-      ],
-      syllabusRef: 'Grade 10 Physics \u2014 mechanics (Sri Lankan curriculum)',
-    },
-  },
-};
-
-function offlineQuestion(ctx) {
-  const bank = OFFLINE_BANK[ctx.subject] || OFFLINE_BANK.default;
-  const q = bank[ctx.difficulty] || bank.medium || Object.values(bank)[0];
-  return { ...q, difficulty: ctx.difficulty, motivator: 'Good \u2014 let\u2019s work through this one together.', examTips: 'Write the law down before substituting numbers.' };
-}
-
 function localFuse(ctx, results) {
-  const base = results.questioner || offlineQuestion(ctx);
+  const base = results.questioner;
+  if (!base) {
+    throw new Error(`We're having trouble reaching NexLearn's AI right now — please try again in a moment.`);
+  }
   return {
     ...base,
-    examTips: results.examCoach?.tip || base.examTips,
-    motivator: results.motivator?.message || base.motivator,
-    steps: results.whiteboard?.steps || base.steps,
+    examTips: results.examCoach?.tip || base.examTips || 'Carefully check units before solving.',
+    motivator: results.motivator?.message || base.motivator || 'Stay focused on the core concept.',
+    steps: results.whiteboard?.steps || base.steps || [],
   };
 }

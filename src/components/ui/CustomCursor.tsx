@@ -15,8 +15,11 @@ export const CustomCursor: React.FC = () => {
   const smoothY = useSpring(cursorY, springConfig);
 
   useEffect(() => {
-    // Check if pointer is coarse (touch screen)
-    if (window.matchMedia('(pointer: coarse)').matches) {
+    // Check if pointer is coarse (touch screen) or user prefers reduced motion
+    if (
+      window.matchMedia('(pointer: coarse)').matches ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
       setIsTouch(true);
       return;
     }
@@ -58,7 +61,7 @@ export const CustomCursor: React.FC = () => {
     <div className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden">
       {/* Outer Ring */}
       <motion.div
-        className="fixed top-0 left-0 rounded-full border border-emerald-400/40 dark:border-white/30 backdrop-blur-[1px]"
+        className="fixed top-0 left-0 rounded-full border border-[var(--color-accent)]/50 backdrop-blur-[1px]"
         style={{
           x: smoothX,
           y: smoothY,
@@ -68,14 +71,14 @@ export const CustomCursor: React.FC = () => {
         animate={{
           width: isHovering ? 38 : 22,
           height: isHovering ? 38 : 22,
-          backgroundColor: isHovering ? 'rgba(52, 211, 153, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+          backgroundColor: isHovering ? 'var(--color-accent-muted)' : 'rgba(255, 255, 255, 0.03)',
         }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
       />
 
       {/* Inner Dot */}
       <motion.div
-        className="fixed top-0 left-0 rounded-full bg-emerald-400 dark:bg-white shadow-[0_0_8px_rgba(52,211,153,0.6)]"
+        className="fixed top-0 left-0 rounded-full bg-[var(--color-accent)] shadow-[0_0_8px_var(--color-accent)]"
         style={{
           x: cursorX,
           y: cursorY,

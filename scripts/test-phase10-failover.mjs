@@ -219,6 +219,7 @@ try {
   console.log('\n----------------------------------------------------');
   if (allPassed) {
     console.log('\x1b[32mALL PINNED MODEL & HONEST FAILURE TESTS PASSED.\x1b[0m');
+    process.exit(0);
   } else {
     console.log('\x1b[31mSOME TESTS FAILED. CHECK LOGS ABOVE.\x1b[0m');
     process.exit(1);

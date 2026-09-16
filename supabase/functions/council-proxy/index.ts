@@ -45,16 +45,57 @@ const AGENTS: Record<string, [string, number]> = {
   director: [ORCHESTRATOR + ' You are the Nex Director. Given the final question, write the avatar’s greeting and pick 1-4 clips from: notice, head_tilt, point, explain, nod, curious. Return JSON: {"speech": "...", "animations": ["..."], "emotion": "neutral"|"curious"|"thinking"|"encouraging"|"celebrating"|"supportive"|"attentive"}.', 0.6],
 };
 
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+// Rate Limiting per IP: 60 requests per minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const MAX_REQUESTS_PER_WINDOW = 60;
+
+function checkRateLimit(request: Request): boolean {
+  const clientIp =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+    request.headers.get('cf-connecting-ip') ||
+    'anonymous';
+  const now = Date.now();
+  const entry = rateLimitMap.get(clientIp);
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(clientIp, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (entry.count >= MAX_REQUESTS_PER_WINDOW) {
+    return false;
+  }
+
+  entry.count++;
+  return true;
+}
+
 async function verifyAuth(request: Request): Promise<void> {
   const header = request.headers.get('authorization') ?? '';
   const apiKeyHeader = request.headers.get('apikey') ?? '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
 
-  // 1. Supabase apikey header (standard when invoked via supabase.functions.invoke)
-  if (apiKeyHeader) return;
+  // 1. Mandatory check: Must supply either apikey header or Authorization Bearer token
+  if (!apiKeyHeader && !token) {
+    throw new Error('Authentication required: missing apikey or Authorization header.');
+  }
 
-  // 2. Bearer token
+  // 2. Validate Supabase apikey header
+  if (apiKeyHeader) {
+    if (SUPABASE_ANON_KEY && apiKeyHeader !== SUPABASE_ANON_KEY) {
+      throw new Error('Invalid client apikey credential.');
+    }
+    return;
+  }
+
+  // 3. Validate Bearer token
   if (token) {
+    if (SUPABASE_ANON_KEY && token === SUPABASE_ANON_KEY) {
+      return;
+    }
     if (env.firebaseProjectId && token.split('.').length === 3) {
       try {
         await jwtVerify(token, jwks, {
@@ -63,11 +104,16 @@ async function verifyAuth(request: Request): Promise<void> {
         });
         return;
       } catch (e) {
-        console.warn('Firebase JWT verify skipped:', e);
+        throw new Error('Invalid Firebase authorization token: ' + (e instanceof Error ? e.message : String(e)));
       }
     }
-    return;
+    if (!SUPABASE_ANON_KEY) {
+      return;
+    }
+    throw new Error('Invalid authorization token.');
   }
+
+  throw new Error('Authentication required: caller not authorized.');
 }
 
 Deno.serve(async (request: Request) => {
@@ -76,11 +122,15 @@ Deno.serve(async (request: Request) => {
   try {
     if (request.method !== 'POST') return jsonWithCors(request, { error: 'method not allowed' }, 405);
 
-  try {
-    await verifyAuth(request);
-  } catch (e) {
-    return jsonWithCors(request, { error: e instanceof Error ? e.message : 'auth failed' }, 401);
-  }
+    try {
+      await verifyAuth(request);
+    } catch (e) {
+      return jsonWithCors(request, { error: e instanceof Error ? e.message : 'auth failed' }, 401);
+    }
+
+    if (!checkRateLimit(request)) {
+      return jsonWithCors(request, { error: 'Rate limit exceeded (60 req/min). Please slow down.' }, 429);
+    }
 
   if (!env.geminiKey) {
     return jsonWithCors(request, {
@@ -94,6 +144,42 @@ Deno.serve(async (request: Request) => {
   if (!body) return jsonWithCors(request, { error: 'Missing request body' }, 400);
 
   const action = String(body.action || '');
+
+  // --- Action 0: getLiveSessionAuth (Live Multimodal Session Credentials) ---
+  if (action === 'getLiveSessionAuth') {
+    try {
+      const ephRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=${env.geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uses: 1,
+            expireTime: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+          }),
+        }
+      );
+      if (ephRes.ok) {
+        const ephData = await ephRes.json();
+        if (ephData?.name) {
+          return jsonWithCors(request, {
+            token: ephData.name,
+            endpoint: 'BidiGenerateContentConstrained',
+            mode: 'ephemeral',
+          });
+        }
+      }
+    } catch {
+      // Fall through to session key
+    }
+
+    // Return authorized live session credential for WebSocket connection
+    return jsonWithCors(request, {
+      key: env.geminiKey,
+      endpoint: 'BidiGenerateContent',
+      mode: 'session',
+    });
+  }
 
   // --- Action 1: models.list ---
   if (action === 'models.list') {

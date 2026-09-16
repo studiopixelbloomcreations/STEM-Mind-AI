@@ -1,16 +1,17 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TeacherAuthProvider } from '../lib/context/TeacherAuthContext';
-import { Landing } from './routes/Landing';
-import { Onboarding } from './routes/Onboarding';
-import { LearningHub } from './routes/LearningHub';
-import { Quiz } from './routes/Quiz';
-import { Results } from './routes/Results';
-import { TeacherWelcome } from './routes/teacher/TeacherWelcome';
-import { TeacherDashboard } from './routes/TeacherDashboard';
 import { TeacherGuard } from './routes/teacher/TeacherGuard';
-import { StudentLogin } from './routes/StudentLogin';
-import { Settings } from './routes/Settings';
+
+const Landing = React.lazy(() => import('./routes/Landing').then((m) => ({ default: m.Landing })));
+const StudentLogin = React.lazy(() => import('./routes/StudentLogin').then((m) => ({ default: m.StudentLogin })));
+const Onboarding = React.lazy(() => import('./routes/Onboarding').then((m) => ({ default: m.Onboarding })));
+const LearningHub = React.lazy(() => import('./routes/LearningHub').then((m) => ({ default: m.LearningHub })));
+const Quiz = React.lazy(() => import('./routes/Quiz').then((m) => ({ default: m.Quiz })));
+const Results = React.lazy(() => import('./routes/Results').then((m) => ({ default: m.Results })));
+const TeacherWelcome = React.lazy(() => import('./routes/teacher/TeacherWelcome').then((m) => ({ default: m.TeacherWelcome })));
+const TeacherDashboard = React.lazy(() => import('./routes/TeacherDashboard').then((m) => ({ default: m.TeacherDashboard })));
+const Settings = React.lazy(() => import('./routes/Settings').then((m) => ({ default: m.Settings })));
 
 // Code-split Phase 9 dedicated screens to keep initial bundle lean (Section 6)
 const SessionSetup = React.lazy(() =>
@@ -26,9 +27,14 @@ const DedicatedCorrectionScreen = React.lazy(() =>
   import('./routes/DedicatedCorrectionScreen').then((m) => ({ default: m.DedicatedCorrectionScreen }))
 );
 
+const NotFound = React.lazy(() => import('./routes/NotFound').then((m) => ({ default: m.NotFound })));
+
 import { ToastProvider } from '../components/ui/Toast';
 import { ThemeProvider } from '../lib/context/ThemeContext';
 import { EasterEggsManager } from '../components/easter/EasterEggsManager';
+import { CommandPalette } from '../components/ui/CommandPalette';
+import { CustomCursor } from '../components/ui/CustomCursor';
+import { OfflineBanner } from '../components/ui/OfflineBanner';
 
 const LoadingFallback: React.FC = () => (
   <div className="min-h-screen w-full bg-[var(--color-bg-base)] flex items-center justify-center">
@@ -45,6 +51,9 @@ export const AppRouter: React.FC = () => {
       <TeacherAuthProvider>
         <ToastProvider>
           <BrowserRouter>
+            <CustomCursor />
+            <OfflineBanner />
+            <CommandPalette />
             <EasterEggsManager />
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
@@ -69,7 +78,8 @@ export const AppRouter: React.FC = () => {
                 </Route>
 
                 <Route path="/settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="/404" element={<NotFound />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </BrowserRouter>

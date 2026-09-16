@@ -8,10 +8,10 @@
  */
 
 import { getGeminiApiKey } from '../services/geminiLiveService';
+import { proxySynthesizeTts } from '../lib/ai/proxyClient';
 
 const GEMINI_TTS_MODEL = import.meta.env.VITE_GEMINI_TTS_MODEL || 'gemini-3.1-flash-tts';
 const GEMINI_TTS_VOICE = import.meta.env.VITE_GEMINI_TTS_VOICE || 'Kore';
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_TTS_SAMPLE_RATE = 24000;
 const MAX_CACHE_ENTRIES = 40;
 
@@ -103,11 +103,6 @@ class VoiceSynthesizer {
   }
 
   async generateGeminiAudio(text) {
-    const apiKey = getGeminiApiKey();
-    if (!apiKey) {
-      throw new Error('Gemini API key is not configured for voice narration.');
-    }
-
     const ttsModels = getModelChain('tts');
     const attemptedModels = [];
     let lastError = null;
@@ -118,33 +113,7 @@ class VoiceSynthesizer {
       attemptedModels.push(model);
 
       try {
-        const cleanModel = model.replace(/^models\//, '');
-        const response = await fetch(
-          `${GEMINI_API_BASE}/models/${encodeURIComponent(cleanModel)}:generateContent?key=${encodeURIComponent(apiKey)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(this.buildGeminiBody(text)),
-          }
-        );
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          const err = new Error(`TTS model "${model}" failed: ${response.status} - ${errorText}`);
-          reportModelFailover({
-            capability: 'tts',
-            failedModel: model,
-            nextModel,
-            errorType: response.status === 404 ? 'DEPRECATED_404' : response.status === 429 ? 'QUOTA_429' : 'SERVER_5XX',
-            errorMessage: err.message,
-            attemptIndex: attemptedModels.length,
-            timestamp: Date.now(),
-          });
-          lastError = err;
-          continue;
-        }
-
-        const data = await response.json();
+        const data = await proxySynthesizeTts(text, GEMINI_TTS_VOICE, model);
         const inlineData = data?.candidates?.[0]?.content?.parts?.find((part) => part.inlineData)?.inlineData;
         const base64Audio = inlineData?.data;
         if (!base64Audio) {
@@ -153,11 +122,12 @@ class VoiceSynthesizer {
         return base64Audio;
       } catch (err) {
         lastError = err;
+        const status = err.status ?? null;
         reportModelFailover({
           capability: 'tts',
           failedModel: model,
           nextModel,
-          errorType: 'UNKNOWN',
+          errorType: status === 404 ? 'DEPRECATED_404' : status === 429 ? 'QUOTA_429' : 'SERVER_5XX',
           errorMessage: err.message || 'TTS generation error',
           attemptIndex: attemptedModels.length,
           timestamp: Date.now(),
@@ -245,9 +215,13 @@ class VoiceSynthesizer {
   async streamGeminiAudio(text, requestId, { onStart = null, onEnd = null } = {}) {
     const apiKey = getGeminiApiKey();
     if (!apiKey) {
-      throw new Error('Gemini API key is not configured for voice narration.');
+      const base64Audio = await this.getOrCreateAudioPromise(text);
+      if (requestId !== this._requestId) return;
+      await this.playPcmBase64(base64Audio, requestId, { onStart, onEnd });
+      return;
     }
 
+    const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
     const response = await fetch(
       `${GEMINI_API_BASE}/models/${encodeURIComponent(GEMINI_TTS_MODEL)}:streamGenerateContent?alt=sse&key=${encodeURIComponent(apiKey)}`,
       {

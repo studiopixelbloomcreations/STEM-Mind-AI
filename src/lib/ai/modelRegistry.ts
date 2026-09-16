@@ -6,6 +6,7 @@
 
 import { AICapability } from './telemetry';
 import { getGeminiApiKey } from './apiKey';
+import { proxyListModels } from './proxyClient';
 
 /**
  * Verified model preference order per capability.
@@ -108,31 +109,35 @@ function saveRegistryCache(availableModels: string[], chains: Record<AICapabilit
 
 /**
  * Fetches the live list of models this API key currently has access to.
+ * Queries through the server-side proxy so no API keys are exposed to the client.
  */
 export async function fetchLiveAvailableModels(): Promise<string[]> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    return [];
-  }
-
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    if (!res.ok) {
-      console.warn(`[ModelRegistry] Live models.list responded with ${res.status}`);
-      return [];
-    }
-
-    const data = await res.json();
-    if (Array.isArray(data?.models)) {
-      const models = data.models.map((m: any) => normalizeModelId(m.name || ''));
+    const rawModels = await proxyListModels();
+    if (Array.isArray(rawModels) && rawModels.length > 0) {
+      const models = rawModels.map((m: any) => normalizeModelId(m.name || m || ''));
       return models.filter((m: string) => Boolean(m));
     }
   } catch (err) {
-    console.warn('[ModelRegistry] Failed to fetch live models.list:', err);
+    console.warn('[ModelRegistry] Failed to fetch live models via proxy:', err);
+  }
+
+  // Local Node test runner fallback if process.env.GEMINI_API_KEY is available
+  const apiKey = getGeminiApiKey();
+  if (apiKey) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.models)) {
+          const models = data.models.map((m: any) => normalizeModelId(m.name || ''));
+          return models.filter((m: string) => Boolean(m));
+        }
+      }
+    } catch {}
   }
 
   return [];

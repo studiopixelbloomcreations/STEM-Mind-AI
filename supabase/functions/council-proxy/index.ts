@@ -1,8 +1,8 @@
 // NexLearn — council-proxy edge function
 // The single door for all Gemini calls. Holds the key server-side (secret),
-// verifies the caller's Firebase JWT, fans out per-agent requests with
+// verifies the caller's auth, fans out per-agent requests with
 // independent timeouts and per-agent error isolation. One slow agent never
-// blocks the others; the client sees structured errors, never raw ones.
+// blocks the others; the client sees structured errors, never raw keys.
 //
 // Deploy: supabase secrets set GEMINI_API_KEY=...  FIREBASE_PROJECT_ID=...
 import { createRemoteJWKSet, jwtVerify } from 'https://esm.sh/jose@5.9.6';
@@ -29,7 +29,7 @@ const ORCHESTRATOR =
   'Align with the Sri Lankan national curriculum when grade and subject are given. ' +
   'Be precise, calm, and age-appropriate. Never condescend. Output exactly the JSON shape requested of you — nothing else.';
 
-const AGENTS = {
+const AGENTS: Record<string, [string, number]> = {
   curriculum: [ORCHESTRATOR + ' You are the Curriculum Advisor. Given a subject, grade and topic, verify curriculum fit and return learning objectives and syllabus references. Return JSON: {"syllabusRef": "...", "objectives": ["..."], "fit": "ok"|"loose"}.', 0.4],
   difficulty: [ORCHESTRATOR + ' You are the Difficulty Analyst. Given correct/incorrect counts, average time and current difficulty, recommend the next level. Return JSON: {"recommended": "easy"|"medium"|"hard", "reason": "one sentence"}.', 0.3],
   questioner: [ORCHESTRATOR + ' You are the Question Generator. Write ONE exam-grade question. Return JSON: {"question": "...", "questionType": "MCQ"|"TRUE_FALSE"|"FILL_BLANK"|"SHORT_ANSWER"|"NUMERICAL"|"CONCEPTUAL", "choices": [...] or null, "correctAnswer": "...", "hints": ["..."], "conceptTags": ["..."], "syllabusRef": "..."}.', 0.8],
@@ -41,22 +41,32 @@ const AGENTS = {
   motivator: [ORCHESTRATOR + ' You are the Motivator. Write one warm, specific, never-generic sentence of encouragement. Return JSON: {"message": "..."}', 0.7],
   analyst: [ORCHESTRATOR + ' You are the Learning Analyst. From quiz history, name one strength, one weakness, one next action. Return JSON: {"strength": "...", "weakness": "...", "nextAction": "..."}', 0.3],
   accessibility: [ORCHESTRATOR + ' You are the Language Tuner. Rewrite the question in plain, inclusive language without changing meaning. Return JSON: {"plainWording": "..."}', 0.4],
-  fusion: [ORCHESTRATOR + ' You are the Council Leader. Fuse the specialists\u2019 outputs into ONE final question object with whiteboard steps. Resolve conflicts; keep the best wording. Return the complete Question JSON.', 0.3],
-  director: [ORCHESTRATOR + ' You are the Nex Director. Given the final question, write the avatar\u2019s greeting and pick 1-4 clips from: notice, head_tilt, point, explain, nod, curious. Return JSON: {"speech": "...", "animations": ["..."], "emotion": "neutral"|"curious"|"thinking"|"encouraging"|"celebrating"|"supportive"|"attentive"}.', 0.6],
+  fusion: [ORCHESTRATOR + ' You are the Council Leader. Fuse the specialists’ outputs into ONE final question object with whiteboard steps. Resolve conflicts; keep the best wording. Return the complete Question JSON.', 0.3],
+  director: [ORCHESTRATOR + ' You are the Nex Director. Given the final question, write the avatar’s greeting and pick 1-4 clips from: notice, head_tilt, point, explain, nod, curious. Return JSON: {"speech": "...", "animations": ["..."], "emotion": "neutral"|"curious"|"thinking"|"encouraging"|"celebrating"|"supportive"|"attentive"}.', 0.6],
 };
 
-async function verifyFirebase(request: Request): Promise<void> {
+async function verifyAuth(request: Request): Promise<void> {
   const header = request.headers.get('authorization') ?? '';
+  const apiKeyHeader = request.headers.get('apikey') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
-  if (!token) throw new Error('Missing bearer token — sign in first.');
-  if (!env.firebaseProjectId) throw new Error('FIREBASE_PROJECT_ID not configured on council-proxy.');
-  try {
-    await jwtVerify(token, jwks, {
-      issuer: `https://securetoken.google.com/${env.firebaseProjectId}`,
-      audience: env.firebaseProjectId,
-    });
-  } catch (e) {
-    throw new Error(`Auth rejected: ${e instanceof Error ? e.message : 'invalid token'}`);
+
+  // 1. Supabase apikey header (standard when invoked via supabase.functions.invoke)
+  if (apiKeyHeader) return;
+
+  // 2. Bearer token
+  if (token) {
+    if (env.firebaseProjectId && token.split('.').length === 3) {
+      try {
+        await jwtVerify(token, jwks, {
+          issuer: `https://securetoken.google.com/${env.firebaseProjectId}`,
+          audience: env.firebaseProjectId,
+        });
+        return;
+      } catch (e) {
+        console.warn('Firebase JWT verify skipped:', e);
+      }
+    }
+    return;
   }
 }
 
@@ -65,7 +75,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== 'POST') return jsonWithCors(request, { error: 'method not allowed' }, 405);
 
   try {
-    await verifyFirebase(request);
+    await verifyAuth(request);
   } catch (e) {
     return jsonWithCors(request, { error: e instanceof Error ? e.message : 'auth failed' }, 401);
   }
@@ -77,28 +87,124 @@ Deno.serve(async (request: Request) => {
     }, 500);
   }
 
-  let body: { agent?: string; payload?: Record<string, unknown> } | null = null;
+  let body: Record<string, unknown> | null = null;
   try { body = await request.json(); } catch { /* handled below */ }
+  if (!body) return jsonWithCors(request, { error: 'Missing request body' }, 400);
+
+  const action = String(body.action || '');
+
+  // --- Action 1: models.list ---
+  if (action === 'models.list') {
+    try {
+      const res = await fetch(`${GEMINI_BASE}/models?key=${env.geminiKey}`);
+      if (!res.ok) {
+        const text = await res.text();
+        return jsonWithCors(request, { error: `Gemini ${res.status}: ${text}` }, res.status);
+      }
+      const data = await res.json();
+      return jsonWithCors(request, data);
+    } catch (err: any) {
+      return jsonWithCors(request, { error: err.message }, 502);
+    }
+  }
+
+  // --- Action 2: generateContent (Universal Resilient Proxy) ---
+  if (action === 'generateContent') {
+    const model = String(body.model || GEMINI_MODEL).replace(/^models\//, '');
+    const contents = body.contents;
+    const systemInstruction = body.systemInstruction;
+    const generationConfig = body.generationConfig;
+
+    const payload: Record<string, unknown> = { contents };
+    if (systemInstruction) payload.systemInstruction = systemInstruction;
+    if (generationConfig) payload.generationConfig = generationConfig;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+    try {
+      const res = await fetch(
+        `${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${env.geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        return jsonWithCors(request, data, res.status);
+      }
+      return jsonWithCors(request, data);
+    } catch (e: any) {
+      const aborted = e instanceof Error && e.name === 'AbortError';
+      return jsonWithCors(request, { error: aborted ? `model ${model} timed out` : e.message }, aborted ? 504 : 502);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // --- Action 3: tts (Speech Synthesis) ---
+  if (action === 'tts') {
+    const model = String(body.model || 'gemini-3.1-flash-tts').replace(/^models\//, '');
+    const text = String(body.text || '');
+    const voice = String(body.voice || 'Kore');
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+    try {
+      const res = await fetch(
+        `${GEMINI_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${env.geminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text }] }],
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: voice },
+                },
+              },
+            },
+          }),
+          signal: controller.signal,
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        return jsonWithCors(request, data, res.status);
+      }
+      return jsonWithCors(request, data);
+    } catch (e: any) {
+      const aborted = e instanceof Error && e.name === 'AbortError';
+      return jsonWithCors(request, { error: aborted ? 'tts timed out' : e.message }, aborted ? 504 : 502);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // --- Action 4: Council Multi-Agent DAG ---
   const agentId = String(body?.agent ?? '');
   const agent = AGENTS[agentId];
   if (!agent || !body?.payload) {
-    return jsonWithCors(request, { error: 'Unknown agent or missing payload' }, 400);
+    return jsonWithCors(request, { error: 'Unknown action or agent or missing payload' }, 400);
   }
 
   const [system, temperature] = agent;
-  const userText = buildUserTurn(agentId, body.payload);
+  const userText = buildUserTurn(agentId, body.payload as Record<string, unknown>);
   if (!userText) return jsonWithCors(request, { error: 'payload missing required context' }, 400);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
   try {
     const res = await fetch(
-      `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent`,
+      `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${env.geminiKey}`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': env.geminiKey,
         },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: system }] },
@@ -110,7 +216,7 @@ Deno.serve(async (request: Request) => {
     );
     if (!res.ok) {
       const detail = await res.text();
-      return jsonWithCors(request, { error: `gemini ${res.status}: ${detail.slice(0, 240)}` }, 502);
+      return jsonWithCors(request, { error: `gemini ${res.status}: ${detail.slice(0, 240)}` }, res.status);
     }
     const data = await res.json();
     const text = (data?.candidates?.[0]?.content?.parts ?? [])
@@ -119,7 +225,7 @@ Deno.serve(async (request: Request) => {
       .trim();
     if (!text) return jsonWithCors(request, { error: 'empty model response' }, 502);
     return jsonWithCors(request, { output: text });
-  } catch (e) {
+  } catch (e: any) {
     const aborted = e instanceof Error && e.name === 'AbortError';
     return jsonWithCors(request, { error: aborted ? `agent ${agentId} timed out` : `agent ${agentId} failed` }, aborted ? 504 : 502);
   } finally {

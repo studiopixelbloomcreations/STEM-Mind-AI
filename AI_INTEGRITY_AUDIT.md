@@ -197,3 +197,35 @@ The landing page (`src/app/routes/Landing.tsx`) was expanded to 10 structured se
 - **Test 2 (Total Chain Exhaustion):** Simulated 503 across all candidate models. Emitted `[CRITICAL AI EXHAUSTION]`, returned `{ success: false, errorType: 'TOTAL_CHAIN_EXHAUSTION' }`, and returned zero fake data. (PASS)
 - **Test 3 (Overhead Speed):** Measured model chain lookup latency: `0.009ms` (<10ms requirement met). (PASS)
 - **Test 4 (Error Classification):** 400 Bad Request halted immediately without failing over across chain. (PASS)
+
+---
+
+## 8. Phase 11 Critical Fixes & Security Hardening (March 2026)
+
+### 8.1 Total Elimination of Fake-Content Fallbacks (A1)
+- **Problem:** `src/lib/api/harmony.ts` contained residual `fallbackBank` arrays and `generateSyllabusFallbackQuestion()` that substituted static content when AI models degraded.
+- **Fix:** Deleted all fake question banks. When all candidate models fail or time out, `generateFullSessionConcurrently`, `generateQuestionFromCouncil`, and `explainWrongAnswer` reject with clean errors (`We're having trouble reaching NexLearn's AI right now — please try again in a moment.`). Callers (`SessionLoading.tsx`, `QuestionCard.tsx`) display the honest error state with a Retry button.
+
+### 8.2 Zero Client API Key Exposure & Server-Side Proxy (A2)
+- **Problem:** `VITE_GEMINI_API_KEY` was exposed to client-side bundles and read in `src/lib/ai/apiKey.ts`.
+- **Fix:**
+  1. Updated `supabase/functions/council-proxy/index.ts` to act as the universal proxy holding `GEMINI_API_KEY` server-side only. Supports `generateContent`, `models.list`, `tts`, and agent workflows.
+  2. Created `src/lib/ai/proxyClient.ts` to route all frontend AI calls through the Supabase Edge Function proxy.
+  3. Removed `VITE_GEMINI_API_KEY` from `.env.example`, `apiKey.ts`, and frontend callers.
+  4. Scanned production build `dist/`: **Zero `AIzaSy` keys and zero `VITE_GEMINI_API_KEY` references in built assets.**
+  > [!CAUTION]
+  > **Key Rotation Notice:** Because the previous `VITE_GEMINI_API_KEY` was shipped in client bundles in earlier phases, the human operator should rotate the Gemini API key in Google Cloud / Google AI Studio and configure the new secret exclusively via `supabase secrets set GEMINI_API_KEY=...`.
+
+### 8.3 TypeScript 7+ Clean Build & Strict Paths (A3)
+- **Problem:** Modern TypeScript 7+ removed non-relative `baseUrl`. Several route components had unresolved types (`Card`, `Zap`, `NodeJS.Timeout`, `examTips`).
+- **Fix:** Updated `tsconfig.json` to relative `"@/*": ["./src/*"]` and added `"types": ["vite/client", "node"]`. Resolved all compiler errors. `npx tsc --noEmit` runs with **0 errors**.
+
+### 8.4 Bundle Code-Splitting & 50%+ Size Reduction (A4)
+- **Problem:** Main entry chunk was over 1.3 MB because routes, `recharts`, `firebase`, and `canvas-confetti` were statically bundled into `router.tsx`.
+- **Fix:** Converted all route components to `React.lazy()`. Configured Rollup `manualChunks` in `vite.config.ts`. Main bundle reduced from 1.3 MB to **581 kB** with clean chunks for `recharts`, `firebase`, and `confetti`.
+
+### 8.5 UI System Enhancements (Part B)
+- **B2 Command Palette (`⌘K` / `Ctrl+K`):** Global keyboard palette with Liquid Glass backdrop, search filtering, and keyboard navigation.
+- **B3 Desktop Custom Cursor:** Responsive spring cursor that reacts on clickables and hides on touch/inputs.
+- **B5 Deepened Bento Layout:** Asymmetric hero metric + live student activity feed (`CohortActivityFeed.tsx`).
+- **B7 404 Route & Offline Banner:** High-tech `NotFound.tsx` route with Nex mascot and floating network-loss banner.

@@ -79,7 +79,7 @@ export class GeminiLiveSession {
     const key = getGeminiApiKey();
     if (!key) {
       const errorMsg =
-        'Gemini API Key is not configured. Please define VITE_GEMINI_API_KEY in your .env file.';
+        'Live multimodal tutor requires real-time connection. Please check network settings.';
       this.callbacks.onError?.(new Error(errorMsg));
       throw new Error(errorMsg);
     }

@@ -67,7 +67,7 @@ try {
 
   // 3. Test Single-Model Failover Simulation: First model fails -> Next model succeeds
   const originalFetch = globalThis.fetch;
-  process.env.VITE_GEMINI_API_KEY = 'test-key-phase-10';
+  process.env.GEMINI_API_KEY = 'test-key-phase-10';
 
   let callCount = 0;
   let modelsCalled = [];
@@ -147,48 +147,55 @@ try {
     `attempted ${allModelsAttempted.length} models: [${allModelsAttempted.slice(0, 4).join(', ')}...]`
   );
 
-  // 5. Test Full Session Graceful Fallback When All Models Fail
-  // Under total model exhaustion / network outage, session generation must fallback so student is never stuck
-  let progressUpdates = 0;
-  const sessionQuestions = await generateFullSessionConcurrently(
-    'Science',
-    'Motion & Newton Laws',
-    10,
-    'medium',
-    (completed, total) => {
-      progressUpdates++;
-    }
+  // 5. Test Full Session Honest Error Propagation When All Models Fail (Phase 11 — A1)
+  // When all models fail, session generation must reject honestly with error rather than injecting fake static content
+  let sessionErrorThrew = false;
+  let sessionErrorMessage = '';
+  try {
+    await generateFullSessionConcurrently(
+      'Science',
+      'Motion & Newton Laws',
+      10,
+      'medium'
+    );
+  } catch (err) {
+    sessionErrorThrew = true;
+    sessionErrorMessage = err.message || '';
+  }
+
+  test('Honest Failure: Session generation rejects with clean error when all models fail (No fake questions)',
+    sessionErrorThrew && sessionErrorMessage.includes('trouble reaching NexLearn\'s AI'),
+    `error="${sessionErrorMessage}"`
   );
 
-  test('Fallback: Session generation returns complete 5 questions when all models fail',
-    Array.isArray(sessionQuestions) && sessionQuestions.length === 5,
-    `questionsCount=${sessionQuestions?.length}`
+  // 6. Test Council Question Honest Error Propagation (Phase 11 — A1)
+  let councilErrorThrew = false;
+  let councilErrorMessage = '';
+  try {
+    await generateQuestionFromCouncil('Physics', 'Motion under gravity', 10, 'medium');
+  } catch (err) {
+    councilErrorThrew = true;
+    councilErrorMessage = err.message || '';
+  }
+
+  test('Honest Failure: Council question generator rejects with clean error (No fake fallback questions)',
+    councilErrorThrew && Boolean(councilErrorMessage),
+    `error="${councilErrorMessage}"`
   );
 
-  test('Fallback: Questions contain authentic choices, hints, approach notes, and teaching steps',
-    sessionQuestions.every((q) =>
-      q.question &&
-      Array.isArray(q.choices) && q.choices.length === 4 &&
-      q.correctAnswer &&
-      q.hint &&
-      q.howToApproach &&
-      Array.isArray(q.teachingSteps) && q.teachingSteps.length >= 3
-    ),
-    '100% complete syllabus question structure verified'
-  );
+  // 7. Test Explanation Honest Error Propagation (Phase 11 — A1)
+  let explanationErrorThrew = false;
+  let explanationErrorMessage = '';
+  try {
+    await explainWrongAnswer('What is force?', 'Mass x Acceleration', 'Mass / Velocity');
+  } catch (err) {
+    explanationErrorThrew = true;
+    explanationErrorMessage = err.message || '';
+  }
 
-  // 6. Test Council Question Fallback
-  const councilQuestion = await generateQuestionFromCouncil('Physics', 'Motion under gravity', 10, 'medium');
-  test('Fallback: Council question generator returns valid syllabus fallback question',
-    Boolean(councilQuestion && councilQuestion.question && councilQuestion.correctAnswer),
-    `question="${councilQuestion?.question?.slice(0, 40)}..."`
-  );
-
-  // 7. Test Explanation Fallback
-  const explanationSteps = await explainWrongAnswer('What is force?', 'Mass x Acceleration', 'Mass / Velocity');
-  test('Fallback: Step explainer returns structured whiteboard teaching steps',
-    Array.isArray(explanationSteps) && explanationSteps.length >= 2,
-    `stepsCount=${explanationSteps.length}`
+  test('Honest Failure: Step explainer rejects with clean error (No fake explanations)',
+    explanationErrorThrew && Boolean(explanationErrorMessage),
+    `error="${explanationErrorMessage}"`
   );
 
   // Restore fetch

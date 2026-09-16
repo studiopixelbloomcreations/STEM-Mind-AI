@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StudentRoster } from '../../components/dashboard/StudentRoster';
 import { StudentAnalyticsPanel } from '../../components/dashboard/StudentAnalyticsPanel';
+import { CohortActivityFeed } from '../../components/dashboard/CohortActivityFeed';
 import { StudentRegistrationModal } from './teacher/StudentRegistrationModal';
+import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
@@ -268,6 +270,10 @@ export const TeacherDashboard: React.FC = () => {
             onSelectStudent={setSelectedStudent}
             onOpenRegisterModal={() => setIsRegisterOpen(true)}
           />
+
+          <div className="mt-6">
+            <CohortActivityFeed />
+          </div>
         </div>
 
         {/* Right Column: In-Depth Analytics Panel */}

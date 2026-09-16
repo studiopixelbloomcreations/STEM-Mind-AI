@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Icon } from '../../components/ui/Icon';
-import { Trophy, ArrowRight, RotateCcw, Award, CheckCircle2 } from '../../components/icons';
+import { Trophy, ArrowRight, RotateCcw, Award, CheckCircle2, Zap, Brain } from '../../components/icons';
 
 export const Results: React.FC = () => {
   const navigate = useNavigate();
@@ -25,109 +26,122 @@ export const Results: React.FC = () => {
           particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
-          colors: ['#FF6B4A', '#FAFAFA', '#22C55E'],
+          colors: ['#34D399', '#FAFAFA', '#60A5FA'],
         });
-      } catch (err) {
+      } catch {
         // canvas-confetti fallback
       }
     }
   }, [isStrongResult]);
 
   return (
-    <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col items-center justify-center p-6 lg:p-12">
-      <Card className="w-full max-w-xl p-8 bg-[var(--color-bg-surface)] border border-[var(--color-border)] shadow-sm text-center">
-        <div className="flex justify-center mb-6">
-          <div
-            className={`w-20 h-20 rounded-full border flex items-center justify-center ${
-              isStrongResult
-                ? 'bg-[var(--color-bg-surface-alt)] border-[var(--color-success)] text-[var(--color-success)]'
-                : 'bg-[var(--color-bg-surface-alt)] border-[var(--color-border)] text-[var(--color-accent)]'
-            }`}
-          >
-            <Icon icon={isStrongResult ? Trophy : Award} size={36} />
-          </div>
-        </div>
+    <div className="min-h-screen w-full bg-[var(--color-bg-base)] text-[var(--color-text-primary)] flex flex-col items-center justify-center p-6 lg:p-12 relative overflow-hidden">
+      {/* Background Ambience */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <Badge variant={isStrongResult ? 'success' : 'default'} className="mb-4">
-          {percentage >= 95 ? 'Top Decile Frontier' : isStrongResult ? 'Target Mastery' : 'Evaluation Complete'}
-        </Badge>
-
-        <h2 className="text-3xl font-display font-bold text-[var(--color-text-primary)] mb-2">
-          {percentage >= 95
-            ? 'Top Decile Diagnostic Mastery'
-            : isStrongResult
-            ? 'Frontier Standard Retained'
-            : 'Evaluation Set Concluded'}
-        </h2>
-
-        <p className="text-sm text-[var(--color-text-secondary)] max-w-md mx-auto mb-8 font-body">
-          You evaluated <span className="text-[var(--color-text-primary)] font-bold">{score} of {total}</span> problems within target parameters in {subject}. Real-time student profile metrics have been updated.
-        </p>
-
-        {/* Score Metric Card */}
-        <div className="p-6 rounded-lg bg-[var(--color-bg-surface-alt)] border border-[var(--color-border)] mb-8 flex items-center justify-around">
-          <div>
-            <span className="text-3xl font-display font-bold text-[var(--color-text-primary)] block">
-              {percentage}%
-            </span>
-            <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">
-              Accuracy
-            </span>
+      {/* Signature Animated Card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+        className="w-full max-w-xl"
+      >
+        <Card className="w-full p-8 bg-neutral-900/80 dark:bg-black/80 border border-white/10 backdrop-blur-2xl shadow-2xl rounded-3xl text-center ring-1 ring-white/5">
+          <div className="flex justify-center mb-6">
+            <motion.div
+              initial={{ scale: 0.8, rotate: -6 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: 'spring', damping: 20, stiffness: 300, delay: 0.1 }}
+              className={`w-20 h-20 rounded-2xl border flex items-center justify-center ${
+                isStrongResult
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.3)]'
+                  : 'bg-white/5 border-white/10 text-neutral-300'
+              }`}
+            >
+              <Icon icon={isStrongResult ? Trophy : Award} size={38} />
+            </motion.div>
           </div>
-          <div className="h-10 w-px bg-[var(--color-border)]" />
-          <div>
-            <span className="text-3xl font-display font-bold text-[var(--color-accent)] block">
-              +{score * 12}
-            </span>
-            <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">
-              Elo Rating
-            </span>
-          </div>
-          <div className="h-10 w-px bg-[var(--color-border)]" />
-          <div>
-            <span className="text-3xl font-display font-bold text-[var(--color-success)] block">
-              +1
-            </span>
-            <span className="text-[11px] font-mono text-[var(--color-text-secondary)] uppercase">
-              Streak Day
-            </span>
-          </div>
-        </div>
 
-        {/* Summary points */}
-        <div className="space-y-2 text-xs font-mono text-left mb-8 bg-[var(--color-bg-surface-alt)] p-4 rounded-lg border border-[var(--color-border)]">
-          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-            <Icon icon={CheckCircle2} size={14} className="text-[var(--color-success)]" />
-            <span>Formulas: Equations of motion under gravity retained</span>
-          </div>
-          <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
-            <Icon icon={CheckCircle2} size={14} className="text-[var(--color-success)]" />
-            <span>Hesitation telemetry: 0 unaddressed blockers</span>
-          </div>
-        </div>
+          <Badge variant={isStrongResult ? 'success' : 'default'} className="mb-3 px-3 py-1 font-mono uppercase text-[11px]">
+            {percentage >= 95 ? 'Top Decile Frontier' : isStrongResult ? 'Target Mastery Achieved' : 'Evaluation Set Concluded'}
+          </Badge>
 
-        {/* Action buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() => navigate('/quiz')}
-            className="w-full sm:w-auto"
-          >
-            <Icon icon={RotateCcw} size={16} />
-            <span>Another Set</span>
-          </Button>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => navigate('/hub')}
-            className="w-full sm:w-auto"
-          >
-            <span>Return to Hub</span>
-            <Icon icon={ArrowRight} size={16} />
-          </Button>
-        </div>
-      </Card>
+          <h2 className="text-2xl sm:text-3xl font-display font-bold text-white tracking-tight mb-2">
+            {percentage >= 95
+              ? 'Top Decile Diagnostic Mastery'
+              : isStrongResult
+              ? 'Frontier Standard Retained'
+              : 'Evaluation Set Concluded'}
+          </h2>
+
+          <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto mb-8 font-body leading-relaxed">
+            You solved <span className="text-white font-semibold">{score} of {total}</span> problems within target parameters in <span className="text-emerald-400 font-medium">{subject}</span>. Real-time cognitive profile telemetry has been recorded.
+          </p>
+
+          {/* Bento Score Metric Row */}
+          <div className="p-5 rounded-2xl bg-white/5 border border-white/10 mb-6 grid grid-cols-3 gap-2 divide-x divide-white/10">
+            <div className="px-2">
+              <span className="text-2xl sm:text-3xl font-display font-black text-white block">
+                {percentage}%
+              </span>
+              <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
+                Accuracy
+              </span>
+            </div>
+            <div className="px-2">
+              <span className="text-2xl sm:text-3xl font-display font-black text-emerald-400 block">
+                +{score * 12}
+              </span>
+              <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
+                Elo Rating
+              </span>
+            </div>
+            <div className="px-2">
+              <span className="text-2xl sm:text-3xl font-display font-black text-sky-400 block">
+                +1
+              </span>
+              <span className="text-[10px] font-mono text-neutral-400 uppercase tracking-wider">
+                Streak Day
+              </span>
+            </div>
+          </div>
+
+          {/* Diagnostic telemetry findings */}
+          <div className="space-y-2 text-xs font-mono text-left mb-8 bg-white/5 p-4 rounded-xl border border-white/5">
+            <div className="flex items-center gap-2.5 text-neutral-300">
+              <Icon icon={CheckCircle2} size={14} className="text-emerald-400 shrink-0" />
+              <span>Formulas: Equations of motion under gravity retained</span>
+            </div>
+            <div className="flex items-center gap-2.5 text-neutral-300">
+              <Icon icon={CheckCircle2} size={14} className="text-emerald-400 shrink-0" />
+              <span>Hesitation telemetry: 0 unaddressed blockers</span>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => navigate('/session/setup')}
+              className="w-full sm:w-auto justify-center gap-2"
+            >
+              <Zap className="w-4 h-4 text-emerald-300" />
+              <span>Start Next Session</span>
+            </Button>
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={() => navigate('/hub')}
+              className="w-full sm:w-auto justify-center gap-2"
+            >
+              <Brain className="w-4 h-4 text-neutral-400" />
+              <span>Return to Hub</span>
+              <Icon icon={ArrowRight} size={14} />
+            </Button>
+          </div>
+        </Card>
+      </motion.div>
     </div>
   );
 };

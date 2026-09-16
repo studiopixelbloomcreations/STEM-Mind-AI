@@ -338,7 +338,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           status={submissionState}
           correctAnswer={question.correctAnswer}
           explanationSteps={teachingSteps}
-          examTips={question.examTips}
+          examTips={(question as any).examTips}
           onContinue={onNextQuestion}
         />
       )}

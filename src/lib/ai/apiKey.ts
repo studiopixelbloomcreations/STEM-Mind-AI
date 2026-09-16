@@ -1,28 +1,15 @@
 /**
- * Safe, zero-dependency Gemini API key resolver.
- * Works seamlessly in client Vite (import.meta.env) and Node test runner (process.env).
+ * API Key Configuration (Phase 11 — A2)
+ *
+ * Per Phase 11 Section A2: Gemini API keys are never exposed to the client bundle.
+ * All client AI calls are proxied through Supabase Edge Functions (`council-proxy`),
+ * which holds the key securely on the server.
  */
 
-import { API_KEYS } from '../../config/config';
-
 export function getGeminiApiKey(): string | null {
-  // 1. Direct environment variable (Vite or Node process)
-  const metaEnv = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : undefined;
-  const procEnv = typeof process !== 'undefined' && process.env ? process.env.VITE_GEMINI_API_KEY : undefined;
-  const envKey = (metaEnv || procEnv || '').trim();
-  if (envKey) return envKey;
-
-  // 2. Config JSON keys
-  try {
-    const keys = API_KEYS || {};
-    if (keys.google?.apiKey) return keys.google.apiKey;
-    if (keys.gemini?.apiKey) return keys.gemini.apiKey;
-    if (keys.openrouter?.apiKey && keys.openrouter.apiKey.startsWith('AIzaSy')) {
-      return keys.openrouter.apiKey;
-    }
-  } catch {
-    // Ignore error
+  // In server or local Node test environments only (never client bundle)
+  if (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) {
+    return process.env.GEMINI_API_KEY;
   }
-
   return null;
 }

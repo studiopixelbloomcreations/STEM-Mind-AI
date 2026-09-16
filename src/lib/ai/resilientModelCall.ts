@@ -8,6 +8,7 @@
 import { AICapability, reportModelFailover, reportTotalChainExhaustion } from './telemetry';
 import { getModelChain, invalidateModelRegistryCache } from './modelRegistry';
 import { getGeminiApiKey } from './apiKey';
+import { proxyGenerateContent } from './proxyClient';
 
 export interface ModelCallSuccess<T = any> {
   success: true;
@@ -119,39 +120,28 @@ function toGeminiParts(message: any): any[] {
 async function executeModelRequest(
   model: string,
   payload: ResilientRequestPayload,
-  timeoutMs: number,
-  apiKey: string
+  timeoutMs: number
 ): Promise<{ text: string; rawData: any }> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
-    const body: any = {
-      generationConfig: {
-        temperature: payload.temperature ?? 0.7,
-        ...(payload.generationConfig || {}),
-      },
+    const generationConfig: Record<string, any> = {
+      temperature: payload.temperature ?? 0.7,
+      ...(payload.generationConfig || {}),
     };
 
-    if (payload.systemInstruction) {
-      body.systemInstruction = {
-        parts: [{ text: payload.systemInstruction }],
-      };
-    }
-
     if (payload.responseFormat?.type === 'json_object') {
-      body.generationConfig.responseMimeType = 'application/json';
+      generationConfig.responseMimeType = 'application/json';
     }
 
+    let contents: any[];
     if (payload.contents && Array.isArray(payload.contents)) {
-      body.contents = payload.contents;
+      contents = payload.contents;
     } else if (payload.messages && Array.isArray(payload.messages)) {
-      body.contents = payload.messages.map((m) => ({
+      contents = payload.messages.map((m) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: toGeminiParts(m),
       }));
     } else if (payload.prompt) {
-      body.contents = [
+      contents = [
         {
           role: 'user',
           parts: [{ text: payload.prompt }],
@@ -161,26 +151,19 @@ async function executeModelRequest(
       throw new Error('Payload must contain contents, messages, or prompt.');
     }
 
-    const cleanModelName = model.replace(/^models\//, '');
-    const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(cleanModelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const systemInstruction = payload.systemInstruction
+      ? { parts: [{ text: payload.systemInstruction }] }
+      : undefined;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const classified = classifyError(response.status, errorText);
-      const err: any = new Error(classified.message);
-      err.status = response.status;
-      err.classified = classified;
-      throw err;
-    }
-
-    const data = await response.json();
+    const data = await proxyGenerateContent(
+      model,
+      {
+        contents,
+        systemInstruction,
+        generationConfig,
+      },
+      timeoutMs
+    );
 
     // Check for safety finishReason
     const candidate = data?.candidates?.[0];
@@ -202,7 +185,7 @@ async function executeModelRequest(
 
     return { text, rawData: data };
   } catch (err: any) {
-    if (err.name === 'AbortError') {
+    if (err.name === 'AbortError' || err.status === 504) {
       const classified: ClassifiedError = {
         isRetryable: true,
         category: 'TIMEOUT',
@@ -216,8 +199,6 @@ async function executeModelRequest(
       err.classified = classifyError(err.status ?? null, err.message || 'Unknown network error');
     }
     throw err;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -232,16 +213,6 @@ export async function callWithFallback(
   requestPayload: ResilientRequestPayload,
   options?: ResilientCallOptions
 ): Promise<ModelCallResult<string>> {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'Gemini API key is not configured. Please set VITE_GEMINI_API_KEY.',
-      attemptedModels: [],
-      errorType: 'AUTH_ERROR_401',
-    };
-  }
-
   const chain = await getModelChain(capability);
   if (!chain || chain.length === 0) {
     return {
@@ -273,7 +244,7 @@ export async function callWithFallback(
     attemptedModels.push(model);
 
     try {
-      const result = await executeModelRequest(model, requestPayload, currentTimeout, apiKey);
+      const result = await executeModelRequest(model, requestPayload, currentTimeout);
       return {
         success: true,
         data: result.text,
